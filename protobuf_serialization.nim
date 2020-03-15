@@ -41,6 +41,9 @@ proc encode*(): ProtoBuffer =
 proc decode*[T](source: ProtoBuffer): T =
   discard
 
+proc output*(proto: ProtoBuffer): seq[byte] {.inline.} =
+  proto.outstream.getOutput
+
 template wireType(firstByte: byte): ProtoWireType =
   (firstByte and 0b111).ProtoWireType
 
@@ -73,11 +76,11 @@ proc encodeVarint(stream: OutputStreamVar, fieldNum: int, value: SomeVarint) {.i
     value = value shr 7
   stream.append byte(value and 0b1111_1111)
 
-proc encode(protobuf: ProtoBuffer, value: SomeVarint) {.inline.} =
+proc encode*(protobuf: ProtoBuffer, value: SomeVarint) {.inline.} =
   protobuf.outstream.encodeVarint(protobuf.fieldNum, value)
   inc protobuf.fieldNum
 
-proc decode[T: SomeVarint](bytes: var seq[byte], ty: typedesc[T], offset = 0): tuple[fieldNum: uint, value: T] {.inline.} =
+proc decode*[T: SomeVarint](bytes: var seq[byte], ty: typedesc[T], offset = 0): tuple[fieldNum: uint, value: T, bytesProcessed: int] {.inline.} =
   # Only up to 128 bits supported by the spec
   assert (bytes.len - 1) <= 16
 
@@ -86,28 +89,25 @@ proc decode[T: SomeVarint](bytes: var seq[byte], ty: typedesc[T], offset = 0): t
     raise newException(Exception, "Not a varint!")
 
   result.fieldNum = fieldNumber(bytes[offset])
-  result.value = cast[ty](0)
+  when T is enum:
+    var value: type(ord(result.value))
+  else:
+    var value: T
   var shiftAmount = 0
   var i = offset + 1
   while true:
-    result.value += T(bytes[i] and 0b0111_1111) shl shiftAmount
+    value += type(value)(bytes[i] and 0b0111_1111) shl shiftAmount
     shiftAmount += 7
     if (bytes[i] shr 7) == 0:
       break
     i += 1
 
+  result.bytesProcessed = i + 1
+
   when ty is SomeSVarint:
-    if (result.value and T(1)) != T(0):
-      result.value = cast[T](not(result.value shr T(1)))
+    if (value and type(value)(1)) != type(value)(0):
+      result.value = cast[T](not(value shr type(value)(1)))
     else:
-      result.value = cast[T](result.value shr T(1))
-
-proc main() =
-  let proto = newProtoBuffer()
-  proto.encode(-1500000)
-  var input: seq[byte] = proto.outstream.getOutput
-  echo input
-
-  echo decode(input, int64)
-
-main()
+      result.value = cast[T](value shr type(value)(1))
+  else:
+    result.value = value
