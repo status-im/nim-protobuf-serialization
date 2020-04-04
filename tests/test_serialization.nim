@@ -8,11 +8,13 @@ type
 type
   Test1 = object
     a: uint
+    b: string
 
   Test3 = object
     g {.sfixed32.}: int
     h: int
     i: Test1
+    j: string
 
 suite "Test Varint Encoding":
   test "Can encode/decode enum field":
@@ -83,7 +85,7 @@ suite "Test Varint Encoding":
   test "Can encode/decode object field":
     var proto = newProtoBuffer()
 
-    let obj = Test3(g: 300, h: 200, i: Test1(a: 100))
+    let obj = Test3(g: 300, h: 200, i: Test1(a: 100, b: "this is a test"), j: "testing")
 
     proto.encodeField(obj)
     var offset, bytesProcessed: int
@@ -96,7 +98,7 @@ suite "Test Varint Encoding":
   test "Can encode/decode object":
     var proto = newProtoBuffer()
 
-    let obj = Test3(g: 300, h: 200, i: Test1(a: 100))
+    let obj = Test3(g: 300, h: 200, i: Test1(a: 100, b: "this is a test"), j: "testing")
 
     proto.encode(obj)
     var output = proto.output

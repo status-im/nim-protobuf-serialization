@@ -173,7 +173,7 @@ proc decodeField*[T: SomeVarint](
   numBytesToRead = none(int)
 ): ProtoField[T] {.inline.} =
   # Only up to 128 bits supported by the spec
-  assert (bytes.len - 1) <= 16
+  assert sizeof(T) <= 16
 
   var bytesRead = 0
 
