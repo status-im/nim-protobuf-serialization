@@ -18,17 +18,20 @@ suite "Test Varint Encoding":
   test "Can encode/decode enum":
     var proto = newProtoBuffer()
     var bytesProcessed: int
-    proto.encode(ME3)
-    proto.encode(ME2)
+
+    proto.encodeField(ME3)
+    proto.encodeField(ME2)
+
     var output = proto.output
     assert output == @[8.byte, 4, 16, 2]
+
     var offset = 0
 
-    let decodedME3 = decode(output, MyEnum, offset, bytesProcessed)
+    let decodedME3 = decodeField(output, MyEnum, offset, bytesProcessed)
     assert decodedME3.value == ME3
     assert decodedME3.index == 1
 
-    let decodedME2 = decode(output, MyEnum, offset, bytesProcessed)
+    let decodedME2 = decodeField(output, MyEnum, offset, bytesProcessed)
     assert decodedME2.value == ME2
     assert decodedME2.index == 2
 
@@ -36,12 +39,14 @@ suite "Test Varint Encoding":
     var proto = newProtoBuffer()
     let num = -153452
     var bytesProcessed: int
-    proto.encode(num)
+
+    proto.encodeField(num)
+
     var output = proto.output
     assert output == @[8.byte, 215, 221, 18]
 
     var offset = 0
-    let decoded = decode(output, int, offset, bytesProcessed)
+    let decoded = decodeField(output, int, offset, bytesProcessed)
     assert decoded.value == num
     assert decoded.index == 1
 
@@ -49,12 +54,14 @@ suite "Test Varint Encoding":
     var proto = newProtoBuffer()
     let num = 123151.uint
     var bytesProcessed: int
-    proto.encode(num)
+
+    proto.encodeField(num)
+
     var output = proto.output
     assert output == @[8.byte, 143, 194, 7]
     var offset = 0
 
-    let decoded = decode(output, uint, offset, bytesProcessed)
+    let decoded = decodeField(output, uint, offset, bytesProcessed)
     assert decoded.value == num
     assert decoded.index == 1
 
@@ -62,12 +69,14 @@ suite "Test Varint Encoding":
     var proto = newProtoBuffer()
     let str = "hey this is a string"
     var bytesProcessed: int
-    proto.encode(str)
+
+    proto.encodeField(str)
+
     var output = proto.output
     assert output == @[10.byte, 20, 104, 101, 121, 32, 116, 104, 105, 115, 32, 105, 115, 32, 97, 32, 115, 116, 114, 105, 110, 103]
 
     var offset = 0
-    let decoded = decode(output, string, offset, bytesProcessed)
+    let decoded = decodeField(output, string, offset, bytesProcessed)
     assert decoded.value == str
     assert decoded.index == 1
 
@@ -76,12 +85,10 @@ suite "Test Varint Encoding":
 
     let obj = Test3(g: 300, h: 200, i: Test1(a: 100))
 
-    proto.encode(obj)
+    proto.encodeField(obj)
     var offset, bytesProcessed: int
 
     var output = proto.output
-    let decoded = decode(output, Test3, offset, bytesProcessed)
-    echo decoded
-
-    echo output
-    assert false
+    let decoded = decodeField(output, Test3, offset, bytesProcessed)
+    assert decoded.value == obj
+    assert decoded.index == 1

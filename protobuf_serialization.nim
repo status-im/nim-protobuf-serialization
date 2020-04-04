@@ -65,7 +65,7 @@ template increaseBytesRead(amount = 1) =
   outBytesProcessed += amount
   if numBytesToRead.isSome():
     if (bytesRead > numBytesToRead.get()).unlikely:
-      raise newException(Exception, "Number of bytes read exceeded")
+      raise newException(Exception, &"Number of bytes read ({bytesRead}) exceeded bytes requested ({numBytesToRead})")
 
 proc put(stream: OutputStreamVar, value: SomeVarint) {.inline.} =
   when value is enum:
@@ -87,30 +87,30 @@ proc put(stream: OutputStreamVar, value: SomeVarint) {.inline.} =
     value = value shr 7
   stream.append byte(value and 0b1111_1111)
 
-proc encode(stream: OutputStreamVar, fieldNum: int, value: SomeVarint) {.inline.} =
+proc encodeField(stream: OutputStreamVar, fieldNum: int, value: SomeVarint) {.inline.} =
   stream.append protoHeader(fieldNum, Varint)
   stream.put(value)
 
-proc encode*(protobuf: var ProtoBuffer, value: SomeVarint) {.inline.} =
-  protobuf.outstream.encode(protobuf.fieldNum, value)
+proc encodeField*(protobuf: var ProtoBuffer, value: SomeVarint) {.inline.} =
+  protobuf.outstream.encodeField(protobuf.fieldNum, value)
   inc protobuf.fieldNum
 
 proc put(stream: OutputStreamVar, value: SomeLengthDelimited) {.inline.} =
   for b in value:
     stream.append byte(b)
 
-proc encode(stream: OutputStreamVar, fieldNum: int, value: SomeLengthDelimited) {.inline.} =
+proc encodeField(stream: OutputStreamVar, fieldNum: int, value: SomeLengthDelimited) {.inline.} =
   stream.append protoHeader(fieldNum, LengthDelimited)
   stream.put(len(value).uint)
   stream.put(value)
 
-proc encode*(protobuf: var ProtoBuffer, value: SomeLengthDelimited) {.inline.} =
-  protobuf.outstream.encode(protobuf.fieldNum, value)
+proc encodeField*(protobuf: var ProtoBuffer, value: SomeLengthDelimited) {.inline.} =
+  protobuf.outstream.encodeField(protobuf.fieldNum, value)
   inc protobuf.fieldNum
 
 proc put(stream: OutputStreamVar, value: object) {.inline.}
 
-proc encode(stream: OutputStreamVar, fieldNum: int, value: object) {.inline.} =
+proc encodeField(stream: OutputStreamVar, fieldNum: int, value: object) {.inline.} =
   #TODO Encode generic objects
   stream.append protoHeader(fieldNum, LengthDelimited)
   let objStream = OutputStream.init()
@@ -119,14 +119,14 @@ proc encode(stream: OutputStreamVar, fieldNum: int, value: object) {.inline.} =
   stream.put(len(objOutput).uint)
   stream.put(objOutput)
 
-proc encode*(protobuf: var ProtoBuffer, value: object) {.inline.} =
-  protobuf.outstream.encode(protobuf.fieldNum, value)
+proc encodeField*(protobuf: var ProtoBuffer, value: object) {.inline.} =
+  protobuf.outstream.encodeField(protobuf.fieldNum, value)
   inc protobuf.fieldNum
 
 proc put(stream: OutputStreamVar, value: object) {.inline.} =
   var fieldNum = 1
   for field, val in value.fieldPairs:
-      stream.encode(fieldNum, val)
+      stream.encodeField(fieldNum, val)
       fieldNum += 1
 
 proc getVarint[T: SomeVarint](
@@ -160,7 +160,7 @@ proc getVarint[T: SomeVarint](
   else:
     result = value
 
-proc decode*[T: SomeVarint](
+proc decodeField*[T: SomeVarint](
   bytes: var seq[byte],
   ty: typedesc[T],
   outOffset: var int,
@@ -205,7 +205,7 @@ proc getLengthDelimited*[T: SomeLengthDelimited](
 
   increaseBytesRead(length)
 
-proc decode*[T: SomeLengthDelimited](
+proc decodeField*[T: SomeLengthDelimited](
   bytes: var seq[byte],
   ty: typedesc[T],
   outOffset: var int,
@@ -283,7 +283,7 @@ macro setField(obj: typed, fieldNum: int, offset: int, bytesProcessed: int, byte
     ofBranch.add(newLit(i+1))
     ofBranch.add(
       quote do:
-        `obj`.`field` = decode(`value`, type(`obj`.`field`), `offset`, `bytesProcessed`, `bytesToRead`).value
+        `obj`.`field` = decodeField(`value`, type(`obj`.`field`), `offset`, `bytesProcessed`, `bytesToRead`).value
     )
     caseStmt.add(ofBranch)
 
@@ -292,14 +292,13 @@ macro setField(obj: typed, fieldNum: int, offset: int, bytesProcessed: int, byte
   elseBranch.add(
     nnkStmtList.newTree(
       quote do:
-        `obj`.`field` = decode(`value`, type(`obj`.`field`), `offset`, `bytesProcessed`, `bytesToRead`).value
+        `obj`.`field` = decodeField(`value`, type(`obj`.`field`), `offset`, `bytesProcessed`, `bytesToRead`).value
     )
   )
   caseStmt.add(elseBranch)
-
   result.add(caseStmt)
 
-proc decode*[T: object](
+proc decodeField*[T: object](
   bytes: var seq[byte],
   ty: typedesc[T],
   outOffset: var int,
@@ -309,15 +308,28 @@ proc decode*[T: object](
   var bytesRead = 0
 
   let wireTy = wireType(bytes[outOffset])
+  assert wireTy == LengthDelimited
+
   result.index = fieldNumber(bytes[outOffset])
 
-  if wireTy == LengthDelimited:
-    # read LD header
-    # then read only amount of bytes needed
-    increaseBytesRead()
+  # read LD header
+  # then read only amount of bytes needed
+  increaseBytesRead()
+  var index = 1
+  let decodedSize = getVarint(bytes, uint, outOffset, outBytesProcessed, numBytesToRead)
+  let bytesToRead = some(decodedSize.int)
+  for field, val in result.value.fieldPairs:
+    setField(result.value, index, outOffset, outBytesProcessed, bytesToRead, bytes)
+    index += 1
 
-    let decodedSize = getVarint(bytes, uint, outOffset, outBytesProcessed, numBytesToRead)
-    let bytesToRead = some(decodedSize.int)
-    setField(result.value, result.index, outOffset, outBytesProcessed, bytesToRead, bytes)
-  else:
-    setField(result.value, result.index, outOffset, outBytesProcessed, numBytesToRead, bytes)
+proc decode*[T: object](
+  bytes: var seq[byte],
+  ty: typedesc[T],
+): T {.inline.} =
+  var bytesRead = 0
+  var offset = 0
+
+  var fieldNum = 1
+  for field, val in result.fieldPairs:
+      setField(result, fieldNum, offset, bytesRead, none(int), bytes)
+      fieldNum += 1
