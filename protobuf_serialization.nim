@@ -31,9 +31,10 @@ type
     value*: T
 
   SomeSVarint* = int | int64 | int32 | int16 | int8 | enum
-  SomeUVarint* = uint | uint64 | uint32 | uint16 | uint8 | byte | bool | char
+  SomeByte* = byte | bool | char | uint8
+  SomeUVarint* = uint | uint64 | uint32 | uint16 | SomeByte
   SomeVarint* = SomeSVarint | SomeUVarint
-  SomeLengthDelimited* = string | seq[byte] | seq[uint8] | cstring
+  SomeLengthDelimited* = string | seq[SomeByte] | cstring
 
 proc newProtoBuffer*(): ProtoBuffer =
   ProtoBuffer(outstream: OutputStream.init(), fieldNum: 1)
@@ -156,8 +157,10 @@ proc getVarint[T: SomeVarint](
 ): T {.inline.} =
   var bytesRead = 0
   # Only up to 128 bits supported by the spec
-  when T is enum:
+  when T is enum or T is char:
     var value: type(ord(result))
+  elif T is bool:
+    var value: byte
   else:
     var value: T
   var shiftAmount = 0
@@ -176,7 +179,7 @@ proc getVarint[T: SomeVarint](
     else:
       result = cast[T](value shr type(value)(1))
   else:
-    result = value
+    result = T(value)
 
 proc decodeField*[T: SomeVarint](
   bytes: var seq[byte],

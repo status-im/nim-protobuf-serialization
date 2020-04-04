@@ -1,4 +1,5 @@
 import unittest
+import sequtils
 
 import protobuf_serialization
 
@@ -9,12 +10,14 @@ type
   Test1 = object
     a: uint
     b: string
+    c: char
 
   Test3 = object
     g {.sfixed32.}: int
     h: int
     i: Test1
     j: string
+    k: bool
 
 suite "Test Varint Encoding":
   test "Can encode/decode enum field":
@@ -52,6 +55,38 @@ suite "Test Varint Encoding":
     assert decoded.value == num
     assert decoded.index == 1
 
+  test "Can encode/decode bool field":
+    var proto = newProtoBuffer()
+    let boolean = true
+    var bytesProcessed: int
+
+    proto.encodeField(boolean)
+
+    var output = proto.output
+    assert output == @[8.byte, 1]
+
+    var offset = 0
+    let decoded = decodeField(output, bool, offset, bytesProcessed)
+    assert bytesProcessed == 2
+    assert decoded.value == boolean
+    assert decoded.index == 1
+
+  test "Can encode/decode char field":
+    var proto = newProtoBuffer()
+    let charVal = 'G'
+    var bytesProcessed: int
+
+    proto.encodeField(charVal)
+
+    var output = proto.output
+    assert output == @[8.byte, ord(charVal).byte]
+
+    var offset = 0
+    let decoded = decodeField(output, char, offset, bytesProcessed)
+    assert bytesProcessed == 2
+    assert decoded.value == charVal
+    assert decoded.index == 1
+
   test "Can encode/decode unsigned number field":
     var proto = newProtoBuffer()
     let num = 123151.uint
@@ -82,10 +117,40 @@ suite "Test Varint Encoding":
     assert decoded.value == str
     assert decoded.index == 1
 
+  test "Can encode/decode char seq field":
+    var proto = newProtoBuffer()
+    let charSeq = "hey this is a string".toSeq
+    var bytesProcessed: int
+
+    proto.encodeField(charSeq)
+
+    var output = proto.output
+    assert output == @[10.byte, 20, 104, 101, 121, 32, 116, 104, 105, 115, 32, 105, 115, 32, 97, 32, 115, 116, 114, 105, 110, 103]
+
+    var offset = 0
+    let decoded = decodeField(output, seq[char], offset, bytesProcessed)
+    assert decoded.value == charSeq
+    assert decoded.index == 1
+
+  test "Can encode/decode uint8 seq field":
+    var proto = newProtoBuffer()
+    let uint8Seq = cast[seq[uint8]]("hey this is a string".toSeq)
+    var bytesProcessed: int
+
+    proto.encodeField(uint8Seq)
+
+    var output = proto.output
+    assert output == @[10.byte, 20, 104, 101, 121, 32, 116, 104, 105, 115, 32, 105, 115, 32, 97, 32, 115, 116, 114, 105, 110, 103]
+
+    var offset = 0
+    let decoded = decodeField(output, seq[uint8], offset, bytesProcessed)
+    assert decoded.value == uint8Seq
+    assert decoded.index == 1
+
   test "Can encode/decode object field":
     var proto = newProtoBuffer()
 
-    let obj = Test3(g: 300, h: 200, i: Test1(a: 100, b: "this is a test"), j: "testing")
+    let obj = Test3(g: 300, h: 200, i: Test1(a: 100, b: "this is a test", c: 'H'), j: "testing", k: true)
 
     proto.encodeField(obj)
     var offset, bytesProcessed: int
@@ -98,7 +163,7 @@ suite "Test Varint Encoding":
   test "Can encode/decode object":
     var proto = newProtoBuffer()
 
-    let obj = Test3(g: 300, h: 200, i: Test1(a: 100, b: "this is a test"), j: "testing")
+    let obj = Test3(g: 300, h: 200, i: Test1(a: 100, b: "this is a test", c: 'H'), j: "testing", k: true)
 
     proto.encode(obj)
     var output = proto.output
@@ -108,11 +173,12 @@ suite "Test Varint Encoding":
   test "Can encode/decode out of order object":
     var proto = newProtoBuffer()
 
-    let obj = Test3(g: 400, h: 100, i: Test1(a: 100, b: "this is a test"), j: "testing")
+    let obj = Test3(g: 400, h: 100, i: Test1(a: 100, b: "this is a test", c: 'H'), j: "testing", k: true)
     proto.encodeField(2, 100)
     proto.encodeField(4, "testing")
     proto.encodeField(1, 400)
-    proto.encodeField(3, Test1(a: 100, b: "this is a test"))
+    proto.encodeField(3, Test1(a: 100, b: "this is a test", c: 'H'))
+    proto.encodeField(5, true)
 
     var output = proto.output
     let decoded = output.decode(Test3)
