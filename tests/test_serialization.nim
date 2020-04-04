@@ -104,3 +104,16 @@ suite "Test Varint Encoding":
     var output = proto.output
     let decoded = output.decode(Test3)
     assert decoded == obj
+
+  test "Can encode/decode out of order object":
+    var proto = newProtoBuffer()
+
+    let obj = Test3(g: 400, h: 100, i: Test1(a: 100, b: "this is a test"), j: "testing")
+    proto.encodeField(2, 100)
+    proto.encodeField(4, "testing")
+    proto.encodeField(1, 400)
+    proto.encodeField(3, Test1(a: 100, b: "this is a test"))
+
+    var output = proto.output
+    let decoded = output.decode(Test3)
+    assert decoded == obj

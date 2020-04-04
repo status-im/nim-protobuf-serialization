@@ -90,6 +90,9 @@ proc encodeField*(protobuf: var ProtoBuffer, value: SomeVarint) {.inline.} =
   protobuf.outstream.encodeField(protobuf.fieldNum, value)
   inc protobuf.fieldNum
 
+proc encodeField*(protobuf: var ProtoBuffer, fieldNum: int, value: SomeVarint) {.inline.} =
+  protobuf.outstream.encodeField(fieldNum, value)
+
 proc put(stream: OutputStreamVar, value: SomeLengthDelimited) {.inline.} =
   for b in value:
     stream.append byte(b)
@@ -102,6 +105,9 @@ proc encodeField(stream: OutputStreamVar, fieldNum: int, value: SomeLengthDelimi
 proc encodeField*(protobuf: var ProtoBuffer, value: SomeLengthDelimited) {.inline.} =
   protobuf.outstream.encodeField(protobuf.fieldNum, value)
   inc protobuf.fieldNum
+
+proc encodeField*(protobuf: var ProtoBuffer, fieldNum: int, value: SomeLengthDelimited) {.inline.} =
+  protobuf.outstream.encodeField(fieldNum, value)
 
 proc put(stream: OutputStreamVar, value: object) {.inline.}
 
@@ -122,17 +128,24 @@ proc encodeField*(protobuf: var ProtoBuffer, value: object) {.inline.} =
   protobuf.outstream.encodeField(protobuf.fieldNum, value)
   inc protobuf.fieldNum
 
+proc encodeField*(protobuf: var ProtoBuffer, fieldNum: int, value: object) {.inline.} =
+  protobuf.outstream.encodeField(fieldNum, value)
+
 proc encode*(protobuf: var ProtoBuffer, value: object) {.inline.} =
   var fieldNum = 1
-  for field, val in value.fieldPairs:
-    protobuf.outstream.encodeField(fieldNum, val)
+  for _, val in value.fieldPairs:
+    # Only store the value
+    if default(type(val)) != val:
+      protobuf.outstream.encodeField(fieldNum, val)
     inc fieldNum
 
 proc put(stream: OutputStreamVar, value: object) {.inline.} =
   var fieldNum = 1
-  for field, val in value.fieldPairs:
+  for _, val in value.fieldPairs:
+    # Only store the value
+    if default(type(val)) != val:
       stream.encodeField(fieldNum, val)
-      inc fieldNum
+    inc fieldNum
 
 proc getVarint[T: SomeVarint](
   bytes: var seq[byte],
@@ -320,12 +333,13 @@ proc decodeField*[T: object](
   # read LD header
   # then read only amount of bytes needed
   increaseBytesRead()
-  var index = 1
   let decodedSize = getVarint(bytes, uint, outOffset, outBytesProcessed, numBytesToRead)
   let bytesToRead = some(decodedSize.int)
-  for field, val in result.value.fieldPairs:
-    setField(result.value, index, outOffset, outBytesProcessed, bytesToRead, bytes)
-    inc index
+
+  let oldOffset = outOffset
+  while outOffset < oldOffset + bytesToRead.get():
+    let fieldNum = fieldNumber(bytes[outOffset])
+    setField(result.value, fieldNum, outOffset, outBytesProcessed, bytesToRead, bytes)
 
 proc decode*[T: object](
   bytes: var seq[byte],
@@ -334,6 +348,6 @@ proc decode*[T: object](
   var bytesRead = 0
   var offset = 0
 
-  while bytesRead < bytes.len:
+  while offset < bytes.len - 1:
     let fieldNum = fieldNumber(bytes[offset])
     setField(result, fieldNum, offset, bytesRead, none(int), bytes)
