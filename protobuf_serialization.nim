@@ -112,8 +112,6 @@ proc encodeField*(protobuf: var ProtoBuffer, fieldNum: int, value: SomeLengthDel
 proc put(stream: OutputStreamVar, value: object) {.inline.}
 
 proc encodeField(stream: OutputStreamVar, fieldNum: int, value: object) {.inline.} =
-  stream.append protoHeader(fieldNum, LengthDelimited)
-
   # This is currently needed in order to get the size
   # of the output before adding it to the stream.
   # Maybe there is a better way to do this
@@ -121,8 +119,10 @@ proc encodeField(stream: OutputStreamVar, fieldNum: int, value: object) {.inline
   objStream.put(value)
 
   let objOutput = objStream.getOutput()
-  stream.put(len(objOutput).uint)
-  stream.put(objOutput)
+  if objOutput.len > 0:
+    stream.append protoHeader(fieldNum, LengthDelimited)
+    stream.put(len(objOutput).uint)
+    stream.put(objOutput)
 
 proc encodeField*(protobuf: var ProtoBuffer, value: object) {.inline.} =
   protobuf.outstream.encodeField(protobuf.fieldNum, value)

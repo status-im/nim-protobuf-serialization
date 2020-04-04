@@ -116,4 +116,29 @@ suite "Test Varint Encoding":
 
     var output = proto.output
     let decoded = output.decode(Test3)
+
+    assert decoded == obj
+
+  test "Empty object field does not get encoded":
+    var proto = newProtoBuffer()
+
+    let obj = Test1()
+    proto.encodeField(1, obj)
+
+    var output = proto.output
+    assert output.len == 0
+
+    let decoded = output.decode(Test1)
+    assert decoded == obj
+
+  test "Empty object does not get encoded":
+    var proto = newProtoBuffer()
+
+    let obj = Test1()
+    proto.encode(obj)
+
+    var output = proto.output
+    assert output.len == 0
+
+    let decoded = output.decode(Test1)
     assert decoded == obj
