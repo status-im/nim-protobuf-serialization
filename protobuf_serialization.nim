@@ -38,13 +38,6 @@ type
 proc newProtoBuffer*(): ProtoBuffer =
   ProtoBuffer(outstream: OutputStream.init(), fieldNum: 1)
 
-# Main interface
-proc encode*(): ProtoBuffer =
-  discard
-
-proc decode*[T](source: ProtoBuffer): T =
-  discard
-
 proc output*(proto: ProtoBuffer): seq[byte] {.inline.} =
   proto.outstream.getOutput
 
@@ -59,6 +52,8 @@ template protoHeader*(fieldNum: int, wire: ProtoWireType): byte =
   ((cast[uint](fieldNum) shl 3) or cast[uint](wire)).byte
 
 template increaseBytesRead(amount = 1) =
+  ## Convenience template for increasing
+  ## all of the counts
   mixin isSome
   bytesRead += amount
   outOffset += amount
@@ -111,10 +106,14 @@ proc encodeField*(protobuf: var ProtoBuffer, value: SomeLengthDelimited) {.inlin
 proc put(stream: OutputStreamVar, value: object) {.inline.}
 
 proc encodeField(stream: OutputStreamVar, fieldNum: int, value: object) {.inline.} =
-  #TODO Encode generic objects
   stream.append protoHeader(fieldNum, LengthDelimited)
+
+  # This is currently needed in order to get the size
+  # of the output before adding it to the stream.
+  # Maybe there is a better way to do this
   let objStream = OutputStream.init()
   objStream.put(value)
+
   let objOutput = objStream.getOutput()
   stream.put(len(objOutput).uint)
   stream.put(objOutput)
@@ -123,11 +122,17 @@ proc encodeField*(protobuf: var ProtoBuffer, value: object) {.inline.} =
   protobuf.outstream.encodeField(protobuf.fieldNum, value)
   inc protobuf.fieldNum
 
+proc encode*(protobuf: var ProtoBuffer, value: object) {.inline.} =
+  var fieldNum = 1
+  for field, val in value.fieldPairs:
+    protobuf.outstream.encodeField(fieldNum, val)
+    inc fieldNum
+
 proc put(stream: OutputStreamVar, value: object) {.inline.} =
   var fieldNum = 1
   for field, val in value.fieldPairs:
       stream.encodeField(fieldNum, val)
-      fieldNum += 1
+      inc fieldNum
 
 proc getVarint[T: SomeVarint](
   bytes: var seq[byte],
@@ -320,7 +325,7 @@ proc decodeField*[T: object](
   let bytesToRead = some(decodedSize.int)
   for field, val in result.value.fieldPairs:
     setField(result.value, index, outOffset, outBytesProcessed, bytesToRead, bytes)
-    index += 1
+    inc index
 
 proc decode*[T: object](
   bytes: var seq[byte],
@@ -332,4 +337,4 @@ proc decode*[T: object](
   var fieldNum = 1
   for field, val in result.fieldPairs:
       setField(result, fieldNum, offset, bytesRead, none(int), bytes)
-      fieldNum += 1
+      inc fieldNum

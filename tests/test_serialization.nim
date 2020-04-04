@@ -15,7 +15,7 @@ type
     i: Test1
 
 suite "Test Varint Encoding":
-  test "Can encode/decode enum":
+  test "Can encode/decode enum field":
     var proto = newProtoBuffer()
     var bytesProcessed: int
 
@@ -35,7 +35,7 @@ suite "Test Varint Encoding":
     assert decodedME2.value == ME2
     assert decodedME2.index == 2
 
-  test "Can encode/decode negative number":
+  test "Can encode/decode negative number field":
     var proto = newProtoBuffer()
     let num = -153452
     var bytesProcessed: int
@@ -50,7 +50,7 @@ suite "Test Varint Encoding":
     assert decoded.value == num
     assert decoded.index == 1
 
-  test "Can encode/decode unsigned number":
+  test "Can encode/decode unsigned number field":
     var proto = newProtoBuffer()
     let num = 123151.uint
     var bytesProcessed: int
@@ -65,7 +65,7 @@ suite "Test Varint Encoding":
     assert decoded.value == num
     assert decoded.index == 1
 
-  test "Can encode/decode string":
+  test "Can encode/decode string field":
     var proto = newProtoBuffer()
     let str = "hey this is a string"
     var bytesProcessed: int
@@ -80,7 +80,7 @@ suite "Test Varint Encoding":
     assert decoded.value == str
     assert decoded.index == 1
 
-  test "Can encode/decode object":
+  test "Can encode/decode object field":
     var proto = newProtoBuffer()
 
     let obj = Test3(g: 300, h: 200, i: Test1(a: 100))
@@ -92,3 +92,13 @@ suite "Test Varint Encoding":
     let decoded = decodeField(output, Test3, offset, bytesProcessed)
     assert decoded.value == obj
     assert decoded.index == 1
+
+  test "Can encode/decode object":
+    var proto = newProtoBuffer()
+
+    let obj = Test3(g: 300, h: 200, i: Test1(a: 100))
+
+    proto.encode(obj)
+    var output = proto.output
+    let decoded = output.decode(Test3)
+    assert decoded == obj
