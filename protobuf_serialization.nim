@@ -334,7 +334,6 @@ proc decode*[T: object](
   var bytesRead = 0
   var offset = 0
 
-  var fieldNum = 1
-  for field, val in result.fieldPairs:
-      setField(result, fieldNum, offset, bytesRead, none(int), bytes)
-      inc fieldNum
+  while bytesRead < bytes.len:
+    let fieldNum = fieldNumber(bytes[offset])
+    setField(result, fieldNum, offset, bytesRead, none(int), bytes)
