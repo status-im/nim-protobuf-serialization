@@ -35,6 +35,11 @@ type
   SomeUVarint* = uint | uint64 | uint32 | uint16 | SomeByte
   SomeVarint* = SomeSVarint | SomeUVarint
   SomeLengthDelimited* = string | seq[SomeByte] | cstring
+  SomeFixed64* = float64
+  SomeFixed32* = float32
+  SomeFixed* = SomeFixed32 | SomeFixed64
+
+  AnyProtoType* = SomeVarint | SomeLengthDelimited | SomeFixed | object
 
 proc newProtoBuffer*(): ProtoBuffer =
   ProtoBuffer(outstream: OutputStream.init(), fieldNum: 1)
@@ -87,12 +92,23 @@ proc encodeField(stream: OutputStreamVar, fieldNum: int, value: SomeVarint) {.in
   stream.append protoHeader(fieldNum, Varint)
   stream.put(value)
 
-proc encodeField*(protobuf: var ProtoBuffer, value: SomeVarint) {.inline.} =
-  protobuf.outstream.encodeField(protobuf.fieldNum, value)
-  inc protobuf.fieldNum
+proc put(stream: OutputStreamVar, value: SomeFixed) {.inline.} =
+  when typeof(value) is SomeFixed64:
+    var value = cast[int64](value)
+  else:
+    var value = cast[int32](value)
 
-proc encodeField*(protobuf: var ProtoBuffer, fieldNum: int, value: SomeVarint) {.inline.} =
-  protobuf.outstream.encodeField(fieldNum, value)
+  for _ in 0 ..< sizeof(value):
+    stream.append byte(value and 0b1111_1111)
+    value = value shr 8
+
+proc encodeField(stream: OutputStreamVar, fieldNum: int, value: SomeFixed64) {.inline.} =
+  stream.append protoHeader(fieldNum, Fixed64)
+  stream.put(value)
+
+proc encodeField(stream: OutputStreamVar, fieldNum: int, value: SomeFixed32) {.inline.} =
+  stream.append protoHeader(fieldNum, Fixed32)
+  stream.put(value)
 
 proc put(stream: OutputStreamVar, value: SomeLengthDelimited) {.inline.} =
   for b in value:
@@ -102,13 +118,6 @@ proc encodeField(stream: OutputStreamVar, fieldNum: int, value: SomeLengthDelimi
   stream.append protoHeader(fieldNum, LengthDelimited)
   stream.put(len(value).uint)
   stream.put(value)
-
-proc encodeField*(protobuf: var ProtoBuffer, value: SomeLengthDelimited) {.inline.} =
-  protobuf.outstream.encodeField(protobuf.fieldNum, value)
-  inc protobuf.fieldNum
-
-proc encodeField*(protobuf: var ProtoBuffer, fieldNum: int, value: SomeLengthDelimited) {.inline.} =
-  protobuf.outstream.encodeField(fieldNum, value)
 
 proc put(stream: OutputStreamVar, value: object) {.inline.}
 
@@ -125,21 +134,6 @@ proc encodeField(stream: OutputStreamVar, fieldNum: int, value: object) {.inline
     stream.put(len(objOutput).uint)
     stream.put(objOutput)
 
-proc encodeField*(protobuf: var ProtoBuffer, value: object) {.inline.} =
-  protobuf.outstream.encodeField(protobuf.fieldNum, value)
-  inc protobuf.fieldNum
-
-proc encodeField*(protobuf: var ProtoBuffer, fieldNum: int, value: object) {.inline.} =
-  protobuf.outstream.encodeField(fieldNum, value)
-
-proc encode*(protobuf: var ProtoBuffer, value: object) {.inline.} =
-  var fieldNum = 1
-  for _, val in value.fieldPairs:
-    # Only store the value
-    if default(type(val)) != val:
-      protobuf.outstream.encodeField(fieldNum, val)
-    inc fieldNum
-
 proc put(stream: OutputStreamVar, value: object) {.inline.} =
   var fieldNum = 1
   for _, val in value.fieldPairs:
@@ -147,6 +141,37 @@ proc put(stream: OutputStreamVar, value: object) {.inline.} =
     if default(type(val)) != val:
       stream.encodeField(fieldNum, val)
     inc fieldNum
+
+proc encode*(protobuf: var ProtoBuffer, value: object) {.inline.} =
+  protobuf.outstream.put(value)
+
+proc encodeField*(protobuf: var ProtoBuffer, value: AnyProtoType) {.inline.} =
+  protobuf.outstream.encodeField(protobuf.fieldNum, value)
+  inc protobuf.fieldNum
+
+proc encodeField*(protobuf: var ProtoBuffer, fieldNum: int, value: AnyProtoType) {.inline.} =
+  protobuf.outstream.encodeField(fieldNum, value)
+
+proc getFixed*[T: SomeFixed](
+  bytes: var seq[byte],
+  ty: typedesc[T],
+  outOffset: var int,
+  outBytesProcessed: var int,
+  numBytesToRead = none(int)
+): T {.inline.} =
+  var bytesRead = 0
+  when T is SomeFixed64:
+    var value: int64
+  else:
+    var value: int32
+  var shiftAmount = 0
+
+  for _ in 0 ..< sizeof(T):
+    value += type(value)(bytes[outOffset]) shl shiftAmount
+    shiftAmount += 8
+    increaseBytesRead()
+
+  result = cast[T](value)
 
 proc getVarint[T: SomeVarint](
   bytes: var seq[byte],
@@ -202,6 +227,23 @@ proc decodeField*[T: SomeVarint](
 
   result.value = getVarint(bytes, ty, outOffset, outBytesProcessed, numBytesToRead)
 
+proc decodeField*[T: SomeFixed](
+  bytes: var seq[byte],
+  ty: typedesc[T],
+  outOffset: var int,
+  outBytesProcessed: var int,
+  numBytesToRead = none(int)
+): ProtoField[T] {.inline.} =
+  var bytesRead = 0
+
+  let wireTy = wireType(bytes[outOffset])
+  if wireTy notin {Fixed32, Fixed64}:
+    raise newException(Exception, fmt"Not a fixed32 or fixed64 at offset {outOffset}! Received a {wireTy}")
+
+  result.index = fieldNumber(bytes[outOffset])
+  increaseBytesRead()
+
+  result.value = getFixed(bytes, ty, outOffset, outBytesProcessed, numBytesToRead)
 
 proc getLengthDelimited*[T: SomeLengthDelimited](
   bytes: var seq[byte],
@@ -243,15 +285,6 @@ proc decodeField*[T: SomeLengthDelimited](
 
   result.value = getLengthDelimited(bytes, ty, outOffset, outBytesProcessed, numBytesToRead)
 
-type
-  Test1 = object
-    a: uint
-
-  Test3 = object
-    g {.sfixed32.}: int
-    h: int
-    i: Test1
-
 macro getField(obj: typed, fieldNum: int, ty: typedesc): untyped =
   template fieldTypeCheck(obj, field, fieldNum, ty) =
     when type(obj.field) is type(ty):
@@ -260,7 +293,6 @@ macro getField(obj: typed, fieldNum: int, ty: typedesc): untyped =
       let fnum {.inject.} = fieldNum
       raise newException(Exception, fmt"Could not find field at position {fnum}.")
 
-  let typeImpl = obj.getTypeInst.getImpl
   let typeFields = obj.getTypeInst.getType
 
   let objFields = typeFields[2]
@@ -287,7 +319,6 @@ macro getField(obj: typed, fieldNum: int, ty: typedesc): untyped =
   result.add(caseStmt)
 
 macro setField(obj: typed, fieldNum: int, offset: int, bytesProcessed: int, bytesToRead: Option[int], value: untyped): untyped =
-  let typeImpl = obj.getTypeInst.getImpl
   let typeFields = obj.getTypeInst.getType
 
   let objFields = typeFields[2]

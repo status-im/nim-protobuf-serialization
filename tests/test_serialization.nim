@@ -55,6 +55,36 @@ suite "Test Varint Encoding":
     assert decoded.value == num
     assert decoded.index == 1
 
+  test "Can encode/decode float32 number field":
+    var proto = newProtoBuffer()
+    let num = float32(1234.164423)
+    var bytesProcessed: int
+
+    proto.encodeField(num)
+
+    var output = proto.output
+    assert output == @[13.byte, 67, 69, 154, 68]
+
+    var offset = 0
+    let decoded = decodeField(output, float32, offset, bytesProcessed)
+    assert decoded.value == num
+    assert decoded.index == 1
+
+  test "Can encode/decode float64 number field":
+    var proto = newProtoBuffer()
+    let num = 12343121537452.1644232341'f64
+    var bytesProcessed: int
+
+    proto.encodeField(num)
+
+    var output = proto.output
+    assert output == @[9.byte, 84, 88, 211, 191, 182, 115, 166, 66]
+
+    var offset = 0
+    let decoded = decodeField(output, float64, offset, bytesProcessed)
+    assert decoded.value == num
+    assert decoded.index == 1
+
   test "Can encode/decode bool field":
     var proto = newProtoBuffer()
     let boolean = true
