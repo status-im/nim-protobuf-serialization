@@ -70,6 +70,10 @@ template increaseBytesRead(amount = 1) =
     if (bytesRead > numBytesToRead.get()).unlikely:
       raise newException(Exception, &"Number of bytes read ({bytesRead}) exceeded bytes requested ({numBytesToRead})")
 
+proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, value: T) {.inline.}
+proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, fieldNum: int, value: T) {.inline.}
+proc encodeField[T: not AnyProtoType](stream: OutputStreamVar, fieldNum: int, value: T) {.inline.}
+
 proc put(stream: OutputStreamVar, value: SomeVarint) {.inline.} =
   when value is enum:
     var value = cast[type(ord(value))](value)
@@ -151,6 +155,16 @@ proc encodeField*(protobuf: var ProtoBuffer, fieldNum: int, value: AnyProtoType)
 
 proc encodeField*(protobuf: var ProtoBuffer, value: AnyProtoType) {.inline.} =
   protobuf.encodeField(protobuf.fieldNum, value)
+  inc protobuf.fieldNum
+
+proc encodeField[T: not AnyProtoType](stream: OutputStreamVar, fieldNum: int, value: T) {.inline.} =
+  stream.encodeField(fieldNum, value.toBytes)
+
+proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, fieldNum: int, value: T) {.inline.} =
+  protobuf.outstream.encodeField(fieldNum, value.toBytes)
+
+proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, value: T) {.inline.} =
+  protobuf.encodeField(protobuf.fieldNum, value.toBytes)
   inc protobuf.fieldNum
 
 proc get*[T: SomeFixed](
@@ -275,6 +289,24 @@ proc decodeField*[T: object](
   outBytesProcessed: var int,
   numBytesToRead = none(int)
 ): ProtoField[T] {.inline.}
+
+proc decodeField*[T: not AnyProtoType](
+  bytes: var seq[byte],
+  ty: typedesc[T],
+  outOffset: var int,
+  outBytesProcessed: var int,
+  numBytesToRead = none(int)
+): ProtoField[T] {.inline.} =
+
+  var bytesRead = 0
+
+  checkType(bytes[outOffset], seq[byte], outOffset)
+
+  result.index = fieldNumber(bytes[outOffset])
+  increaseBytesRead()
+
+  var value = bytes.get(seq[byte], outOffset, outBytesProcessed, numBytesToRead)
+  result.value = value.to(T)
 
 macro setField(obj: typed, fieldNum: int, offset: int, bytesProcessed: int, bytesToRead: Option[int], value: untyped): untyped =
   let typeFields = obj.getTypeInst.getType

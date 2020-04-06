@@ -6,7 +6,7 @@ import protobuf_serialization
 type
   MyEnum = enum
     ME1, ME2, ME3
-type
+
   Test1 = object
     a: uint
     b: string
@@ -18,6 +18,30 @@ type
     i: Test1
     j: string
     k: bool
+    l: MyInt
+
+  MyInt = distinct int
+
+proc to*(bytes: var seq[byte], ty: typedesc[MyInt]): MyInt =
+
+  var value: int
+
+  var shiftAmount = 0
+
+  for i in 0 ..< len(bytes):
+    value += int(bytes[i]) shl shiftAmount
+    shiftAmount += 8
+
+  result = MyInt(value)
+
+proc toBytes*(value: MyInt): seq[byte] =
+  var value = value.int
+
+  while value > 0:
+    result.add byte(value and 0b1111_1111)
+    value = value shr 8
+
+proc `==`(a, b: MyInt): bool {.borrow.}
 
 suite "Test Varint Encoding":
   test "Can encode/decode enum field":
@@ -53,6 +77,21 @@ suite "Test Varint Encoding":
     var offset = 0
     let decoded = decodeField(output, int, offset, bytesProcessed)
     assert decoded.value == num
+    assert decoded.index == 1
+
+  test "Can encode/decode distinct number field":
+    var proto = newProtoBuffer()
+    let num = 114151.MyInt
+    var bytesProcessed: int
+
+    proto.encodeField(num)
+
+    var output = proto.output
+    assert output == @[10.byte, 3, 231, 189, 1]
+
+    var offset = 0
+    let decoded = decodeField(output, MyInt, offset, bytesProcessed)
+    assert decoded.value.int == num.int
     assert decoded.index == 1
 
   test "Can encode/decode float32 number field":
@@ -180,7 +219,7 @@ suite "Test Varint Encoding":
   test "Can encode/decode object field":
     var proto = newProtoBuffer()
 
-    let obj = Test3(g: 300, h: 200, i: Test1(a: 100, b: "this is a test", c: 'H'), j: "testing", k: true)
+    let obj = Test3(g: 300, h: 200, i: Test1(a: 100, b: "this is a test", c: 'H'), j: "testing", k: true, l: 124521.MyInt)
 
     proto.encodeField(obj)
     var offset, bytesProcessed: int
@@ -193,7 +232,7 @@ suite "Test Varint Encoding":
   test "Can encode/decode object":
     var proto = newProtoBuffer()
 
-    let obj = Test3(g: 300, h: 200, i: Test1(a: 100, b: "this is a test", c: 'H'), j: "testing", k: true)
+    let obj = Test3(g: 300, h: 200, i: Test1(a: 100, b: "this is a test", c: 'H'), j: "testing", k: true, l: 124521.MyInt)
 
     proto.encode(obj)
     var output = proto.output
@@ -203,7 +242,8 @@ suite "Test Varint Encoding":
   test "Can encode/decode out of order object":
     var proto = newProtoBuffer()
 
-    let obj = Test3(g: 400, h: 100, i: Test1(a: 100, b: "this is a test", c: 'H'), j: "testing", k: true)
+    let obj = Test3(g: 400, h: 100, i: Test1(a: 100, b: "this is a test", c: 'H'), j: "testing", k: true, l: 14514.MyInt)
+    proto.encodeField(6, 14514.MyInt)
     proto.encodeField(2, 100)
     proto.encodeField(4, "testing")
     proto.encodeField(1, 400)
