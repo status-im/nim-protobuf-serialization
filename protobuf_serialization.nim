@@ -223,6 +223,11 @@ proc checkType[T: SomeLengthDelimited](tyByte: byte, ty: typedesc[T], offset: in
   if wireTy != LengthDelimited:
     raise newException(UnexpectedTypeError, fmt"Not a length delimited value at offset {offset}! Received a {wireTy}")
 
+proc checkType[T: object](tyByte: byte, ty: typedesc[T], offset: int) {.inline.} =
+  let wireTy = wireType(tyByte)
+  if wireTy != LengthDelimited:
+    raise newException(UnexpectedTypeError, fmt"Not an object value at offset {offset}! Received a {wireTy}")
+
 proc get*[T: SomeLengthDelimited](
   bytes: var seq[byte],
   ty: typedesc[T],
@@ -312,8 +317,7 @@ proc decodeField*[T: object](
 ): ProtoField[T] {.inline.} =
   var bytesRead = 0
 
-  let wireTy = wireType(bytes[outOffset])
-  assert wireTy == LengthDelimited
+  checkType(bytes[outOffset], ty, outOffset)
 
   result.index = fieldNumber(bytes[outOffset])
 
