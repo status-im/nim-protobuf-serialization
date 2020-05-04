@@ -1,9 +1,10 @@
 import
-  serialization, protobuf__serialization/[reader, writer]
+  serialization, protobuf_serialization/[types, reader, writer]
 
 export
-  serialization, reader, writer
+  types, reader, writer
 
+#[
 serializationFormat Protobuf,
                     Reader = ProtobufReader,
                     Writer = ProtobufWriter,
@@ -11,3 +12,4 @@ serializationFormat Protobuf,
 
 template supports*(_: type Protobuf, T: type): bool =
   true
+]#
