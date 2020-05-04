@@ -57,7 +57,7 @@ proc get*[T: SomeFixed](
   outOffset: var int,
   outBytesProcessed: var int,
   numBytesToRead = none(int)
-): T {.inline.} =
+): T =
   var bytesRead = 0
   when T is SomeFixed64:
     var value: int64
@@ -78,7 +78,7 @@ proc get[T: SomeVarint](
   outOffset: var int,
   outBytesProcessed: var int,
   numBytesToRead = none(int)
-): T {.inline.} =
+): T =
   var bytesRead = 0
   # Only up to 128 bits supported by the spec
   when T is enum or T is char:
@@ -106,22 +106,22 @@ proc get[T: SomeVarint](
   else:
     result = T(value)
 
-proc checkType[T: SomeVarint](tyByte: byte, ty: typedesc[T], offset: int) {.inline.} =
+proc checkType[T: SomeVarint](tyByte: byte, ty: typedesc[T], offset: int) =
   let wireTy = wireType(tyByte)
   if wireTy != Varint:
     raise newException(UnexpectedTypeError, fmt"Not a varint at offset {offset}! Received a {wireTy}")
 
-proc checkType[T: SomeFixed](tyByte: byte, ty: typedesc[T], offset: int) {.inline.} =
+proc checkType[T: SomeFixed](tyByte: byte, ty: typedesc[T], offset: int) =
   let wireTy = wireType(tyByte)
   if wireTy notin {Fixed32, Fixed64}:
     raise newException(UnexpectedTypeError, fmt"Not a fixed32 or fixed64 at offset {offset}! Received a {wireTy}")
 
-proc checkType[T: SomeLengthDelimited](tyByte: byte, ty: typedesc[T], offset: int) {.inline.} =
+proc checkType[T: SomeLengthDelimited](tyByte: byte, ty: typedesc[T], offset: int) =
   let wireTy = wireType(tyByte)
   if wireTy != LengthDelimited:
     raise newException(UnexpectedTypeError, fmt"Not a length delimited value at offset {offset}! Received a {wireTy}")
 
-proc checkType[T: object](tyByte: byte, ty: typedesc[T], offset: int) {.inline.} =
+proc checkType[T: object](tyByte: byte, ty: typedesc[T], offset: int) =
   let wireTy = wireType(tyByte)
   if wireTy != LengthDelimited:
     raise newException(UnexpectedTypeError, fmt"Not an object value at offset {offset}! Received a {wireTy}")
@@ -132,7 +132,7 @@ proc get*[T: SomeLengthDelimited](
   outOffset: var int,
   outBytesProcessed: var int,
   numBytesToRead = none(int)
-): T {.inline.} =
+): T =
   var bytesRead = 0
   let decodedSize = bytes.get(uint, outOffset, outBytesProcessed, numBytesToRead)
   let length = decodedSize.int
@@ -156,7 +156,7 @@ proc decodeField*[T: SomeFixed | SomeVarint | SomeLengthDelimited](
   outOffset: var int,
   outBytesProcessed: var int,
   numBytesToRead = none(int)
-): ProtoField[T] {.inline.} =
+): ProtoField[T] =
   var bytesRead = 0
 
   checkType(bytes[outOffset], ty, outOffset)
@@ -172,7 +172,7 @@ proc decodeField*[T: object](
   outOffset: var int,
   outBytesProcessed: var int,
   numBytesToRead = none(int)
-): ProtoField[T] {.inline.}
+): ProtoField[T]
 
 proc decodeField*[T: not AnyProtoType](
   bytes: var seq[byte],
@@ -180,7 +180,7 @@ proc decodeField*[T: not AnyProtoType](
   outOffset: var int,
   outBytesProcessed: var int,
   numBytesToRead = none(int)
-): ProtoField[T] {.inline.} =
+): ProtoField[T] =
 
   var bytesRead = 0
 
@@ -198,7 +198,7 @@ proc decodeField*[T: object](
   outOffset: var int,
   outBytesProcessed: var int,
   numBytesToRead = none(int)
-): ProtoField[T] {.inline.} =
+): ProtoField[T] =
   var bytesRead = 0
 
   checkType(bytes[outOffset], ty, outOffset)
@@ -219,7 +219,7 @@ proc decodeField*[T: object](
 proc decode*[T: object](
   bytes: var seq[byte],
   ty: typedesc[T],
-): T {.inline.} =
+): T =
   var bytesRead = 0
   var offset = 0
 

@@ -6,11 +6,12 @@ type
     fieldNum: int
     outstream: OutputStreamVar
 
-proc newProtoBuffer*(): ProtoBuffer =
+proc newProtoBuffer*(): ProtoBuffer {.inline.} =
   ProtoBuffer(outstream: OutputStream.init(), fieldNum: 1)
 
 proc output*(proto: ProtoBuffer): seq[byte] {.inline.} =
   proto.outstream.getOutput
+
 template protoHeader*(fieldNum: int, wire: ProtoWireType): byte =
   ## Get protobuf's field header integer for ``index`` and ``wire``.
   ((cast[uint](fieldNum) shl 3) or cast[uint](wire)).byte
@@ -19,7 +20,7 @@ proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, value: T) {.in
 proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, fieldNum: int, value: T) {.inline.}
 proc encodeField[T: not AnyProtoType](stream: OutputStreamVar, fieldNum: int, value: T) {.inline.}
 
-proc put(stream: OutputStreamVar, value: SomeVarint) {.inline.} =
+proc put(stream: OutputStreamVar, value: SomeVarint) =
   when value is enum:
     var value = cast[type(ord(value))](value)
   elif value is bool or value is char:
@@ -39,11 +40,11 @@ proc put(stream: OutputStreamVar, value: SomeVarint) {.inline.} =
     value = value shr 7
   stream.append byte(value and 0b1111_1111)
 
-proc encodeField(stream: OutputStreamVar, fieldNum: int, value: SomeVarint) {.inline.} =
+proc encodeField(stream: OutputStreamVar, fieldNum: int, value: SomeVarint) =
   stream.append protoHeader(fieldNum, Varint)
   stream.put(value)
 
-proc put(stream: OutputStreamVar, value: SomeFixed) {.inline.} =
+proc put(stream: OutputStreamVar, value: SomeFixed) =
   when typeof(value) is SomeFixed64:
     var value = cast[int64](value)
   else:
@@ -53,26 +54,26 @@ proc put(stream: OutputStreamVar, value: SomeFixed) {.inline.} =
     stream.append byte(value and 0b1111_1111)
     value = value shr 8
 
-proc encodeField(stream: OutputStreamVar, fieldNum: int, value: SomeFixed64) {.inline.} =
+proc encodeField(stream: OutputStreamVar, fieldNum: int, value: SomeFixed64) =
   stream.append protoHeader(fieldNum, Fixed64)
   stream.put(value)
 
-proc encodeField(stream: OutputStreamVar, fieldNum: int, value: SomeFixed32) {.inline.} =
+proc encodeField(stream: OutputStreamVar, fieldNum: int, value: SomeFixed32) =
   stream.append protoHeader(fieldNum, Fixed32)
   stream.put(value)
 
-proc put(stream: OutputStreamVar, value: SomeLengthDelimited) {.inline.} =
+proc put(stream: OutputStreamVar, value: SomeLengthDelimited) =
   stream.put(len(value).uint)
   for b in value:
     stream.append byte(b)
 
-proc encodeField(stream: OutputStreamVar, fieldNum: int, value: SomeLengthDelimited) {.inline.} =
+proc encodeField(stream: OutputStreamVar, fieldNum: int, value: SomeLengthDelimited) =
   stream.append protoHeader(fieldNum, LengthDelimited)
   stream.put(value)
 
 proc put(stream: OutputStreamVar, value: object) {.inline.}
 
-proc encodeField(stream: OutputStreamVar, fieldNum: int, value: object) {.inline.} =
+proc encodeField(stream: OutputStreamVar, fieldNum: int, value: object) =
   # This is currently needed in order to get the size
   # of the output before adding it to the stream.
   # Maybe there is a better way to do this
@@ -84,7 +85,7 @@ proc encodeField(stream: OutputStreamVar, fieldNum: int, value: object) {.inline
     stream.append protoHeader(fieldNum, LengthDelimited)
     stream.put(objOutput)
 
-proc put(stream: OutputStreamVar, value: object) {.inline.} =
+proc put(stream: OutputStreamVar, value: object) =
   var fieldNum = 1
   for _, val in value.fieldPairs:
     # Only store the value
@@ -92,22 +93,22 @@ proc put(stream: OutputStreamVar, value: object) {.inline.} =
       stream.encodeField(fieldNum, val)
     inc fieldNum
 
-proc encode*(protobuf: var ProtoBuffer, value: object) {.inline.} =
+proc encode*(protobuf: var ProtoBuffer, value: object) =
   protobuf.outstream.put(value)
 
-proc encodeField*(protobuf: var ProtoBuffer, fieldNum: int, value: AnyProtoType) {.inline.} =
+proc encodeField*(protobuf: var ProtoBuffer, fieldNum: int, value: AnyProtoType) =
   protobuf.outstream.encodeField(fieldNum, value)
 
-proc encodeField*(protobuf: var ProtoBuffer, value: AnyProtoType) {.inline.} =
+proc encodeField*(protobuf: var ProtoBuffer, value: AnyProtoType) =
   protobuf.encodeField(protobuf.fieldNum, value)
   inc protobuf.fieldNum
 
-proc encodeField[T: not AnyProtoType](stream: OutputStreamVar, fieldNum: int, value: T) {.inline.} =
+proc encodeField[T: not AnyProtoType](stream: OutputStreamVar, fieldNum: int, value: T) =
   stream.encodeField(fieldNum, value.toBytes)
 
-proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, fieldNum: int, value: T) {.inline.} =
+proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, fieldNum: int, value: T) =
   protobuf.outstream.encodeField(fieldNum, value.toBytes)
 
-proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, value: T) {.inline.} =
+proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, value: T) =
   protobuf.encodeField(protobuf.fieldNum, value.toBytes)
   inc protobuf.fieldNum
