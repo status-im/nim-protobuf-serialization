@@ -1,7 +1,6 @@
-import unittest
-import sequtils
-
-import protobuf_serialization
+import
+  unittest,
+  ../protobuf_serialization
 
 type
   MyEnum = enum
@@ -188,7 +187,7 @@ suite "Test Varint Encoding":
 
   test "Can encode/decode char seq field":
     var proto = newProtoBuffer()
-    let charSeq = "hey this is a string".toSeq
+    let charSeq = cast[seq[char]]("hey this is a string")
     var bytesProcessed: int
 
     proto.encodeField(charSeq)
@@ -203,7 +202,7 @@ suite "Test Varint Encoding":
 
   test "Can encode/decode uint8 seq field":
     var proto = newProtoBuffer()
-    let uint8Seq = cast[seq[uint8]]("hey this is a string".toSeq)
+    let uint8Seq = cast[seq[uint8]]("hey this is a string")
     var bytesProcessed: int
 
     proto.encodeField(uint8Seq)
