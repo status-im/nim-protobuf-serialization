@@ -1,5 +1,3 @@
-import faststreams
-
 template sint32*() {.pragma.}
 template sint64*() {.pragma.}
 template sfixed32*() {.pragma.}

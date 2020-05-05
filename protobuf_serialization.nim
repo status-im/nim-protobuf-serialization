@@ -1,5 +1,5 @@
 import
-  serialization, protobuf_serialization/[types, reader, writer]
+  protobuf_serialization/[types, reader, writer]
 
 export
   types, reader, writer

@@ -21,16 +21,13 @@ type
 
   MyInt = distinct int
 
-proc to*(bytes: var seq[byte], ty: typedesc[MyInt]): MyInt =
-
-  var value: int
-
-  var shiftAmount = 0
-
-  for i in 0 ..< len(bytes):
-    value += int(bytes[i]) shl shiftAmount
+proc to*[MyInt](bytes: seq[byte]): MyInt =
+  var
+    shiftAmount: int = 0
+    value: int
+  for b in bytes:
+    value += int(b) shl shiftAmount
     shiftAmount += 8
-
   result = MyInt(value)
 
 proc toBytes*(value: MyInt): seq[byte] =
@@ -55,11 +52,11 @@ suite "Test Varint Encoding":
 
     var offset = 0
 
-    let decodedME3 = decodeField(output, MyEnum, offset, bytesProcessed)
+    let decodedME3 = decodeField[MyEnum](output, offset, bytesProcessed)
     assert decodedME3.value == ME3
     assert decodedME3.index == 1
 
-    let decodedME2 = decodeField(output, MyEnum, offset, bytesProcessed)
+    let decodedME2 = decodeField[MyEnum](output, offset, bytesProcessed)
     assert decodedME2.value == ME2
     assert decodedME2.index == 2
 
@@ -74,7 +71,7 @@ suite "Test Varint Encoding":
     assert output == @[8.byte, 215, 221, 18]
 
     var offset = 0
-    let decoded = decodeField(output, int, offset, bytesProcessed)
+    let decoded = decodeField[int](output, offset, bytesProcessed)
     assert decoded.value == num
     assert decoded.index == 1
 
@@ -89,7 +86,7 @@ suite "Test Varint Encoding":
     assert output == @[10.byte, 3, 231, 189, 1]
 
     var offset = 0
-    let decoded = decodeField(output, MyInt, offset, bytesProcessed)
+    let decoded = decodeField[MyInt](output, offset, bytesProcessed)
     assert decoded.value.int == num.int
     assert decoded.index == 1
 
@@ -104,7 +101,7 @@ suite "Test Varint Encoding":
     assert output == @[13.byte, 67, 69, 154, 68]
 
     var offset = 0
-    let decoded = decodeField(output, float32, offset, bytesProcessed)
+    let decoded = decodeField[float32](output, offset, bytesProcessed)
     assert decoded.value == num
     assert decoded.index == 1
 
@@ -119,7 +116,7 @@ suite "Test Varint Encoding":
     assert output == @[9.byte, 84, 88, 211, 191, 182, 115, 166, 66]
 
     var offset = 0
-    let decoded = decodeField(output, float64, offset, bytesProcessed)
+    let decoded = decodeField[float64](output, offset, bytesProcessed)
     assert decoded.value == num
     assert decoded.index == 1
 
@@ -134,7 +131,7 @@ suite "Test Varint Encoding":
     assert output == @[8.byte, 1]
 
     var offset = 0
-    let decoded = decodeField(output, bool, offset, bytesProcessed)
+    let decoded = decodeField[bool](output, offset, bytesProcessed)
     assert bytesProcessed == 2
     assert decoded.value == boolean
     assert decoded.index == 1
@@ -150,7 +147,7 @@ suite "Test Varint Encoding":
     assert output == @[8.byte, ord(charVal).byte]
 
     var offset = 0
-    let decoded = decodeField(output, char, offset, bytesProcessed)
+    let decoded = decodeField[char](output, offset, bytesProcessed)
     assert bytesProcessed == 2
     assert decoded.value == charVal
     assert decoded.index == 1
@@ -166,7 +163,7 @@ suite "Test Varint Encoding":
     assert output == @[8.byte, 143, 194, 7]
     var offset = 0
 
-    let decoded = decodeField(output, uint, offset, bytesProcessed)
+    let decoded = decodeField[uint](output, offset, bytesProcessed)
     assert decoded.value == num
     assert decoded.index == 1
 
@@ -181,7 +178,7 @@ suite "Test Varint Encoding":
     assert output == @[10.byte, 20, 104, 101, 121, 32, 116, 104, 105, 115, 32, 105, 115, 32, 97, 32, 115, 116, 114, 105, 110, 103]
 
     var offset = 0
-    let decoded = decodeField(output, string, offset, bytesProcessed)
+    let decoded = decodeField[string](output, offset, bytesProcessed)
     assert decoded.value == str
     assert decoded.index == 1
 
@@ -196,7 +193,7 @@ suite "Test Varint Encoding":
     assert output == @[10.byte, 20, 104, 101, 121, 32, 116, 104, 105, 115, 32, 105, 115, 32, 97, 32, 115, 116, 114, 105, 110, 103]
 
     var offset = 0
-    let decoded = decodeField(output, seq[char], offset, bytesProcessed)
+    let decoded = decodeField[seq[char]](output, offset, bytesProcessed)
     assert decoded.value == charSeq
     assert decoded.index == 1
 
@@ -211,7 +208,7 @@ suite "Test Varint Encoding":
     assert output == @[10.byte, 20, 104, 101, 121, 32, 116, 104, 105, 115, 32, 105, 115, 32, 97, 32, 115, 116, 114, 105, 110, 103]
 
     var offset = 0
-    let decoded = decodeField(output, seq[uint8], offset, bytesProcessed)
+    let decoded = decodeField[seq[uint8]](output, offset, bytesProcessed)
     assert decoded.value == uint8Seq
     assert decoded.index == 1
 
@@ -224,7 +221,7 @@ suite "Test Varint Encoding":
     var offset, bytesProcessed: int
 
     var output = proto.output
-    let decoded = decodeField(output, Test3, offset, bytesProcessed)
+    let decoded = decodeField[Test3](output, offset, bytesProcessed)
     assert decoded.value == obj
     assert decoded.index == 1
 
@@ -235,7 +232,7 @@ suite "Test Varint Encoding":
 
     proto.encode(obj)
     var output = proto.output
-    let decoded = output.decode(Test3)
+    let decoded = output.decode[:Test3]()
     assert decoded == obj
 
   test "Can encode/decode out of order object":
@@ -250,7 +247,7 @@ suite "Test Varint Encoding":
     proto.encodeField(5, true)
 
     var output = proto.output
-    let decoded = output.decode(Test3)
+    let decoded = output.decode[:Test3]()
 
     assert decoded == obj
 
@@ -263,7 +260,7 @@ suite "Test Varint Encoding":
     var output = proto.output
     assert output.len == 0
 
-    let decoded = output.decode(Test1)
+    let decoded = output.decode[:Test1]()
     assert decoded == obj
 
   test "Empty object does not get encoded":
@@ -275,5 +272,5 @@ suite "Test Varint Encoding":
     var output = proto.output
     assert output.len == 0
 
-    let decoded = output.decode(Test1)
+    let decoded = output.decode[:Test1]()
     assert decoded == obj
