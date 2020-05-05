@@ -8,8 +8,9 @@ srcDir        = "src"
 skipDirs      = @["tests"]
 
 requires "nim >= 1.2.0",
-         "serialization",
-         "faststreams"
+         "stew",
+         "faststreams",
+         "serialization"
 
 task test, "Run all tests":
   exec "nim c -r --threads:off tests/test_all"
