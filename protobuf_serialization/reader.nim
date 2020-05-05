@@ -54,10 +54,11 @@ proc readVarInt[T](stream: InputStreamHandle, subtype: SubType): T =
     offset += 7
 
   #Zig-zagged.
-  if subtype == SInt32:
-    result = T((U(value) shl 1) xor (value shr 31))
-  elif subtype == SInt64:
-    result = T((U(value) shl 1) xor (value shr 63))
+  if subtype in {SInt32, SInt64}:
+    if (value and U(0b0000_0001)) == 1:
+      result = -T(value shr 1) - 1
+    else:
+      result = T(value shr 1)
   #Not zig-zagged, yet negative.
   elif offset == 70:
     #This should handle the lowest possible negative value.
