@@ -73,7 +73,14 @@ proc readVarInt[T](stream: InputStreamHandle, subtype: SubType): T =
     result = T(value)
 
 proc readFixed64[T](stream: InputStreamHandle, subtype: SubType): T =
-  discard
+  var
+    value: T = T(0)
+    next: Option[byte]
+  for offset in countup(0, 56, 8):
+    next = stream.next()
+    if next.isNone():
+      raise newException(ProtobufEOFError, "Couldn't read a fixed 64-bit number from this stream.")
+    value += T(next.get()) shl T(offset)
 
 proc readLengthDelimited(stream: InputStreamHandle): seq[byte] =
   if not stream.readable():
@@ -85,8 +92,15 @@ proc readLengthDelimited(stream: InputStreamHandle): seq[byte] =
       raise newException(ProtobufEOFError, "Couldn't read a length delimited sequence from this stream.")
     result.add(stream.next().get())
 
-proc readFixed32[T](stream: InputStreamHandle, subtype: SubType): T =
-  discard
+proc readFixed32[T](stream: InputStreamHandle): T =
+  var
+    value: T = T(0)
+    next: Option[byte]
+  for offset in countup(0, 24, 8):
+    next = stream.next()
+    if next.isNone():
+      raise newException(ProtobufEOFError, "Couldn't read a fixed 32-bit number from this stream.")
+    value += T(next.get()) shl T(offset)
 
 proc getDefaultSubType[T](subtype: SubType): SubType =
   if subtype == Default:
@@ -110,6 +124,10 @@ proc getDefaultSubType[T](subtype: SubType): SubType =
       result = PEnum
     elif T is LengthDelimitedTypes:
       result = Default
+    elif T is float32:
+      result = Float
+    elif T is float64:
+      result = Double
     else:
       {.fatal: "Told to use the default subtype for an unknown type.".}
   else:
@@ -167,8 +185,7 @@ template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
               {.fatal: fieldName & "'s encoding format was not specified. If you don't know whether to choose pint64 or sint64, use the sint64 pragma after the field name."}
 
       when fieldVar is LengthDelimitedTypes:
-        if fieldKey.wireType == byte(LengthDelimited):
-            setLengthDelimitedField(fieldVar, stream)
+          setLengthDelimitedField(fieldVar, stream)
       else:
         setIndividualField(fieldVar, stream, reader, subtype)
 

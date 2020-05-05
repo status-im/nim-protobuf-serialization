@@ -21,7 +21,8 @@ type
     VarInt, Fixed64, LengthDelimited, StartGroup, EndGroup, Fixed32
 
   SubType* = enum
-    Default
+    Default,
+
     PInt32,
     PInt64,
     UInt32,
@@ -29,7 +30,15 @@ type
     SInt32,
     SInt64,
     PBool,
-    PEnum
+    PEnum,
+
+    PFixed64,
+    SFixed64,
+    Double,
+
+    PFixed32,
+    SFixed32,
+    Float
 
   ProtoField*[T] = object
     index*: int
