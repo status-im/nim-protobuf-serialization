@@ -21,6 +21,35 @@ proc newProtobufReader(
   data: seq[byte]
 ): ProtobufReader {.inline.} =
   ProtobufReader(stream: memoryInput(data))
+#This was originally attempted with a raw template, and then a quote block.
+#Nim modified the symbols and stopped resolution in functions which used this.
+macro getSignedVariants(returnType: untyped): untyped =
+  when sizeof(returnType) == 8:
+    result = newNimNode(nnkConstSection).add(
+      newNimNode(nnkConstDef).add(
+        ident("S"),
+        newNimNode(nnkEmpty),
+        ident("int64"),
+      ),
+      newNimNode(nnkConstDef).add(
+        ident("U"),
+        newNimNode(nnkEmpty),
+        ident("uint64"),
+      )
+    )
+  else:
+    result = newNimNode(nnkConstSection).add(
+      newNimNode(nnkConstDef).add(
+        ident("S"),
+        newNimNode(nnkEmpty),
+        ident("int32"),
+      ),
+      newNimNode(nnkConstDef).add(
+        ident("U"),
+        newNimNode(nnkEmpty),
+        ident("uint32"),
+      )
+    )
 
 template wireType(key: byte): byte =
   key and WIRE_TYPE_MASK
@@ -32,12 +61,7 @@ template fieldNumber(key: byte): int =
 #That said, due to the context specific return type, which goes beyond the wire type, you need generics.
 #As Generic types aren't concrete, they can't be used in a table.
 proc readVarInt[T](stream: InputStreamHandle, subtype: SubType): T =
-  when sizeof(T) == 4:
-    type U = uint32
-  elif sizeof(T) == 8:
-    type U = uint64
-  else:
-    {.fatal: "Tried to read a VarInt which wasn't 32 or 64 bits.".}
+  getSignedVariants(T)
 
   var
     value = U(0)
@@ -73,14 +97,17 @@ proc readVarInt[T](stream: InputStreamHandle, subtype: SubType): T =
     result = T(value)
 
 proc readFixed64[T](stream: InputStreamHandle): T =
+  getSignedVariants(T)
+
   var
-    value: T = T(0)
+    value = S(0)
     next: Option[byte]
   for offset in countup(0, 56, 8):
     next = stream.next()
     if next.isNone():
       raise newException(ProtobufEOFError, "Couldn't read a fixed 64-bit number from this stream.")
-    value += T(next.get()) shl T(offset)
+    value += S(next.get()) shl S(offset)
+  result = T(value)
 
 proc readLengthDelimited(stream: InputStreamHandle): seq[byte] =
   if not stream.readable():
@@ -93,14 +120,17 @@ proc readLengthDelimited(stream: InputStreamHandle): seq[byte] =
     result.add(stream.next().get())
 
 proc readFixed32[T](stream: InputStreamHandle): T =
+  getSignedVariants(T)
+
   var
-    value: T = T(0)
+    value = S(0)
     next: Option[byte]
   for offset in countup(0, 24, 8):
     next = stream.next()
     if next.isNone():
       raise newException(ProtobufEOFError, "Couldn't read a fixed 32-bit number from this stream.")
-    value += T(next.get()) shl T(offset)
+    value += S(next.get()) shl S(offset)
+  result = T(value)
 
 #The only reason this is used is so variables, as in raw ints, can be serialized/parsed.
 #They should really have pragmas attached, removing the need for this.
