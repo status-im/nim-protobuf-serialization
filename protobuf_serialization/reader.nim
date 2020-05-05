@@ -11,16 +11,9 @@ const
   WIRE_TYPE_MASK: byte = 0b0000_0111
 
 type
-  ProtobufReader* = ref object
-    stream: InputStreamHandle
-
   ProtobufEOFError* = object of ProtobufError
   ProtobufLegacyError* = object of ProtobufError
 
-proc newProtobufReader(
-  data: seq[byte]
-): ProtobufReader {.inline.} =
-  ProtobufReader(stream: memoryInput(data))
 #This was originally attempted with a raw template, and then a quote block.
 #Nim modified the symbols and stopped resolution in functions which used this.
 macro getSignedVariants(returnType: untyped): untyped =
@@ -68,7 +61,7 @@ proc readVarInt[T](stream: InputStreamHandle, subtype: SubType): T =
     offset: int8 = 0
     next = VAR_INT_CONTINUATION_MASK
   while (next and VAR_INT_CONTINUATION_MASK) != 0:
-    let option = stream.next()
+    let option = stream.s.next()
 
     if option.isNone:
       raise newException(ProtobufEOFError, "Couldn't read a VarInt from this stream.")
@@ -103,7 +96,7 @@ proc readFixed64[T](stream: InputStreamHandle): T =
     value = S(0)
     next: Option[byte]
   for offset in countup(0, 56, 8):
-    next = stream.next()
+    next = stream.s.next()
     if next.isNone():
       raise newException(ProtobufEOFError, "Couldn't read a fixed 64-bit number from this stream.")
     value += S(next.get()) shl S(offset)
@@ -113,11 +106,11 @@ proc readLengthDelimited(stream: InputStreamHandle): seq[byte] =
   if not stream.readable():
     raise newException(ProtobufEOFError, "Couldn't read a length delimited sequence from this stream.")
 
-  result = newSeq[byte](stream.next().get())
+  result = newSeq[byte](stream.s.next().get())
   for _ in 0 ..< result.len:
     if not stream.readable():
       raise newException(ProtobufEOFError, "Couldn't read a length delimited sequence from this stream.")
-    result.add(stream.next().get())
+    result.add(stream.s.next().get())
 
 proc readFixed32[T](stream: InputStreamHandle): T =
   getSignedVariants(T)
@@ -126,7 +119,7 @@ proc readFixed32[T](stream: InputStreamHandle): T =
     value = S(0)
     next: Option[byte]
   for offset in countup(0, 24, 8):
-    next = stream.next()
+    next = stream.s.next()
     if next.isNone():
       raise newException(ProtobufEOFError, "Couldn't read a fixed 32-bit number from this stream.")
     value += S(next.get()) shl S(offset)
@@ -208,24 +201,26 @@ template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
           setIndividualField(fieldVar, stream, reader, subtype)
 
 #SubType is passable to support individual values (e.g., `var x: int`).
-proc decode*[T](reader: ProtobufReader, subtype: SubType = SubType.Default): T =
-  while reader.stream.readable:
-    let fieldKey = reader.stream.next().get()
+proc readValue*[T](bytes: seq[byte], ty: typedesc[T], subtype: SubType = SubType.Default): T =
+  var stream: InputStreamHandle = memoryInput(bytes)
+  while stream.s.readable:
+    let fieldKey = stream.s.next().get()
     case fieldKey.wireType:
       #LengthDelimited doesn't get its own case due to how its return values are handled.
       #There's a special fieldKey check for it which means it doesn't matter what this code does.
       #That said, it still can't error our thinking it's an invalid type.
       of byte(VarInt), byte(LengthDelimited):
-        result.setField(fieldKey, reader.stream, readVarInt, subtype)
+        result.setField(fieldKey, stream, readVarInt, subtype)
       of byte(Fixed64):
-        result.setField(fieldKey, reader.stream, readFixed64, subtype)
+        result.setField(fieldKey, stream, readFixed64, subtype)
       of byte(StartGroup):
         raise newException(ProtobufLegacyError, "Handed legacy Protobuf message.")
       of byte(EndGroup):
         raise newException(ProtobufLegacyError, "Handed legacy Protobuf message.")
       of byte(Fixed32):
-        result.setField(fieldKey, reader.stream, readFixed32, subtype)
+        result.setField(fieldKey, stream, readFixed32, subtype)
       #If we just used ProtoWireType, we risk bound check errors on invalid messages.
       #This way, we can raise a derivation of ProtobufError.
       else:
         raise newException(ProtobufError, "Invalid field type sent.")
+    stream.s.close()
