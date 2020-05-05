@@ -54,9 +54,9 @@ proc readVarInt[T](stream: InputStreamHandle, subtype: SubType): T =
     offset += 7
 
   #Zig-zagged.
-  if subtype in {SInt32, SInt64}:
+  if subtype == SInt:
     if (value and U(0b0000_0001)) == 1:
-      result = -T(value shr 1) - 1
+      result = T(-S(value shr 1) - 1)
     else:
       result = T(value shr 1)
   #Not zig-zagged, yet negative.
@@ -66,7 +66,7 @@ proc readVarInt[T](stream: InputStreamHandle, subtype: SubType): T =
     #Said lowest value will be negative, multiplied by -1, and wrap again.
     #This behavior requires boundChecks to be turned off in order to not raise though.
     {.push boundChecks: off.}
-    result = -T(value)
+    result = T(-S(value))
     {.pop.}
   #Not zig-zagged, yet positive.
   else:
@@ -102,32 +102,18 @@ proc readFixed32[T](stream: InputStreamHandle): T =
       raise newException(ProtobufEOFError, "Couldn't read a fixed 32-bit number from this stream.")
     value += T(next.get()) shl T(offset)
 
+#The only reason this is used is so variables, as in raw ints, can be serialized/parsed.
+#They should really have pragmas attached, removing the need for this.
 proc getDefaultSubType[T](subtype: SubType): SubType =
   if subtype == Default:
-    when (
-      (T is Integer32Types) or
-      ((T is int) and (sizeof(int) == 4))
-    ):
-      result = SInt32
-    elif (T is int64) or ((T is int) and (sizeof(int) == 8)):
-      result = SInt64
-    elif (
-      (T is UInteger32Types) or
-      ((T is uint) and (sizeof(uint) == 4))
-    ):
-      result = UInt32
-    elif (T is uint64) or ((T is uint) and (sizeof(uint) == 8)):
-      result = UInt64
+    when T is SomeSignedInt:
+      result = SInt
+    when T is SomeUnsignedInt:
+      result = UInt
     elif T is bool:
-      result = PBool
+      result = UInt
     elif T is enum:
-      result = PEnum
-    elif T is LengthDelimitedTypes:
-      result = Default
-    elif T is float32:
-      result = Float
-    elif T is float64:
-      result = Double
+      result = SInt
     else:
       {.fatal: "Told to use the default subtype for an unknown type.".}
   else:
@@ -138,8 +124,10 @@ template setIndividualField[T](value: var T, stream: InputStreamHandle,
   when T is object:
     {.fatal: "Object made it to set individual field."}
 
-  var subtype = getDefaultSubType[T](subtypeArg)
-  value = stream.reader[:T](subtype)
+  when reader is type(readVarInt):
+    value = stream.reader[:T](getDefaultSubType[T](subtypeArg))
+  else:
+    value = stream.reader[:T]()
 
 template setLengthDelimitedField[T](value: var T, stream: InputStreamHandle) =
   when T is CastableLengthDelimitedTypes:
@@ -149,9 +137,8 @@ template setLengthDelimitedField[T](value: var T, stream: InputStreamHandle) =
 
 template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
                      reader: untyped, subtypeArg: SubType) =
-  when T is not LengthDelimitedTypes:
-    var subtype = getDefaultSubtype[T](subtypeArg)
 
+  var subtype = subtypeArg
   when T is not object:
     when T is LengthDelimitedTypes:
       setLengthDelimitedField(value, stream)
@@ -164,53 +151,26 @@ template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
       if counter != fieldKey.fieldNumber:
         inc(counter)
       else:
-        when fieldVar is SomeSignedInt:
-          const
-            hasPInt32 = T.hasCustomPragmaFixed(fieldName, pint32)
-            hasSInt32 = T.hasCustomPragmaFixed(fieldName, sint32)
-            hasPInt64 = T.hasCustomPragmaFixed(fieldName, pint64)
-            hasSInt64 = T.hasCustomPragmaFixed(fieldName, sint64)
-            hasSFixed32 = T.hasCustomPragmaFixed(fieldName, sfixed32)
-            hasSFixed64 = T.hasCustomPragmaFixed(fieldName, sfixed64)
-          when hasPInt32 or hasSInt32 or hasSFixed32:
-            when (fieldVar is not SomeSignedInt) or (sizeof(fieldVar) > 4):
-              {.fatal: "Invalid application of the pint32/sint32/fixed32/sfixed32 pragma to a non-number or number larger than 32 bits.".}
-            when hasPInt32:
-              subtype = SubType.PInt32
-            elif hasSInt32:
-              subtype = SubType.SInt32
-            elif hasSFixed32:
-              subtype = SubType.SFixed32
-            else: {.fatal: "Couldn't get the subtype despite detecting an assigned pragma."}
-          elif hasPInt64 or hasSInt64 or hasSFixed64:
-            when fieldVar is not SomeSignedInt:
-              {.fatal: "Invalid application of the pint64/sint64 pragma to a non-number.".}
-            when hasPInt64:
-              subtype = SubType.PInt64
-            elif hasSInt64:
-              subtype = ubType.SInt64
-            elif hasSFixed64:
-              subtype = SubType.SFixed64
-            else: {.fatal: "Couldn't get the subtype despite detecting an assigned pragma."}
-          else:
-            when sizeof(fieldVar) <= 4:
-              {.fatal: fieldName & "'s encoding format was not specified. If you don't know whether to choose pint32, sint32, or sfixed32, use the sint32 pragma after the field name."}
+        #Only calculate the subtype for VarInt.
+        #In every other case, the variable type is enough.
+        #Writing does have further specification rules, but those aren't needed here.
+        when reader is type(readVarInt):
+          when fieldVar is IntegerTypes:
+            const
+              hasPInt = T.hasCustomPragmaFixed(fieldName, pint)
+              hasSInt = T.hasCustomPragmaFixed(fieldName, sint)
+            when (hasPInt or hasSInt) and (fieldVar is not SIntegerTypes):
+              {.fatal: "Invalid application of the pint/sint pragma to an unsigned number.".}
+            elif hasPInt and hasSInt:
+              {.fatal: "Multiple encoding specification pragmas attached to a single field.".}
+            elif hasPInt:
+              subtype = SubType.PInt
+            elif hasSInt:
+              subtype = SubType.SInt
+            elif fieldVar is UIntegerTypes:
+              subtype = SubType.UInts
             else:
-              {.fatal: fieldName & "'s encoding format was not specified. If you don't know whether to choose pint64, sint64, or sfixed64 use the sint64 pragma after the field name."}
-        elif fieldVar is SomeUnsignedInt:
-          if (fieldVar is uint32) or ((fieldVar is uint) and (sizeof(uint) == 4)):
-            subtype = SubType.UInt32
-            if T.hasCustomPragmaFixed(fieldName, fixed32):
-              subtype = SubType.PFixed32
-          elif (fieldVar is uint64) or ((fieldVar is uint) and (sizeof(uint) == 8)):
-            subtype = SubType.UInt64
-            if T.hasCustomPragmaFixed(fieldName, fixed64):
-              subtype = SubType.PFixed64
-        elif fieldVar is SomeFloat:
-          if sizeof(fieldVar) == 4:
-            subtype = SubType.Float
-          else:
-            subtype = SubType.Double
+              {.fatal: fieldName & "'s encoding format was not specified. If you don't know whether to choose pint or sint, use the sint pragma after the field name.".}
 
         when fieldVar is LengthDelimitedTypes:
             setLengthDelimitedField(fieldVar, stream)

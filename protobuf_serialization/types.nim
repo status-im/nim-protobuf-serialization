@@ -2,10 +2,8 @@ import serialization/errors
 
 #int32 is a keywork. pint32 standards for Protobuf int32.
 #sint32 is just sint32; sfixed32 is just sfixed32; double is just double.
-template pint32*() {.pragma.}
-template pint64*() {.pragma.}
-template sint32*() {.pragma.}
-template sint64*() {.pragma.}
+template pint*() {.pragma.}
+template sint*() {.pragma.}
 template fixed32*() {.pragma.}
 template fixed64*() {.pragma.}
 template sfixed32*() {.pragma.}
@@ -21,33 +19,18 @@ type
 
   SubType* = enum
     Default,
-
-    PInt32,
-    PInt64,
-    UInt32,
-    UInt64,
-    SInt32,
-    SInt64,
-    PBool,
-    PEnum,
-
-    PFixed64,
-    SFixed64,
-    Double,
-
-    PFixed32,
-    SFixed32,
-    Float
+    PInt,
+    SInt
 
   ProtoField*[T] = object
     index*: int
     value*: T
 
-  Integer32Types* = byte or char or int8 or int16 or int32
-  UInteger32Types* = uint8 or uint16 or uint32
+  SIntegerTypes = SomeSignedInt or enum
+  UIntegerTypes = SomeUnsignedInt or bool
+  IntegerTypes = SIntegerTypes or UIntegerTypes
   CastableLengthDelimitedTypes* = string or seq[char or byte or uint8]
   LengthDelimitedTypes* = CastableLengthDelimitedTypes or cstring or array or object
 
   ProtobufError* = object of SerializationError
 
-const FixedSubTypes* = {PFixed64, SFixed64, Double, PFixed32, SFixed32, Float}
