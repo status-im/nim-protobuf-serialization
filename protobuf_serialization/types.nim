@@ -10,7 +10,6 @@ template fixed32*() {.pragma.}
 template fixed64*() {.pragma.}
 template sfixed32*() {.pragma.}
 template sfixed64*() {.pragma.}
-template double*() {.pragma.}
 
 const
   VAR_INT_CONTINUATION_MASK*: byte = 0b1000_0000
@@ -50,3 +49,5 @@ type
   LengthDelimitedTypes* = CastableLengthDelimitedTypes or cstring or array or object
 
   ProtobufError* = object of SerializationError
+
+const FixedSubTypes* = {PFixed64, SFixed64, Double, PFixed32, SFixed32, Float}

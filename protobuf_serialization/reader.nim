@@ -72,7 +72,7 @@ proc readVarInt[T](stream: InputStreamHandle, subtype: SubType): T =
   else:
     result = T(value)
 
-proc readFixed64[T](stream: InputStreamHandle, subtype: SubType): T =
+proc readFixed64[T](stream: InputStreamHandle): T =
   var
     value: T = T(0)
     next: Option[byte]
@@ -170,24 +170,52 @@ template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
             hasSInt32 = T.hasCustomPragmaFixed(fieldName, sint32)
             hasPInt64 = T.hasCustomPragmaFixed(fieldName, pint64)
             hasSInt64 = T.hasCustomPragmaFixed(fieldName, sint64)
-          when hasPInt32 or hasSInt32:
+            hasSFixed32 = T.hasCustomPragmaFixed(fieldName, sfixed32)
+            hasSFixed64 = T.hasCustomPragmaFixed(fieldName, sfixed64)
+          when hasPInt32 or hasSInt32 or hasSFixed32:
             when (fieldVar is not SomeSignedInt) or (sizeof(fieldVar) > 4):
-              {.fatal: "Invalid application of the pint32/sint32 pragma to a non-number or number larger than 32 bits.".}
-            subtype = if hasPInt32: SubType.PInt32 else: SubType.SInt32
-          elif hasPInt64 or hasSInt64:
+              {.fatal: "Invalid application of the pint32/sint32/fixed32/sfixed32 pragma to a non-number or number larger than 32 bits.".}
+            when hasPInt32:
+              subtype = SubType.PInt32
+            elif hasSInt32:
+              subtype = SubType.SInt32
+            elif hasSFixed32:
+              subtype = SubType.SFixed32
+            else: {.fatal: "Couldn't get the subtype despite detecting an assigned pragma."}
+          elif hasPInt64 or hasSInt64 or hasSFixed64:
             when fieldVar is not SomeSignedInt:
               {.fatal: "Invalid application of the pint64/sint64 pragma to a non-number.".}
-            subtype = if hasPInt64: SubType.PInt64 else: SubType.SInt64
+            when hasPInt64:
+              subtype = SubType.PInt64
+            elif hasSInt64:
+              subtype = ubType.SInt64
+            elif hasSFixed64:
+              subtype = SubType.SFixed64
+            else: {.fatal: "Couldn't get the subtype despite detecting an assigned pragma."}
           else:
             when sizeof(fieldVar) <= 4:
-              {.fatal: fieldName & "'s encoding format was not specified. If you don't know whether to choose pint32 or sint32, use the sint32 pragma after the field name."}
+              {.fatal: fieldName & "'s encoding format was not specified. If you don't know whether to choose pint32, sint32, or sfixed32, use the sint32 pragma after the field name."}
             else:
-              {.fatal: fieldName & "'s encoding format was not specified. If you don't know whether to choose pint64 or sint64, use the sint64 pragma after the field name."}
+              {.fatal: fieldName & "'s encoding format was not specified. If you don't know whether to choose pint64, sint64, or sfixed64 use the sint64 pragma after the field name."}
+        elif fieldVar is SomeUnsignedInt:
+          if (fieldVar is uint32) or ((fieldVar is uint) and (sizeof(uint) == 4)):
+            subtype = SubType.UInt32
+            if T.hasCustomPragmaFixed(fieldName, fixed32):
+              subtype = SubType.PFixed32
+          elif (fieldVar is uint64) or ((fieldVar is uint) and (sizeof(uint) == 8)):
+            subtype = SubType.UInt64
+            if T.hasCustomPragmaFixed(fieldName, fixed64):
+              subtype = SubType.PFixed64
+        elif fieldVar is SomeFloat:
+          if sizeof(fieldVar) == 4:
+            subtype = SubType.Float
+          else:
+            subtype = SubType.Double
 
-      when fieldVar is LengthDelimitedTypes:
-          setLengthDelimitedField(fieldVar, stream)
-      else:
-        setIndividualField(fieldVar, stream, reader, subtype)
+        when fieldVar is LengthDelimitedTypes:
+            setLengthDelimitedField(fieldVar, stream)
+        else:
+          setIndividualField(fieldVar, stream, reader, subtype)
 
 #SubType is passable to support individual values (e.g., `var x: int`).
 proc decode*[T](reader: ProtobufReader, subtype: SubType = SubType.Default): T =
