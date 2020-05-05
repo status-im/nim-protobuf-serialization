@@ -1,4 +1,5 @@
 import faststreams
+import serialization
 import types
 
 type
@@ -87,8 +88,7 @@ proc encodeField(stream: OutputStreamVar, fieldNum: int, value: object) =
 
 proc put(stream: OutputStreamVar, value: object) =
   var fieldNum = 1
-  for _, val in value.fieldPairs:
-    # Only store the value
+  value.enumInstanceSerializedFields(_, val):
     if default(type(val)) != val:
       stream.encodeField(fieldNum, val)
     inc fieldNum
