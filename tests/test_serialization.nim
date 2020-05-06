@@ -6,12 +6,12 @@ type
   MyEnum = enum
     ME1, ME2, ME3
 
-  #[Test1 = object
+  Test1 = object
     a: uint
     b: string
     c: char
 
-  Test3 = object
+  #[Test3 = object
     g {.sfixed.}: int
     h {.sint.}: int
     i: Test1
@@ -173,7 +173,7 @@ suite "Test Varint Encoding":
     assert output == @[10.byte, 20, 104, 101, 121, 32, 116, 104, 105, 115, 32, 105, 115, 32, 97, 32, 115, 116, 114, 105, 110, 103]
 
     let decoded = readValue(output, seq[uint8])
-    assert decoded == uint8Seq
+    assert decoded == uint8Seq]
 
   test "Can encode/decode object field":
     var proto = newProtoBuffer()
