@@ -1,10 +1,6 @@
-import
-  protobuf_serialization/[types, reader, writer]
+#import serialization
+import protobuf_serialization/[types, reader, writer]
 
-export
-  types, reader, writer
+export types, reader, writer
 
-
-serializationFormat Protobuf,
-                    Reader = ProtobufReader,
-                    Writer = ProtobufWriter
+#serializationFormat Protobuf

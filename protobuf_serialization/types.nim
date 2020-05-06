@@ -48,3 +48,13 @@ else:
     Fixed64Types* = LimitedFixed64Types or int
     Fixed32Types* = LimitedFixed32Types
 
+type
+  SomeSVarint* = int | int64 | int32 | int16 | int8 | enum
+  SomeByte* = byte | bool | char | uint8
+  SomeUVarint* = uint | uint64 | uint32 | uint16 | SomeByte
+  SomeVarint* = SomeSVarint | SomeUVarint
+  SomeLengthDelimited* = string | seq[SomeByte] | cstring
+  SomeFixed64* = float64
+  SomeFixed32* = float32
+  SomeFixed* = SomeFixed32 | SomeFixed64
+  AnyProtoType* = SomeVarint | SomeLengthDelimited | SomeFixed | object
