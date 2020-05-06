@@ -6,14 +6,14 @@ type
   MyEnum = enum
     ME1, ME2, ME3
 
-  Test1 = object
+  #[Test1 = object
     a: uint
     b: string
     c: char
 
   Test3 = object
-    g {.sfixed32.}: int
-    h: int
+    g {.sfixed.}: int
+    h {.sint.}: int
     i: Test1
     j: string
     k: bool
@@ -37,12 +37,11 @@ proc toBytes*(value: MyInt): seq[byte] =
     result.add byte(value and 0b1111_1111)
     value = value shr 8
 
-proc `==`(a, b: MyInt): bool {.borrow.}
+proc `==`(a, b: MyInt): bool {.borrow.}]#
 
 suite "Test Varint Encoding":
   test "Can encode/decode enum field":
     var proto = newProtoBuffer()
-    var bytesProcessed: int
 
     proto.encodeField(ME3)
     proto.encodeField(ME2)
@@ -50,167 +49,131 @@ suite "Test Varint Encoding":
     var output = proto.output
     assert output == @[8.byte, 4, 16, 2]
 
-    var offset = 0
+    let decodedME3 = readValue(output, MyEnum)
+    assert decodedME3 == ME3
 
-    let decodedME3 = decodeField[MyEnum](output, offset, bytesProcessed)
-    assert decodedME3.value == ME3
-    assert decodedME3.index == 1
-
-    let decodedME2 = decodeField[MyEnum](output, offset, bytesProcessed)
-    assert decodedME2.value == ME2
-    assert decodedME2.index == 2
+    let decodedME2 = readValue(output, MyEnum)
+    assert decodedME2 == ME2
 
   test "Can encode/decode negative number field":
     var proto = newProtoBuffer()
     let num = -153452
-    var bytesProcessed: int
 
     proto.encodeField(num)
 
     var output = proto.output
     assert output == @[8.byte, 215, 221, 18]
 
-    var offset = 0
-    let decoded = decodeField[int](output, offset, bytesProcessed)
-    assert decoded.value == num
-    assert decoded.index == 1
+    let decoded = readValue(output, int)
+    assert decoded == num
 
-  test "Can encode/decode distinct number field":
+  #[test "Can encode/decode distinct number field":
     var proto = newProtoBuffer()
     let num = 114151.MyInt
-    var bytesProcessed: int
 
     proto.encodeField(num)
 
     var output = proto.output
     assert output == @[10.byte, 3, 231, 189, 1]
 
-    var offset = 0
-    let decoded = decodeField[MyInt](output, offset, bytesProcessed)
-    assert decoded.value.int == num.int
-    assert decoded.index == 1
+    let decoded = readValue(output, MyInt)
+    assert decoded.int == num.int]#
 
   test "Can encode/decode float32 number field":
     var proto = newProtoBuffer()
     let num = float32(1234.164423)
-    var bytesProcessed: int
 
     proto.encodeField(num)
 
     var output = proto.output
     assert output == @[13.byte, 67, 69, 154, 68]
 
-    var offset = 0
-    let decoded = decodeField[float32](output, offset, bytesProcessed)
-    assert decoded.value == num
-    assert decoded.index == 1
+    let decoded = readValue(output, float32)
+    assert decoded == num
 
   test "Can encode/decode float64 number field":
     var proto = newProtoBuffer()
     let num = 12343121537452.1644232341'f64
-    var bytesProcessed: int
 
     proto.encodeField(num)
 
     var output = proto.output
     assert output == @[9.byte, 84, 88, 211, 191, 182, 115, 166, 66]
 
-    var offset = 0
-    let decoded = decodeField[float64](output, offset, bytesProcessed)
-    assert decoded.value == num
-    assert decoded.index == 1
+    let decoded = readValue(output, float64)
+    assert decoded == num
 
   test "Can encode/decode bool field":
     var proto = newProtoBuffer()
     let boolean = true
-    var bytesProcessed: int
 
     proto.encodeField(boolean)
 
     var output = proto.output
     assert output == @[8.byte, 1]
 
-    var offset = 0
-    let decoded = decodeField[bool](output, offset, bytesProcessed)
-    assert bytesProcessed == 2
-    assert decoded.value == boolean
-    assert decoded.index == 1
+    let decoded = readValue(output, bool)
+    assert decoded == boolean
 
   test "Can encode/decode char field":
     var proto = newProtoBuffer()
     let charVal = 'G'
-    var bytesProcessed: int
 
     proto.encodeField(charVal)
 
     var output = proto.output
     assert output == @[8.byte, ord(charVal).byte]
 
-    var offset = 0
-    let decoded = decodeField[char](output, offset, bytesProcessed)
-    assert bytesProcessed == 2
-    assert decoded.value == charVal
-    assert decoded.index == 1
+    let decoded = readValue(output, char)
+    assert decoded == charVal
 
   test "Can encode/decode unsigned number field":
     var proto = newProtoBuffer()
     let num = 123151.uint
-    var bytesProcessed: int
 
     proto.encodeField(num)
 
     var output = proto.output
     assert output == @[8.byte, 143, 194, 7]
-    var offset = 0
 
-    let decoded = decodeField[uint](output, offset, bytesProcessed)
-    assert decoded.value == num
-    assert decoded.index == 1
+    let decoded = readValue(output, uint)
+    assert decoded == num
 
-  test "Can encode/decode string field":
+  #[test "Can encode/decode string field":
     var proto = newProtoBuffer()
     let str = "hey this is a string"
-    var bytesProcessed: int
 
     proto.encodeField(str)
 
     var output = proto.output
     assert output == @[10.byte, 20, 104, 101, 121, 32, 116, 104, 105, 115, 32, 105, 115, 32, 97, 32, 115, 116, 114, 105, 110, 103]
 
-    var offset = 0
-    let decoded = decodeField[string](output, offset, bytesProcessed)
-    assert decoded.value == str
-    assert decoded.index == 1
+    let decoded = readValue(output, string)
+    assert decoded == str
 
   test "Can encode/decode char seq field":
     var proto = newProtoBuffer()
     let charSeq = cast[seq[char]]("hey this is a string")
-    var bytesProcessed: int
 
     proto.encodeField(charSeq)
 
     var output = proto.output
     assert output == @[10.byte, 20, 104, 101, 121, 32, 116, 104, 105, 115, 32, 105, 115, 32, 97, 32, 115, 116, 114, 105, 110, 103]
 
-    var offset = 0
-    let decoded = decodeField[seq[char]](output, offset, bytesProcessed)
-    assert decoded.value == charSeq
-    assert decoded.index == 1
+    let decoded = readValue(output, seq[char])
+    assert decoded == charSeq
 
   test "Can encode/decode uint8 seq field":
     var proto = newProtoBuffer()
     let uint8Seq = cast[seq[uint8]]("hey this is a string")
-    var bytesProcessed: int
 
     proto.encodeField(uint8Seq)
 
     var output = proto.output
     assert output == @[10.byte, 20, 104, 101, 121, 32, 116, 104, 105, 115, 32, 105, 115, 32, 97, 32, 115, 116, 114, 105, 110, 103]
 
-    var offset = 0
-    let decoded = decodeField[seq[uint8]](output, offset, bytesProcessed)
-    assert decoded.value == uint8Seq
-    assert decoded.index == 1
+    let decoded = readValue(output, seq[uint8])
+    assert decoded == uint8Seq
 
   test "Can encode/decode object field":
     var proto = newProtoBuffer()
@@ -218,12 +181,10 @@ suite "Test Varint Encoding":
     let obj = Test3(g: 300, h: 200, i: Test1(a: 100, b: "this is a test", c: 'H'), j: "testing", k: true, l: 124521.MyInt)
 
     proto.encodeField(obj)
-    var offset, bytesProcessed: int
 
     var output = proto.output
-    let decoded = decodeField[Test3](output, offset, bytesProcessed)
-    assert decoded.value == obj
-    assert decoded.index == 1
+    let decoded = readValue(output, Test3)
+    assert decoded == obj
 
   test "Can encode/decode object":
     var proto = newProtoBuffer()
@@ -232,7 +193,7 @@ suite "Test Varint Encoding":
 
     proto.encode(obj)
     var output = proto.output
-    let decoded = output.decode[:Test3]()
+    let decoded = output.readValue(Test3)
     assert decoded == obj
 
   test "Can encode/decode out of order object":
@@ -247,7 +208,7 @@ suite "Test Varint Encoding":
     proto.encodeField(5, true)
 
     var output = proto.output
-    let decoded = output.decode[:Test3]()
+    let decoded = output.readValue(Test3)
 
     assert decoded == obj
 
@@ -260,7 +221,7 @@ suite "Test Varint Encoding":
     var output = proto.output
     assert output.len == 0
 
-    let decoded = output.decode[:Test1]()
+    let decoded = output.readValue(Test1)
     assert decoded == obj
 
   test "Empty object does not get encoded":
@@ -272,5 +233,5 @@ suite "Test Varint Encoding":
     var output = proto.output
     assert output.len == 0
 
-    let decoded = output.decode[:Test1]()
-    assert decoded == obj
+    let decoded = output.readValue(Test1)
+    assert decoded == obj]#
