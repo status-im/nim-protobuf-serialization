@@ -44,13 +44,16 @@ suite "Test Varint Encoding":
     var proto = newProtoBuffer()
 
     proto.encodeField(ME3)
-    proto.encodeField(ME2)
-
     var output = proto.output
-    assert output == @[8.byte, 4, 16, 2]
+    assert output == @[8.byte, 4]
 
     let decodedME3 = readValue(output, MyEnum)
     assert decodedME3 == ME3
+
+    proto = newProtoBuffer()
+    proto.encodeField(ME2)
+    output = proto.output
+    assert output == @[8.byte, 2]
 
     let decodedME2 = readValue(output, MyEnum)
     assert decodedME2 == ME2

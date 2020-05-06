@@ -43,10 +43,7 @@ proc readVarInt[T](stream: InputStreamHandle, subtype: VarIntSubType): T =
 
   #Zig-zagged.
   if subtype == SInt:
-    if (value and U(0b0000_0001)) == 1:
-      result = T(-S(value shr 1) - 1)
-    else:
-      result = T(value shr 1)
+    result = T(S(value shr 1) xor -S(value and U(0b0000_0001)))
   #Not zig-zagged, yet negative.
   elif offset == 70:
     #This should handle the lowest possible negative value.
@@ -116,7 +113,7 @@ proc getDefaultSubType[T](subtype: VarIntSubType): VarIntSubType =
   if subtype == Default:
     when T is (SIntegerTypes or enum):
       result = SInt
-    elif T is (UIntegerTypes or bool):
+    elif T is UIntegerTypes:
       result = PInt
     else:
       {.fatal: "Told to use the default subtype for an unknown type: " & $T.}

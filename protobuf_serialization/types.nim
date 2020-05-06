@@ -27,8 +27,8 @@ type
     index*: int
     value*: T
 
-  SIntegerTypes* = SomeSignedInt or char or enum
-  UIntegerTypes* = SomeUnsignedInt or bool
+  SIntegerTypes* = SomeSignedInt or enum
+  UIntegerTypes* = SomeUnsignedInt or char or bool
   IntegerTypes* = SIntegerTypes or UIntegerTypes
 
   VarIntTypes* = IntegerTypes
