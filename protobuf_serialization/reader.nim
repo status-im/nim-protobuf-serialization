@@ -14,47 +14,18 @@ type
   ProtobufEOFError* = object of ProtobufError
   ProtobufLegacyError* = object of ProtobufError
 
-#This was originally attempted with a raw template, and then a quote block.
-#Nim modified the symbols and stopped resolution in functions which used this.
-macro getSignedVariants(returnType: untyped): untyped =
-  when sizeof(returnType) == 8:
-    result = newNimNode(nnkConstSection).add(
-      newNimNode(nnkConstDef).add(
-        ident("S"),
-        newNimNode(nnkEmpty),
-        ident("int64"),
-      ),
-      newNimNode(nnkConstDef).add(
-        ident("U"),
-        newNimNode(nnkEmpty),
-        ident("uint64"),
-      )
-    )
-  else:
-    result = newNimNode(nnkConstSection).add(
-      newNimNode(nnkConstDef).add(
-        ident("S"),
-        newNimNode(nnkEmpty),
-        ident("int32"),
-      ),
-      newNimNode(nnkConstDef).add(
-        ident("U"),
-        newNimNode(nnkEmpty),
-        ident("uint32"),
-      )
-    )
-
-template wireType(key: byte): byte =
-  key and WIRE_TYPE_MASK
-
-template fieldNumber(key: byte): int =
-  (key and FIELD_NUMBER_MASK).int
-
 #Ideally, these would be in a table.
 #That said, due to the context specific return type, which goes beyond the wire type, you need generics.
 #As Generic types aren't concrete, they can't be used in a table.
-proc readVarInt[T](stream: InputStreamHandle, subtype: SubType): T =
-  getSignedVariants(T)
+proc readVarInt[T](stream: InputStreamHandle, subtype: VarIntSubType): T =
+  when sizeof(result) == 8:
+    type
+      S = int64
+      U = uint64
+  else:
+    type
+      S = int32
+      U = uint32
 
   var
     value = U(0)
@@ -90,7 +61,14 @@ proc readVarInt[T](stream: InputStreamHandle, subtype: SubType): T =
     result = T(value)
 
 proc readFixed64[T](stream: InputStreamHandle): T =
-  getSignedVariants(T)
+  when sizeof(result) == 8:
+    type
+      S = int64
+      U = uint64
+  else:
+    type
+      S = int32
+      U = uint32
 
   var
     value = S(0)
@@ -113,7 +91,14 @@ proc readLengthDelimited(stream: InputStreamHandle): seq[byte] =
     result.add(stream.s.next().get())
 
 proc readFixed32[T](stream: InputStreamHandle): T =
-  getSignedVariants(T)
+  when sizeof(result) == 8:
+    type
+      S = int64
+      U = uint64
+  else:
+    type
+      S = int32
+      U = uint32
 
   var
     value = S(0)
@@ -127,30 +112,55 @@ proc readFixed32[T](stream: InputStreamHandle): T =
 
 #The only reason this is used is so variables, as in raw ints, can be serialized/parsed.
 #They should really have pragmas attached, removing the need for this.
-proc getDefaultSubType[T](subtype: SubType): SubType =
+proc getDefaultSubType[T](subtype: VarIntSubType): VarIntSubType =
   if subtype == Default:
-    when T is SomeSignedInt:
+    when T is (SIntegerTypes or enum):
       result = SInt
-    when T is SomeUnsignedInt:
-      result = UInt
-    elif T is bool:
-      result = UInt
-    elif T is enum:
-      result = SInt
+    elif T is (UIntegerTypes or bool):
+      result = PInt
     else:
-      {.fatal: "Told to use the default subtype for an unknown type.".}
+      {.fatal: "Told to use the default subtype for an unknown type: " & $T.}
   else:
     result = subtype
 
-template setIndividualField[T](value: var T, stream: InputStreamHandle,
-                               reader: untyped, subtypeArg: SubType) =
+template setIndividualField[T](value: var T, fieldKey: byte,
+                               stream: InputStreamHandle,
+                               subtypeArg: VarIntSubType) =
   when T is object:
     {.fatal: "Object made it to set individual field."}
 
-  when reader is type(readVarInt):
-    value = stream.reader[:T](getDefaultSubType[T](subtypeArg))
+  #We don't cast this back to a ProtoWireType despite exclusively comparing it against ProtoWireTypes.
+  #This is so an invalid wire type doesn't trigger boundChecks.
+  var wire = fieldKey and WIRE_TYPE_MASK
+
+  #VarInt and fixed integers.
+  when T is VarIntTypes:
+    case wire:
+      of byte(VarInt):
+        value = stream.readVarInt[:T](getDefaultSubType[T](subtypeArg))
+      of byte(Fixed64):
+        value = stream.readFixed64[:T]()
+      of byte(Fixed32):
+        value = stream.readFixed32[:T]()
+      else:
+        raise newException(ProtobufError, "Invalid wire type for an integer: " & $wire)
+  #Float64.
+  elif T is Fixed64Types:
+    if wire != byte(Fixed64):
+      raise newException(ProtobufError, "Invalid wire type for a float64: " & $wire)
+    value = stream.readFixed64[:T]()
+  #Arrays and objects.
+  elif T is LengthDelimitedTypes:
+    if wire != byte(LengthDelimited):
+      raise newException(ProtobufError, "Invalid wire type for a Length Delimited sequence/object: " & $wire)
+    stream.readLengthDelimitedTypes[:T]()
+  #Float32.
+  elif T is Fixed32Types:
+    if wire != byte(Fixed32):
+      raise newException(ProtobufError, "Invalid wire type for a float32: " & $wire)
+    value = stream.readFixed32[:T]()
   else:
-    value = stream.reader[:T]()
+    {.fatal: "Handling unknown type.".}
 
 template setLengthDelimitedField[T](value: var T, stream: InputStreamHandle) =
   when T is CastableLengthDelimitedTypes:
@@ -159,26 +169,26 @@ template setLengthDelimitedField[T](value: var T, stream: InputStreamHandle) =
     value = stream.readLengthDelimited().fromProtobuf[:T]()
 
 template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
-                     reader: untyped, subtypeArg: SubType) =
+                     subtypeArg: VarIntSubType) =
 
   var subtype = subtypeArg
   when T is not object:
     when T is LengthDelimitedTypes:
       setLengthDelimitedField(value, stream)
     else:
-      setIndividualField(value, stream, reader, subtype)
+      setIndividualField(value, fieldKey, stream, subtype)
   else:
     #This iterative approach is extremely poor.
     var counter: int = 1
     enumInstanceSerializedFields(value, fieldName, fieldVar):
-      if counter != fieldKey.fieldNumber:
+      if counter != (fieldKey and FIELD_NUMBER_MASK).int:
         inc(counter)
       else:
         #Only calculate the subtype for VarInt.
         #In every other case, the variable type is enough.
         #Writing does have further specification rules, but those aren't needed here.
-        when reader is type(readVarInt):
-          when fieldVar is IntegerTypes:
+        when T is VarIntTypes:
+          if fiedKey.wireType == VarInt:
             const
               hasPInt = T.hasCustomPragmaFixed(fieldName, pint)
               hasSInt = T.hasCustomPragmaFixed(fieldName, sint)
@@ -187,40 +197,20 @@ template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
             elif hasPInt and hasSInt:
               {.fatal: "Multiple encoding specification pragmas attached to a single field.".}
             elif hasPInt:
-              subtype = SubType.PInt
+              subtype = PInt
             elif hasSInt:
-              subtype = SubType.SInt
-            elif fieldVar is UIntegerTypes:
-              subtype = SubType.UInts
+              subtype = SInt
             else:
               {.fatal: fieldName & "'s encoding format was not specified. If you don't know whether to choose pint or sint, use the sint pragma after the field name.".}
 
         when fieldVar is LengthDelimitedTypes:
             setLengthDelimitedField(fieldVar, stream)
         else:
-          setIndividualField(fieldVar, stream, reader, subtype)
+          setIndividualField(fieldVar, fieldKey, stream, subtype)
 
 #SubType is passable to support individual values (e.g., `var x: int`).
-proc readValue*[T](bytes: seq[byte], ty: typedesc[T], subtype: SubType = SubType.Default): T =
+proc readValue*[T](bytes: seq[byte], ty: typedesc[T], subtype: VarIntSubType = Default): T =
   var stream: InputStreamHandle = memoryInput(bytes)
   while stream.s.readable:
-    let fieldKey = stream.s.next().get()
-    case fieldKey.wireType:
-      #LengthDelimited doesn't get its own case due to how its return values are handled.
-      #There's a special fieldKey check for it which means it doesn't matter what this code does.
-      #That said, it still can't error our thinking it's an invalid type.
-      of byte(VarInt), byte(LengthDelimited):
-        result.setField(fieldKey, stream, readVarInt, subtype)
-      of byte(Fixed64):
-        result.setField(fieldKey, stream, readFixed64, subtype)
-      of byte(StartGroup):
-        raise newException(ProtobufLegacyError, "Handed legacy Protobuf message.")
-      of byte(EndGroup):
-        raise newException(ProtobufLegacyError, "Handed legacy Protobuf message.")
-      of byte(Fixed32):
-        result.setField(fieldKey, stream, readFixed32, subtype)
-      #If we just used ProtoWireType, we risk bound check errors on invalid messages.
-      #This way, we can raise a derivation of ProtobufError.
-      else:
-        raise newException(ProtobufError, "Invalid field type sent.")
-    stream.s.close()
+    result.setField(stream.s.next().get(), stream, subtype)
+  stream.s.close()
