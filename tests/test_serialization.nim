@@ -21,7 +21,7 @@ type
 
   MyInt = distinct int
 
-proc fromProtobuf*[MyInt](bytes: seq[byte]): MyInt =
+proc fromProtobuf*[T: MyInt](bytes: seq[byte]): T =
   var
     shiftAmount: int = 0
     value: int
@@ -214,7 +214,7 @@ suite "Test Varint Encoding":
 
     assert decoded == obj]#
 
-  #[test "Empty object field does not get encoded":
+  test "Empty object field does not get encoded":
     var proto = newProtoBuffer()
 
     let obj = Test1()
@@ -236,4 +236,4 @@ suite "Test Varint Encoding":
     assert output.len == 0
 
     let decoded = output.readValue(Test1)
-    assert decoded == obj]#
+    assert decoded == obj

@@ -185,7 +185,7 @@ template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
               {.fatal: fieldName & "'s encoding format was not specified. If you don't know whether to choose pint or sint, use the sint pragma after the field name.".}
 
         when (fieldVar is LengthDelimitedTypes) or (fieldVar is not RecognizedTypes):
-          setLengthDelimitedField(value, fieldKey, stream)
+          setLengthDelimitedField(fieldVar, fieldKey, stream)
         else:
           setIndividualField(fieldVar, fieldKey, stream, subtype)
 
