@@ -58,24 +58,16 @@ proc readVarInt[T](stream: InputStreamHandle, subtype: VarIntSubType): T =
     result = T(value)
 
 proc readFixed64[T](stream: InputStreamHandle): T =
-  when sizeof(result) == 8:
-    type
-      S = int64
-      U = uint64
-  else:
-    type
-      S = int32
-      U = uint32
-
+  type U = uint64
   var
-    value = S(0)
+    value = U(0)
     next: Option[byte]
   for offset in countup(0, 56, 8):
     next = stream.s.next()
     if next.isNone():
       raise newException(ProtobufEOFError, "Couldn't read a fixed 64-bit number from this stream.")
-    value += S(next.get()) shl S(offset)
-  result = T(value)
+    value += U(next.get()) shl U(offset)
+  result = cast[T](value)
 
 proc readLengthDelimited(stream: InputStreamHandle): seq[byte] =
   if not stream.readable():
@@ -88,24 +80,16 @@ proc readLengthDelimited(stream: InputStreamHandle): seq[byte] =
     result.add(stream.s.next().get())
 
 proc readFixed32[T](stream: InputStreamHandle): T =
-  when sizeof(result) == 8:
-    type
-      S = int64
-      U = uint64
-  else:
-    type
-      S = int32
-      U = uint32
-
+  type U = uint64
   var
-    value = S(0)
+    value = U(0)
     next: Option[byte]
   for offset in countup(0, 24, 8):
     next = stream.s.next()
     if next.isNone():
       raise newException(ProtobufEOFError, "Couldn't read a fixed 32-bit number from this stream.")
-    value += S(next.get()) shl S(offset)
-  result = T(value)
+    value += U(next.get()) shl U(offset)
+  result = cast[T](value)
 
 #The only reason this is used is so variables, as in raw ints, can be serialized/parsed.
 #They should really have pragmas attached, removing the need for this.
