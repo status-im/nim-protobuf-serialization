@@ -13,11 +13,22 @@ const
 type
   ProtobufEOFError* = object of ProtobufError
   ProtobufLegacyError* = object of ProtobufError
+  ProtobufMessageError* = object of ProtobufError
+
+  VarIntSubType = enum
+    PIntSubType,
+    SIntSubType,
+    UIntSubType
+    FixedSubType,
+    SFixedSubType
 
 #Ideally, these would be in a table.
 #That said, due to the context specific return type, which goes beyond the wire type, you need generics.
 #As Generic types aren't concrete, they can't be used in a table.
 proc readVarInt[T](stream: InputStreamHandle, subtype: VarIntSubType): T =
+  if subtype in {FixedSubType, SFixedSubType}:
+    raise newException(ProtobufMessageError, "VarInt message used for a Fixed data type.")
+
   when sizeof(result) == 8:
     type
       S = int64
@@ -42,10 +53,10 @@ proc readVarInt[T](stream: InputStreamHandle, subtype: VarIntSubType): T =
     offset += 7
 
   #Unsigned, requiring no further work.
-  if subtype == UInt:
+  if subtype == UIntSubType:
     result = T(value)
   #Zig-zagged.
-  elif subtype == SInt:
+  elif subtype == SIntSubType:
     result = T(S(value shr 1) xor -S(value and U(0b0000_0001)))
   #Not zig-zagged, yet negative.
   elif offset == 70:
@@ -99,7 +110,7 @@ template setLengthDelimitedField[T](value: var T, fieldKey: byte,
 
   var wire: byte = fieldKey and WIRE_TYPE_MASK
   if wire != byte(LengthDelimited):
-    raise newException(ProtobufError, "Invalid wire type for a length delimited sequence/object: " & $wire)
+    raise newException(ProtobufMessageError, "Invalid wire type for a length delimited sequence/object: " & $wire)
 
   when T is CastableLengthDelimitedTypes:
     value = cast[T](readLengthDelimited())
@@ -126,22 +137,22 @@ template setIndividualField[T](value: var T, fieldKey: byte,
       of byte(Fixed32):
         value = stream.readFixed32[:T]()
       else:
-        raise newException(ProtobufError, "Invalid wire type for an integer: " & $wire)
+        raise newException(ProtobufMessageError, "Invalid wire type for an integer: " & $wire)
   #Float64.
   elif T is Fixed64Types:
     if wire != byte(Fixed64):
-      raise newException(ProtobufError, "Invalid wire type for a float64: " & $wire)
+      raise newException(ProtobufMessageError, "Invalid wire type for a float64: " & $wire)
     value = stream.readFixed64[:T]()
   #Float32.
   elif T is Fixed32Types:
     if wire != byte(Fixed32):
-      raise newException(ProtobufError, "Invalid wire type for a float32: " & $wire)
+      raise newException(ProtobufMessageError, "Invalid wire type for a float32: " & $wire)
     value = stream.readFixed32[:T]()
 
 template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
                      subtypeArg: Option[VarIntSubType]) =
   when T is not object:
-    when (T is LengthDelimitedTypes) or (T is not RecognizedTypes):
+    when T is LengthDelimitedTypes:
       setLengthDelimitedField(value, fieldKey, stream)
     else:
       setIndividualField(value, fieldKey, stream, subtypeArg)
@@ -149,7 +160,7 @@ template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
     #This iterative approach is extremely poor.
     var counter: int = 1
     enumInstanceSerializedFields(value, fieldName, fieldVar):
-      when not ((fieldVar is LengthDelimitedTypes) or (fieldVar is not RecognizedTypes)):
+      when fieldVar is not LengthDelimitedTypes:
         var subtype: VarIntSubType
 
       if counter != (fieldKey and FIELD_NUMBER_MASK).int:
@@ -174,35 +185,31 @@ template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
             else:
               {.fatal: fieldName & "'s encoding format was not specified. If you don't know whether to choose pint or sint, use the sint pragma after the field name.".}
 
-        when (fieldVar is LengthDelimitedTypes) or (fieldVar is not RecognizedTypes):
+        when fieldVar is LengthDelimitedTypes:
           setLengthDelimitedField(fieldVar, fieldKey, stream)
         else:
           setIndividualField(fieldVar, fieldKey, stream, some(subtype))
 
 proc readValue*[T](bytes: seq[byte], ty: typedesc[T]): T =
-  when T is SIntegerTypes:
-    {.fatal: "Reading into a signed integer or bool requires specifying the encoding.".}
+  when T is (PureSIntegerTypes or PureUIntegerTypes):
+    {.fatal: "Reading into a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
 
   var
     stream: InputStreamHandle = memoryInput(bytes)
     next: Option[byte] = stream.s.next()
-    subtype: Option[VarIntSubType] = none(VarIntSubType)
+    subtype: Option[VarIntSubType]
+  when T is (PIntWrapped32 or PIntWrapped64):
+    subtype = some(PIntSubType)
+  elif T is (SIntWrapped32 or SIntWrapped64):
+    subtype = some(SIntSubType)
+  elif T is (FixedWrapped32 or FixedWrapped64):
+    subtype = some(FixedSubType)
   #In the case of bool, assuming the data is always 0/1, this will cause 1 to be interpreted as 1.
   #Under zigzag, it's actually -1. That said, Nim considers both values as truthy, so this isn't a problem.
-  when T is UIntegerTypes:
-    subtype = some(UInt)
+  elif T is UIntegerTypes:
+    subtype = some(UIntSubType)
+
   while next.isSome():
     result.setField(next.get(), stream, subtype)
-    next = stream.s.next()
-  stream.s.close()
-
-proc readValue*[T](bytes: seq[byte], ty: typedesc[T], subtype: VarIntSubType): T =
-  when T is not SIntegerTypes:
-    {.fatal: "Only specify an encoding for signed integers and bools being parsed as primitives.".}
-  var
-    stream: InputStreamHandle = memoryInput(bytes)
-    next: Option[byte] = stream.s.next()
-  while next.isSome():
-    result.setField(next.get(), stream, some(subtype))
     next = stream.s.next()
   stream.s.close()
