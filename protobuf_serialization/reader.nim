@@ -41,8 +41,11 @@ proc readVarInt[T](stream: InputStreamHandle, subtype: VarIntSubType): T =
     value += (next and U(VAR_INT_VALUE_MASK)) shl offset
     offset += 7
 
+  #Unsigned, requiring no further work.
+  if subtype == UInt:
+    result = T(value)
   #Zig-zagged.
-  if subtype == SInt:
+  elif subtype == SInt:
     result = T(S(value shr 1) xor -S(value and U(0b0000_0001)))
   #Not zig-zagged, yet negative.
   elif offset == 70:
@@ -81,19 +84,6 @@ proc readFixed32[T](stream: InputStreamHandle): T =
     value += U(next.get()) shl U(offset)
   result = cast[T](value)
 
-#The only reason this is used is so variables, as in raw ints, can be serialized/parsed.
-#They should really have pragmas attached, removing the need for this.
-proc getDefaultSubType[T](subtype: VarIntSubType): VarIntSubType =
-  if subtype == Default:
-    when T is (SIntegerTypes or enum):
-      result = SInt
-    elif T is UIntegerTypes:
-      result = PInt
-    else:
-      {.fatal: "Told to use the default subtype for an unknown type: " & $T.}
-  else:
-    result = subtype
-
 template setLengthDelimitedField[T](value: var T, fieldKey: byte,
                                     stream: InputStreamHandle) =
   #This had name resolution errors when placed elsewhere.
@@ -118,7 +108,7 @@ template setLengthDelimitedField[T](value: var T, fieldKey: byte,
 
 template setIndividualField[T](value: var T, fieldKey: byte,
                                stream: InputStreamHandle,
-                               subtypeArg: VarIntSubType) =
+                               subtypeArg: Option[VarIntSubType]) =
   when T is object:
     {.fatal: "Object made it to set individual field."}
 
@@ -130,7 +120,7 @@ template setIndividualField[T](value: var T, fieldKey: byte,
   when T is VarIntTypes:
     case wire:
       of byte(VarInt):
-        value = stream.readVarInt[:T](getDefaultSubType[T](subtypeArg))
+        value = stream.readVarInt[:T](subtypeArg.get())
       of byte(Fixed64):
         value = stream.readFixed64[:T]()
       of byte(Fixed32):
@@ -149,7 +139,7 @@ template setIndividualField[T](value: var T, fieldKey: byte,
     value = stream.readFixed32[:T]()
 
 template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
-                     subtypeArg: VarIntSubType) =
+                     subtypeArg: Option[VarIntSubType]) =
   when T is not object:
     when (T is LengthDelimitedTypes) or (T is not RecognizedTypes):
       setLengthDelimitedField(value, fieldKey, stream)
@@ -187,11 +177,32 @@ template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
         when (fieldVar is LengthDelimitedTypes) or (fieldVar is not RecognizedTypes):
           setLengthDelimitedField(fieldVar, fieldKey, stream)
         else:
-          setIndividualField(fieldVar, fieldKey, stream, subtype)
+          setIndividualField(fieldVar, fieldKey, stream, some(subtype))
 
-#SubType is passable to support individual values (e.g., `var x: int`).
-proc readValue*[T](bytes: seq[byte], ty: typedesc[T], subtype: VarIntSubType = Default): T =
-  var stream: InputStreamHandle = memoryInput(bytes)
-  while stream.s.readable:
-    result.setField(stream.s.next().get(), stream, subtype)
+proc readValue*[T](bytes: seq[byte], ty: typedesc[T]): T =
+  when T is SIntegerTypes:
+    {.fatal: "Reading into a signed integer or bool requires specifying the encoding.".}
+
+  var
+    stream: InputStreamHandle = memoryInput(bytes)
+    next: Option[byte] = stream.s.next()
+    subtype: Option[VarIntSubType] = none(VarIntSubType)
+  #In the case of bool, assuming the data is always 0/1, this will cause 1 to be interpreted as 1.
+  #Under zigzag, it's actually -1. That said, Nim considers both values as truthy, so this isn't a problem.
+  when T is UIntegerTypes:
+    subtype = some(UInt)
+  while next.isSome():
+    result.setField(next.get(), stream, subtype)
+    next = stream.s.next()
+  stream.s.close()
+
+proc readValue*[T](bytes: seq[byte], ty: typedesc[T], subtype: VarIntSubType): T =
+  when T is not SIntegerTypes:
+    {.fatal: "Only specify an encoding for signed integers and bools being parsed as primitives.".}
+  var
+    stream: InputStreamHandle = memoryInput(bytes)
+    next: Option[byte] = stream.s.next()
+  while next.isSome():
+    result.setField(next.get(), stream, some(subtype))
+    next = stream.s.next()
   stream.s.close()

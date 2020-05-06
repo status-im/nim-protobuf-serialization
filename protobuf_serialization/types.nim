@@ -19,9 +19,9 @@ type
     VarInt, Fixed64, LengthDelimited, StartGroup, EndGroup, Fixed32
 
   VarIntSubType* = enum
-    Default,
     PInt,
-    SInt
+    SInt,
+    UInt
 
   ProtoField*[T] = object
     index*: int
