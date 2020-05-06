@@ -69,16 +69,6 @@ proc readFixed64[T](stream: InputStreamHandle): T =
     value += U(next.get()) shl U(offset)
   result = cast[T](value)
 
-proc readLengthDelimited(stream: InputStreamHandle): seq[byte] =
-  if not stream.readable():
-    raise newException(ProtobufEOFError, "Couldn't read a length delimited sequence from this stream.")
-
-  result = newSeq[byte](stream.s.next().get())
-  for _ in 0 ..< result.len:
-    if not stream.readable():
-      raise newException(ProtobufEOFError, "Couldn't read a length delimited sequence from this stream.")
-    result.add(stream.s.next().get())
-
 proc readFixed32[T](stream: InputStreamHandle): T =
   type U = uint64
   var
@@ -103,6 +93,28 @@ proc getDefaultSubType[T](subtype: VarIntSubType): VarIntSubType =
       {.fatal: "Told to use the default subtype for an unknown type: " & $T.}
   else:
     result = subtype
+
+template setLengthDelimitedField[T](value: var T, fieldKey: byte,
+                                    stream: InputStreamHandle) =
+  #This had name resolution errors when placed elsewhere.
+  proc readLengthDelimited(): seq[byte] =
+    if not stream.s.readable():
+      raise newException(ProtobufEOFError, "Couldn't read a length delimited sequence from this stream.")
+
+    result = newSeq[byte](stream.s.next().get())
+    for b in 0 ..< result.len:
+      if not stream.s.readable():
+        raise newException(ProtobufEOFError, "Couldn't read a length delimited sequence from this stream.")
+      result[b] = stream.s.next().get()
+
+  var wire: byte = fieldKey and WIRE_TYPE_MASK
+  if wire != byte(LengthDelimited):
+    raise newException(ProtobufError, "Invalid wire type for a length delimited sequence/object: " & $wire)
+
+  when T is CastableLengthDelimitedTypes:
+    value = cast[T](readLengthDelimited())
+  else:
+    value = readLengthDelimited().fromProtobuf[:T]()
 
 template setIndividualField[T](value: var T, fieldKey: byte,
                                stream: InputStreamHandle,
@@ -130,38 +142,26 @@ template setIndividualField[T](value: var T, fieldKey: byte,
     if wire != byte(Fixed64):
       raise newException(ProtobufError, "Invalid wire type for a float64: " & $wire)
     value = stream.readFixed64[:T]()
-  #Arrays and objects.
-  elif T is LengthDelimitedTypes:
-    if wire != byte(LengthDelimited):
-      raise newException(ProtobufError, "Invalid wire type for a Length Delimited sequence/object: " & $wire)
-    stream.readLengthDelimitedTypes[:T]()
   #Float32.
   elif T is Fixed32Types:
     if wire != byte(Fixed32):
       raise newException(ProtobufError, "Invalid wire type for a float32: " & $wire)
     value = stream.readFixed32[:T]()
-  else:
-    {.fatal: "Handling unknown type.".}
-
-template setLengthDelimitedField[T](value: var T, stream: InputStreamHandle) =
-  when T is CastableLengthDelimitedTypes:
-    value = cast[T](stream.readLengthDelimited())
-  else:
-    value = stream.readLengthDelimited().fromProtobuf[:T]()
 
 template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
                      subtypeArg: VarIntSubType) =
-
-  var subtype = subtypeArg
   when T is not object:
-    when T is LengthDelimitedTypes:
-      setLengthDelimitedField(value, stream)
+    when (T is LengthDelimitedTypes) or (T is not RecognizedTypes):
+      setLengthDelimitedField(value, fieldKey, stream)
     else:
-      setIndividualField(value, fieldKey, stream, subtype)
+      setIndividualField(value, fieldKey, stream, subtypeArg)
   else:
     #This iterative approach is extremely poor.
     var counter: int = 1
     enumInstanceSerializedFields(value, fieldName, fieldVar):
+      when not ((fieldVar is LengthDelimitedTypes) or (fieldVar is not RecognizedTypes)):
+        var subtype: VarIntSubType
+
       if counter != (fieldKey and FIELD_NUMBER_MASK).int:
         inc(counter)
       else:
@@ -184,8 +184,8 @@ template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
             else:
               {.fatal: fieldName & "'s encoding format was not specified. If you don't know whether to choose pint or sint, use the sint pragma after the field name.".}
 
-        when fieldVar is LengthDelimitedTypes:
-            setLengthDelimitedField(fieldVar, stream)
+        when (fieldVar is LengthDelimitedTypes) or (fieldVar is not RecognizedTypes):
+          setLengthDelimitedField(value, fieldKey, stream)
         else:
           setIndividualField(fieldVar, fieldKey, stream, subtype)
 

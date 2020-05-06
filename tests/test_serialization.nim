@@ -17,11 +17,11 @@ type
     i: Test1
     j: string
     k: bool
-    l: MyInt
+    l: MyInt]#
 
   MyInt = distinct int
 
-proc to*[MyInt](bytes: seq[byte]): MyInt =
+proc fromProtobuf*[MyInt](bytes: seq[byte]): MyInt =
   var
     shiftAmount: int = 0
     value: int
@@ -30,14 +30,11 @@ proc to*[MyInt](bytes: seq[byte]): MyInt =
     shiftAmount += 8
   result = MyInt(value)
 
-proc toBytes*(value: MyInt): seq[byte] =
+proc toProtobuf*(value: MyInt): seq[byte] =
   var value = value.int
-
   while value > 0:
     result.add byte(value and 0b1111_1111)
     value = value shr 8
-
-proc `==`(a, b: MyInt): bool {.borrow.}]#
 
 suite "Test Varint Encoding":
   test "Can encode/decode enum field":
@@ -70,9 +67,11 @@ suite "Test Varint Encoding":
     let decoded = readValue(output, int)
     assert decoded == num
 
-  #[test "Can encode/decode distinct number field":
+  test "Can encode/decode distinct number field":
     var proto = newProtoBuffer()
     let num = 114151.MyInt
+
+    assert(num.int == num.toProtobuf().fromProtobuf[:MyInt]().int)
 
     proto.encodeField(num)
 
@@ -80,7 +79,7 @@ suite "Test Varint Encoding":
     assert output == @[10.byte, 3, 231, 189, 1]
 
     let decoded = readValue(output, MyInt)
-    assert decoded.int == num.int]#
+    assert decoded.int == num.int
 
   test "Can encode/decode float32 number field":
     var proto = newProtoBuffer()
@@ -142,7 +141,7 @@ suite "Test Varint Encoding":
     let decoded = readValue(output, uint)
     assert decoded == num
 
-  #[test "Can encode/decode string field":
+  test "Can encode/decode string field":
     var proto = newProtoBuffer()
     let str = "hey this is a string"
 
@@ -176,9 +175,9 @@ suite "Test Varint Encoding":
     assert output == @[10.byte, 20, 104, 101, 121, 32, 116, 104, 105, 115, 32, 105, 115, 32, 97, 32, 115, 116, 114, 105, 110, 103]
 
     let decoded = readValue(output, seq[uint8])
-    assert decoded == uint8Seq]
+    assert decoded == uint8Seq
 
-  test "Can encode/decode object field":
+  #[test "Can encode/decode object field":
     var proto = newProtoBuffer()
 
     let obj = Test3(g: 300, h: 200, i: Test1(a: 100, b: "this is a test", c: 'H'), j: "testing", k: true, l: 124521.MyInt)
@@ -213,9 +212,9 @@ suite "Test Varint Encoding":
     var output = proto.output
     let decoded = output.readValue(Test3)
 
-    assert decoded == obj
+    assert decoded == obj]#
 
-  test "Empty object field does not get encoded":
+  #[test "Empty object field does not get encoded":
     var proto = newProtoBuffer()
 
     let obj = Test1()

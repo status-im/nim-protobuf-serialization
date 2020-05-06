@@ -48,6 +48,8 @@ else:
     Fixed64Types* = LimitedFixed64Types or int
     Fixed32Types* = LimitedFixed32Types
 
+type RecognizedTypes* = VarIntTypes or Fixed64Types or Fixed32Types or LengthDelimitedTypes
+
 type
   SomeSVarint* = int | int64 | int32 | int16 | int8 | enum
   SomeByte* = byte | bool | char | uint8

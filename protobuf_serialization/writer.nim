@@ -103,11 +103,11 @@ proc encodeField*(protobuf: var ProtoBuffer, value: AnyProtoType) =
   inc protobuf.fieldNum
 
 proc encodeField[T: not AnyProtoType](stream: OutputStreamHandle, fieldNum: int, value: T) =
-  stream.encodeField(fieldNum, value.toBytes)
+  stream.encodeField(fieldNum, value.toProtobuf)
 
 proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, fieldNum: int, value: T) =
-  protobuf.outstream.encodeField(fieldNum, value.toBytes)
+  protobuf.outstream.encodeField(fieldNum, value.toProtobuf)
 
 proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, value: T) =
-  protobuf.encodeField(protobuf.fieldNum, value.toBytes)
+  protobuf.encodeField(protobuf.fieldNum, value.toProtobuf)
   inc protobuf.fieldNum
