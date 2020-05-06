@@ -6,12 +6,12 @@ type
   MyEnum = enum
     ME1, ME2, ME3
 
-  #[Test1 = object
+  Test1 = object
     a: uint
     b: string
     c: char
 
-  Test3 = object
+  #[Test3 = object
     g {.sint.}: int
     h {.sint.}: int
     i: Test1
@@ -216,7 +216,7 @@ suite "Test Varint Encoding":
 
     assert decoded == obj]#
 
-  #[test "Empty object field does not get encoded":
+  test "Empty object field does not get encoded":
     var proto = newProtoBuffer()
 
     let obj = Test1()
@@ -238,4 +238,4 @@ suite "Test Varint Encoding":
     assert output.len == 0
 
     let decoded = output.readValue(Test1)
-    assert decoded == obj]#
+    assert decoded == obj

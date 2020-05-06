@@ -44,7 +44,7 @@ type
   #Every Unsigned Integer Type.
   UIntegerTypes* = UIntWrapped32 or UIntWrapped64 or
                    FixedWrapped32 or FixedWrapped64 or
-                   SomeUnsignedInt or bool
+                   PureUIntegerTypes or bool
 
   #Every type valid for the VarInt wire tupe.
   VarIntTypes* = SIntegerTypes or UIntegerTypes
