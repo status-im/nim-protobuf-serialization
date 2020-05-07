@@ -10,6 +10,11 @@ const
   FIELD_NUMBER_MASK: byte = 0b1111_1000
   WIRE_TYPE_MASK: byte = 0b0000_0111
 
+#We don't cast this back to a ProtoWireType despite exclusively comparing it against ProtoWireTypes.
+#This is so an invalid wire type doesn't trigger boundChecks.
+template wireType(key: byte): byte =
+  key and WIRE_TYPE_MASK
+
 type
   ProtobufEOFError* = object of ProtobufError
   ProtobufLegacyError* = object of ProtobufError
@@ -40,7 +45,7 @@ proc readVarInt[T](stream: InputStreamHandle, subtype: VarIntSubType): T =
 
   var
     value = U(0)
-    offset: int8 = 0
+    offset = 0'i8
     next = VAR_INT_CONTINUATION_MASK
   while (next and VAR_INT_CONTINUATION_MASK) != 0:
     let option = stream.s.next()
@@ -112,9 +117,9 @@ proc readLengthDelimited(stream: InputStreamHandle): seq[byte] =
 proc readValue*[T](bytes: seq[byte], ty: typedesc[T]): T
 template setLengthDelimitedField[T](value: var T, fieldKey: byte,
                                     stream: InputStreamHandle) =
-  mixin readLengthDelimited
+  mixin wireType, readLengthDelimited
 
-  var wire: byte = fieldKey and WIRE_TYPE_MASK
+  var wire = fieldKey.wireType
   if wire != byte(LengthDelimited):
     raise newException(ProtobufMessageError, "Invalid wire type for a length delimited sequence/object: " & $wire)
 
@@ -131,9 +136,8 @@ template setIndividualField[T](value: var T, fieldKey: byte,
   when T is object:
     {.fatal: "Object made it to set individual field."}
 
-  #We don't cast this back to a ProtoWireType despite exclusively comparing it against ProtoWireTypes.
-  #This is so an invalid wire type doesn't trigger boundChecks.
-  var wire = fieldKey and WIRE_TYPE_MASK
+  mixin wireType
+  var wire = fieldKey.wireType
 
   #VarInt and fixed integers.
   when T is VarIntTypes:
@@ -166,12 +170,12 @@ template setFields[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
       setIndividualField(value, fieldKey, stream, subtypeArg)
   else:
     #This iterative approach is extremely poor.
-    var counter: int = 1
+    var counter = 1
     enumInstanceSerializedFields(value, fieldName, fieldVar):
       when fieldVar is not LengthDelimitedTypes:
         var subtype: VarIntSubType
 
-      if (counter shl 3) != (fieldKey and FIELD_NUMBER_MASK).int:
+      if counter != ((fieldKey and FIELD_NUMBER_MASK).int shr 3):
         inc(counter)
       else:
         #Only calculate the subtype for VarInt.
@@ -179,8 +183,8 @@ template setFields[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
         #Writing does have further specification rules, but those aren't needed here.
         #We don't need to track the boolean type as literally every encoding will parse to the same true/false.
         when (fieldVar is VarIntTypes) and (fieldVar is not bool):
-          mixin hasCustomPragmaFixed
-          if (fieldKey and WIRE_TYPE_MASK) == byte(VarInt):
+          mixin hasCustomPragmaFixed, wireType
+          if fieldKey.wireType == byte(VarInt):
             const
               hasPInt = T.hasCustomPragmaFixed(fieldName, pint)
               hasPUInt = T.hasCustomPragmaFixed(fieldName, puint)
@@ -210,8 +214,8 @@ proc readValue*[T](bytes: seq[byte], ty: typedesc[T]): T =
     {.fatal: "Reading into a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
 
   var
-    stream: InputStreamHandle = memoryInput(bytes)
-    next: Option[byte] = stream.s.next()
+    stream = memoryInput(bytes)
+    next = stream.s.next()
     subtype: Option[VarIntSubType]
   when T is (PIntWrapped32 or PIntWrapped64):
     subtype = some(PIntSubType)
