@@ -20,7 +20,7 @@ proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, value: T) {.in
 proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, fieldNum: int, value: T) {.inline.}
 proc encodeField[T: not AnyProtoType](stream: OutputStreamHandle, fieldNum: int, value: T) {.inline.}
 
-proc put(stream: OutputStreamHandle, value: SomeVarint) =
+proc put(stream: OutputStreamHandle, value: VarIntTypes) =
   when value is enum:
     var value = cast[type(ord(value))](value)
   elif value is bool or value is char:
@@ -28,7 +28,7 @@ proc put(stream: OutputStreamHandle, value: SomeVarint) =
   else:
     var value = value
 
-  when type(value) is SomeSVarint:
+  when type(value) is PureSIntegerTypes:
     # Encode using zigzag
     if value < type(value)(0):
       value = not(value shl type(value)(1))
@@ -40,12 +40,12 @@ proc put(stream: OutputStreamHandle, value: SomeVarint) =
     value = value shr 7
   stream.s.cursor.append byte(value and 0b1111_1111)
 
-proc encodeField(stream: OutputStreamHandle, fieldNum: int, value: SomeVarint) =
+proc encodeField(stream: OutputStreamHandle, fieldNum: int, value: VarIntTypes) =
   stream.s.cursor.append protoHeader(fieldNum, Varint)
   stream.put(value)
 
-proc put(stream: OutputStreamHandle, value: SomeFixed) =
-  when typeof(value) is SomeFixed64:
+proc put(stream: OutputStreamHandle, value: SomeFloat) =
+  when typeof(value) is float64:
     var value = cast[int64](value)
   else:
     var value = cast[int32](value)
@@ -54,11 +54,11 @@ proc put(stream: OutputStreamHandle, value: SomeFixed) =
     stream.s.cursor.append byte(value and 0b1111_1111)
     value = value shr 8
 
-proc encodeField(stream: OutputStreamHandle, fieldNum: int, value: SomeFixed64) =
+proc encodeField(stream: OutputStreamHandle, fieldNum: int, value: float64) =
   stream.s.cursor.append protoHeader(fieldNum, Fixed64)
   stream.put(value)
 
-proc encodeField(stream: OutputStreamHandle, fieldNum: int, value: SomeFixed32) =
+proc encodeField(stream: OutputStreamHandle, fieldNum: int, value: float32) =
   stream.s.cursor.append protoHeader(fieldNum, Fixed32)
   stream.put(value)
 

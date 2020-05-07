@@ -110,12 +110,5 @@ type
   ProtoField*[T] = object
     index*: int
     value*: T
-  SomeSVarint* = int | int64 | int32 | int16 | int8 | enum
-  SomeByte* = byte | bool | char | uint8
-  SomeUVarint* = uint | uint64 | uint32 | uint16 | SomeByte
-  SomeVarint* = SomeSVarint | SomeUVarint
-  SomeLengthDelimited* = string | seq[SomeByte] | cstring
-  SomeFixed64* = float64
-  SomeFixed32* = float32
-  SomeFixed* = SomeFixed32 | SomeFixed64
-  AnyProtoType* = SomeVarint | SomeLengthDelimited | SomeFixed | object
+  SomeLengthDelimited* = CastableLengthDelimitedTypes or cstring
+  AnyProtoType* = VarIntTypes or Fixed64Types or CastableLengthDelimitedTypes or Fixed32Types or object
