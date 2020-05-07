@@ -90,6 +90,7 @@ generateWrapperConstructors(SFixed, PureSIntegerTypes, SFixedWrapped32, SFixedWr
 
 #Used to specify how to encode/decode fields in an object.
 template pint*() {.pragma.}
+template puint*() {.pragma.}
 template sint*() {.pragma.}
 template fixed*() {.pragma.}
 template sfixed*() {.pragma.}

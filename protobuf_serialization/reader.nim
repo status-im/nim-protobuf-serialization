@@ -95,33 +95,35 @@ proc readFixed32[T](stream: InputStreamHandle): T =
     value += U(next.get()) shl U(offset)
   result = cast[T](value)
 
+#This had name resolution errors when placed elsewhere.
+proc readLengthDelimited(stream: InputStreamHandle): seq[byte] =
+  if not stream.s.readable():
+    raise newException(ProtobufEOFError, "Couldn't read a length delimited sequence from this stream.")
+
+  result = newSeq[byte](stream.s.next().get())
+  for b in 0 ..< result.len:
+    if not stream.s.readable():
+      raise newException(ProtobufEOFError, "Couldn't read a length delimited sequence from this stream.")
+    result[b] = stream.s.next().get()
+
 #readValue requires this function which requires readValue.
 #It should be noted this is recursive, and therefore can theoretically risk a stack overflow.
 #As long as circular types are detected at compile time, this shouldn't be a problem.
 proc readValue*[T](bytes: seq[byte], ty: typedesc[T]): T
 template setLengthDelimitedField[T](value: var T, fieldKey: byte,
                                     stream: InputStreamHandle) =
-  #This had name resolution errors when placed elsewhere.
-  proc readLengthDelimited(): seq[byte] =
-    if not stream.s.readable():
-      raise newException(ProtobufEOFError, "Couldn't read a length delimited sequence from this stream.")
-
-    result = newSeq[byte](stream.s.next().get())
-    for b in 0 ..< result.len:
-      if not stream.s.readable():
-        raise newException(ProtobufEOFError, "Couldn't read a length delimited sequence from this stream.")
-      result[b] = stream.s.next().get()
+  mixin readLengthDelimited
 
   var wire: byte = fieldKey and WIRE_TYPE_MASK
   if wire != byte(LengthDelimited):
     raise newException(ProtobufMessageError, "Invalid wire type for a length delimited sequence/object: " & $wire)
 
   when T is CastableLengthDelimitedTypes:
-    value = cast[T](readLengthDelimited())
+    value = cast[T](stream.readLengthDelimited())
   elif T is object:
-    value = readLengthDelimited().readValue(type(T))
+    value = stream.readLengthDelimited().readValue(type(T))
   else:
-    value = readLengthDelimited().fromProtobuf[:T]()
+    value = stream.readLengthDelimited().fromProtobuf[:T]()
 
 template setIndividualField[T](value: var T, fieldKey: byte,
                                stream: InputStreamHandle,
@@ -155,7 +157,7 @@ template setIndividualField[T](value: var T, fieldKey: byte,
       raise newException(ProtobufMessageError, "Invalid wire type for a float32: " & $wire)
     value = stream.readFixed32[:T]()
 
-template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
+template setFields[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
                      subtypeArg: Option[VarIntSubType]) =
   when T is not object:
     when T is LengthDelimitedTypes:
@@ -169,32 +171,39 @@ template setField[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
       when fieldVar is not LengthDelimitedTypes:
         var subtype: VarIntSubType
 
-      if counter != (fieldKey and FIELD_NUMBER_MASK).int:
+      if (counter shl 3) != (fieldKey and FIELD_NUMBER_MASK).int:
         inc(counter)
       else:
         #Only calculate the subtype for VarInt.
         #In every other case, the variable type is enough.
         #Writing does have further specification rules, but those aren't needed here.
-        when T is VarIntTypes:
-          if fiedKey.wireType == VarInt:
+        #We don't need to track the boolean type as literally every encoding will parse to the same true/false.
+        when (fieldVar is VarIntTypes) and (fieldVar is not bool):
+          mixin hasCustomPragmaFixed
+          if (fieldKey and WIRE_TYPE_MASK) == byte(VarInt):
             const
               hasPInt = T.hasCustomPragmaFixed(fieldName, pint)
+              hasPUInt = T.hasCustomPragmaFixed(fieldName, puint)
               hasSInt = T.hasCustomPragmaFixed(fieldName, sint)
-            when (hasPInt or hasSInt) and (fieldVar is not SIntegerTypes):
+            when (uint(hasPInt) + uint(hasPUInt) + uint(hasSInt)) != 1:
+              {.fatal: fieldName & " either had multiple encoding formats or none specified.".}
+            elif (hasPInt or hasSInt) and (fieldVar is not SIntegerTypes):
               {.fatal: "Invalid application of the pint/sint pragma to an unsigned number.".}
-            elif hasPInt and hasSInt:
-              {.fatal: "Multiple encoding specification pragmas attached to a single field.".}
+            elif hasPUInt and (fieldVar is not UIntegerTypes):
+              {.fatal: "Invalid application of the puint pragma to a signed number.".}
             elif hasPInt:
-              subtype = PInt
+              subtype = PIntSubType
             elif hasSInt:
-              subtype = SInt
-            else:
-              {.fatal: fieldName & "'s encoding format was not specified. If you don't know whether to choose pint or sint, use the sint pragma after the field name.".}
+              subtype = SIntSubType
+            elif hasPUInt:
+              subtype = UIntSubType
 
         when fieldVar is LengthDelimitedTypes:
           setLengthDelimitedField(fieldVar, fieldKey, stream)
+          break
         else:
           setIndividualField(fieldVar, fieldKey, stream, some(subtype))
+          break
 
 proc readValue*[T](bytes: seq[byte], ty: typedesc[T]): T =
   when T is (PureSIntegerTypes or PureUIntegerTypes):
@@ -216,6 +225,6 @@ proc readValue*[T](bytes: seq[byte], ty: typedesc[T]): T =
     subtype = some(UIntSubType)
 
   while next.isSome():
-    result.setField(next.get(), stream, subtype)
+    result.setFields(next.get(), stream, subtype)
     next = stream.s.next()
   stream.s.close()

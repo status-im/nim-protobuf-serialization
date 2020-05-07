@@ -7,17 +7,17 @@ type
     ME1, ME2, ME3
 
   Test1 = object
-    a: uint
+    a {.puint.}: uint
     b: string
-    c: char
+    c {.puint.}: char
 
-  #[Test3 = object
+  Test3 = object
     g {.sint.}: int
     h {.sint.}: int
     i: Test1
     j: string
     k: bool
-    l: MyInt]#
+    l: MyInt
 
   MyInt = distinct int
 
@@ -179,17 +179,6 @@ suite "Test Varint Encoding":
     let decoded = readValue(output, seq[uint8])
     assert decoded == uint8Seq
 
-  #[test "Can encode/decode object field":
-    var proto = newProtoBuffer()
-
-    let obj = Test3(g: 300, h: 200, i: Test1(a: 100, b: "this is a test", c: 'H'), j: "testing", k: true, l: 124521.MyInt)
-
-    proto.encodeField(obj)
-
-    var output = proto.output
-    let decoded = readValue(output, Test3)
-    assert decoded == obj
-
   test "Can encode/decode object":
     var proto = newProtoBuffer()
 
@@ -214,7 +203,7 @@ suite "Test Varint Encoding":
     var output = proto.output
     let decoded = output.readValue(Test3)
 
-    assert decoded == obj]#
+    assert decoded == obj
 
   test "Empty object field does not get encoded":
     var proto = newProtoBuffer()
