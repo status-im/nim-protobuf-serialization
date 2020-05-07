@@ -2,6 +2,9 @@ import
   unittest,
   ../protobuf_serialization
 
+when defined(PIntWrapped32):
+  assert(false, "Internal types are being exported.")
+
 type
   MyEnum = enum
     ME1, ME2, ME3

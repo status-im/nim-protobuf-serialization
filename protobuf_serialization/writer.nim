@@ -1,5 +1,7 @@
 import faststreams/output_stream
 import serialization
+
+import internal
 import types
 
 type ProtoBuffer* = object

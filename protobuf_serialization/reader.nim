@@ -4,6 +4,7 @@ import stew/shims/macros
 import faststreams
 import serialization
 
+import internal
 import types
 
 const
