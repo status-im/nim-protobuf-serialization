@@ -13,12 +13,12 @@ type
   ProtobufWriter* = object
     stream*: OutputStreamHandle
 
-proc newProtobufWriter*(): ProtobufWriter {.inline.} =
+func newProtobufWriter*(): ProtobufWriter {.inline, raises: [].} =
   ProtobufWriter(
     stream: memoryOutput()
   )
 
-proc buffer*(writer: ProtobufWriter): seq[byte] {.inline.} =
+func buffer*(writer: ProtobufWriter): seq[byte] {.inline, raises: [].} =
   writer.stream.s.getOutput()
 
 macro generateWrapperConstructors(name: untyped, supported: typed,

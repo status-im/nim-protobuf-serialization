@@ -23,8 +23,12 @@ template uabs[U](number: VarIntTypes): U =
   else:
     U(number)
 
-proc writeVarInt(stream: OutputStreamHandle, fieldNum: uint,
-                 value: VarIntTypes, subtype: VarIntSubType) =
+proc writeVarInt(
+  stream: OutputStreamHandle,
+  fieldNum: uint,
+  value: VarIntTypes,
+  subtype: VarIntSubType
+) {.raises: [Defect, IOError].} =
   when sizeof(value) == 8:
     type U = uint64
   else:
@@ -69,19 +73,27 @@ proc writeVarInt(stream: OutputStreamHandle, fieldNum: uint,
       stream.s.cursor.append(VAR_INT_CONTINUATION_MASK)
     stream.s.cursor.append(byte(0))
 
-proc writeFixed64(stream: OutputStreamHandle, fieldNum: uint,
-                 value: Fixed64Types) =
+proc writeFixed64(
+  stream: OutputStreamHandle,
+  fieldNum: uint,
+  value: Fixed64Types
+) {.raises: [Defect, IOError].} =
   stream.s.cursor.append(key(fieldNum, Fixed64))
   var raw = cast[uint64](value)
   for _ in 0 ..< 8:
     stream.s.cursor.append(byte(raw and LAST_BYTE))
     raw = raw shr 8
 
-proc writeValue*[T](value: T): seq[byte]
-proc writeLengthDelimited(stream: OutputStreamHandle, fieldNum: uint,
-                 value: LengthDelimitedTypes) =
+#This has a XDeclaredButNotUsed false positive for some reason.
+proc writeValue*[T](value: T): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].}
+
+proc writeLengthDelimited(
+  stream: OutputStreamHandle,
+  fieldNum: uint,
+  value: LengthDelimitedTypes
+) {.raises: [Defect, IOError, ProtobufWriteError].} =
   when type(value) is CastableLengthDelimitedTypes:
-    var bytes = cast[seq[byte]](value)
+    let bytes = cast[seq[byte]](value)
     if bytes.len == 0:
       return
     elif bytes.len > 255:
@@ -91,7 +103,7 @@ proc writeLengthDelimited(stream: OutputStreamHandle, fieldNum: uint,
     for b in bytes:
       stream.s.cursor.append(b)
   elif type(value) is object:
-    var bytes = writeValue(value)
+    let bytes = writeValue(value)
     if bytes.len == 0:
       return
     elif bytes.len > 255:
@@ -101,7 +113,7 @@ proc writeLengthDelimited(stream: OutputStreamHandle, fieldNum: uint,
     for b in bytes:
       stream.s.cursor.append(b)
   else:
-    var bytes = value.toProtobuf()
+    let bytes = value.toProtobuf()
     if bytes.len == 0:
       return
     elif bytes.len > 255:
@@ -111,15 +123,22 @@ proc writeLengthDelimited(stream: OutputStreamHandle, fieldNum: uint,
     for b in bytes:
       stream.s.cursor.append(b)
 
-proc writeFixed32(stream: OutputStreamHandle, fieldNum: uint,
-                 value: Fixed32Types) =
+proc writeFixed32(
+  stream: OutputStreamHandle,
+  fieldNum: uint,
+  value: Fixed32Types
+) {.raises: [Defect, IOError].} =
   stream.s.cursor.append(key(fieldNum, Fixed32))
   var raw = cast[uint32](value)
   for _ in 0 ..< 4:
     stream.s.cursor.append(byte(raw and LAST_BYTE))
     raw = raw shr 8
 
-proc writeField*[T](writer: var ProtobufWriter, value: T, field: static string) =
+proc writeField*[T](
+  writer: ProtobufWriter,
+  value: T,
+  field: static string
+) {.raises: [Defect, IOError, ProtobufWriteError].} =
   var counter = 1'u
   enumInstanceSerializedFields(value, fieldName, fieldVar):
     if field != fieldName:
@@ -152,8 +171,8 @@ proc writeField*[T](writer: var ProtobufWriter, value: T, field: static string) 
       else:
         writer.stream.writeLengthDelimited(counter, fieldVar)
 
-proc writeValue*[T](value: T): seq[byte] =
-  var writer: ProtobufWriter = newProtobufWriter()
+proc writeValue*[T](value: T): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].} =
+  let writer: ProtobufWriter = newProtobufWriter()
 
   when T is VarIntTypes:
     when T is (PIntWrapped32 or PIntWrapped64):

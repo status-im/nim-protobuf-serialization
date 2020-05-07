@@ -26,7 +26,10 @@ type
 #Ideally, these would be in a table.
 #That said, due to the context specific return type, which goes beyond the wire type, you need generics.
 #As Generic types aren't concrete, they can't be used in a table.
-proc readVarInt[T](stream: InputStreamHandle, subtype: VarIntSubType): T =
+proc readVarInt[T](
+  stream: InputStreamHandle,
+  subtype: VarIntSubType
+): T {.raises: [Defect, IOError, ProtobufEOFError, ProtobufMessageError].} =
   if subtype in {FixedSubType, SFixedSubType}:
     raise newException(ProtobufMessageError, "VarInt message used for a Fixed data type.")
 
@@ -72,7 +75,7 @@ proc readVarInt[T](stream: InputStreamHandle, subtype: VarIntSubType): T =
   else:
     result = T(value)
 
-proc readFixed64[T](stream: InputStreamHandle): T =
+proc readFixed64[T](stream: InputStreamHandle): T {.raises: [Defect, IOError, ProtobufEOFError].} =
   type U = uint64
   var
     value = U(0)
@@ -84,7 +87,7 @@ proc readFixed64[T](stream: InputStreamHandle): T =
     value += U(next.get()) shl U(offset)
   result = cast[T](value)
 
-proc readFixed32[T](stream: InputStreamHandle): T =
+proc readFixed32[T](stream: InputStreamHandle): T {.raises: [Defect, IOError, ProtobufEOFError].} =
   type U = uint64
   var
     value = U(0)
@@ -97,7 +100,9 @@ proc readFixed32[T](stream: InputStreamHandle): T =
   result = cast[T](value)
 
 #This had name resolution errors when placed elsewhere.
-proc readLengthDelimited(stream: InputStreamHandle): seq[byte] =
+proc readLengthDelimited(
+  stream: InputStreamHandle
+): seq[byte] {.raises: [Defect, IOError, ProtobufEOFError].} =
   if not stream.s.readable():
     raise newException(ProtobufEOFError, "Couldn't read a length delimited sequence from this stream.")
 
@@ -110,12 +115,19 @@ proc readLengthDelimited(stream: InputStreamHandle): seq[byte] =
 #readValue requires this function which requires readValue.
 #It should be noted this is recursive, and therefore can theoretically risk a stack overflow.
 #As long as circular types are detected at compile time, this shouldn't be a problem.
-proc readValue*[T](bytes: seq[byte], ty: typedesc[T]): T
-template setLengthDelimitedField[T](value: var T, fieldKey: byte,
-                                    stream: InputStreamHandle) =
+proc readValue*[T](
+  bytes: seq[byte],
+  ty: typedesc[T]
+): T {.raises: [Defect, IOError, ProtobufEOFError, ProtobufMessageError].}
+
+template setLengthDelimitedField[T](
+  value: var T,
+  fieldKey: byte,
+  stream: InputStreamHandle
+) =
   mixin wireType, readLengthDelimited
 
-  var wire = fieldKey.wireType
+  let wire = fieldKey.wireType
   if wire != byte(LengthDelimited):
     raise newException(ProtobufMessageError, "Invalid wire type for a length delimited sequence/object: " & $wire)
 
@@ -130,10 +142,10 @@ template setIndividualField[T](value: var T, fieldKey: byte,
                                stream: InputStreamHandle,
                                subtypeArg: Option[VarIntSubType]) =
   when T is object:
-    {.fatal: "Object made it to set individual field."}
+    {.fatal: "Object made it to set individual field. This should never happen.".}
 
   mixin wireType
-  var wire = fieldKey.wireType
+  let wire = fieldKey.wireType
 
   #VarInt and fixed integers.
   when T is VarIntTypes:
@@ -157,8 +169,12 @@ template setIndividualField[T](value: var T, fieldKey: byte,
       raise newException(ProtobufMessageError, "Invalid wire type for a float32: " & $wire)
     value = stream.readFixed32[:T]()
 
-template setFields[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
-                     subtypeArg: Option[VarIntSubType]) =
+template setFields[T](
+  value: var T,
+  fieldKey: byte,
+  stream: InputStreamHandle,
+  subtypeArg: Option[VarIntSubType]
+) =
   when T is not object:
     when T is LengthDelimitedTypes:
       setLengthDelimitedField(value, fieldKey, stream)
@@ -175,7 +191,7 @@ template setFields[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
         inc(counter)
       else:
         #Only calculate the subtype for VarInt.
-        #In every other case, the variable type is enough.
+        #In every other case, the letiable type is enough.
         #Writing does have further specification rules, but those aren't needed here.
         #We don't need to track the boolean type as literally every encoding will parse to the same true/false.
         when (fieldVar is VarIntTypes) and (fieldVar is not bool):
@@ -205,7 +221,10 @@ template setFields[T](value: var T, fieldKey: byte, stream: InputStreamHandle,
           setIndividualField(fieldVar, fieldKey, stream, some(subtype))
           break
 
-proc readValue*[T](bytes: seq[byte], ty: typedesc[T]): T =
+proc readValue*[T](
+  bytes: seq[byte],
+  ty: typedesc[T]
+): T {.raises: [Defect, IOError, ProtobufEOFError, ProtobufMessageError].} =
   when T is (PureSIntegerTypes or PureUIntegerTypes):
     {.fatal: "Reading into a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
 
