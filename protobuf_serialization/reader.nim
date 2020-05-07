@@ -95,6 +95,10 @@ proc readFixed32[T](stream: InputStreamHandle): T =
     value += U(next.get()) shl U(offset)
   result = cast[T](value)
 
+#readValue requires this function which requires readValue.
+#It should be noted this is recursive, and therefore can theoretically risk a stack overflow.
+#As long as circular types are detected at compile time, this shouldn't be a problem.
+proc readValue*[T](bytes: seq[byte], ty: typedesc[T]): T
 template setLengthDelimitedField[T](value: var T, fieldKey: byte,
                                     stream: InputStreamHandle) =
   #This had name resolution errors when placed elsewhere.
@@ -114,6 +118,8 @@ template setLengthDelimitedField[T](value: var T, fieldKey: byte,
 
   when T is CastableLengthDelimitedTypes:
     value = cast[T](readLengthDelimited())
+  elif T is object:
+    value = readLengthDelimited().readValue(type(T))
   else:
     value = readLengthDelimited().fromProtobuf[:T]()
 
