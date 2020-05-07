@@ -2,11 +2,24 @@
 
 import macros
 
+import faststreams
 import serialization/errors
 
 import internal
 
-type ProtobufError* = object of SerializationError
+type
+  ProtobufError* = object of SerializationError
+
+  ProtobufWriter* = object
+    stream*: OutputStreamHandle
+
+proc newProtobufWriter*(): ProtobufWriter {.inline.} =
+  ProtobufWriter(
+    stream: memoryOutput()
+  )
+
+proc buffer*(writer: ProtobufWriter): seq[byte] {.inline.} =
+  writer.stream.s.getOutput()
 
 macro generateWrapperConstructors(name: untyped, supported: typed,
                                   smaller: typed, larger: typed,
@@ -16,9 +29,9 @@ macro generateWrapperConstructors(name: untyped, supported: typed,
       when T is not `supported`:
         {.fatal: `err`.}
       elif sizeof(T) == 8:
-        `larger`
+        `larger`(value)
       else:
-        `smaller`
+        `smaller`(value)
 
     template `name`*(T: type): untyped =
       when T is not `supported`:

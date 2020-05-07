@@ -1,115 +1,181 @@
+#Writes the specified type into a buffer using the Protobuf binary wire format.
+
+import stew/shims/macros
 import faststreams/output_stream
 import serialization
 
 import internal
 import types
 
-type ProtoBuffer* = object
-  fieldNum: int
-  outstream: OutputStreamHandle
+const LAST_BYTE = 0b1111_1111
 
-proc newProtoBuffer*(): ProtoBuffer {.inline.} =
-  ProtoBuffer(outstream: memoryOutput(), fieldNum: 1)
+type ProtobufWriteError* = object of ProtobufError
 
-proc output*(proto: ProtoBuffer): seq[byte] {.inline.} =
-  proto.outstream.getOutput
+#Create a field key.
+template key(fieldNum: uint, wire: ProtoWireType): byte =
+  ((byte(fieldNum shl 3)) or wire.byte).byte
 
-template protoHeader*(fieldNum: int, wire: ProtoWireType): byte =
-  ## Get protobuf's field header integer for ``index`` and ``wire``.
-  ((cast[uint](fieldNum) shl 3) or cast[uint](wire)).byte
-
-proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, value: T) {.inline.}
-proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, fieldNum: int, value: T) {.inline.}
-proc encodeField[T: not AnyProtoType](stream: OutputStreamHandle, fieldNum: int, value: T) {.inline.}
-
-proc put(stream: OutputStreamHandle, value: VarIntTypes) =
-  when value is enum:
-    var value = cast[type(ord(value))](value)
-  elif value is bool or value is char:
-    var value = cast[byte](value)
+#Get the unsigned absolute value of a number.
+#Used when encoding numbers.
+template uabs[U](number: VarIntTypes): U =
+  if number < type(number)(0):
+    not cast[U](number)
   else:
-    var value = value
+    U(number)
 
-  when type(value) is PureSIntegerTypes:
-    # Encode using zigzag
+proc writeVarInt(stream: OutputStreamHandle, fieldNum: uint,
+                 value: VarIntTypes, subtype: VarIntSubType) =
+  when sizeof(value) == 8:
+    type U = uint64
+  else:
+    type U = uint32
+
+  #If the value is 0, don't bother encoding it.
+  #This can cause a negative overflow, which will wrap to 0.
+  #That's why we use an explicit cast which requires the binary be 0'd.
+  if cast[U](value) == 0:
+    return
+
+  stream.s.cursor.append(key(fieldNum, VarInt))
+
+  var
+    #Get the unsigned value which is what will be encoded.
+    raw: U = uabs[U](value)
+    #Written bytes.
+    #This can be replaced with a countLeadingZeroBits solution so it's O(1), not O(n).
+    #That said, while it'd have better complexity, it may not be faster.
+    bytesWritten: uint = 0
+
+  #If we're using SInt, we need to transform the value to its zigzagged equivalent.
+  if subtype == SIntSubType:
+    raw = (raw shl 1) xor (raw shr ((sizeof(raw) * 8) - 1))
     if value < type(value)(0):
-      value = not(value shl type(value)(1))
-    else:
-      value = value shl type(value)(1)
+      inc(raw)
 
-  while value > type(value)(0b0111_1111):
-    stream.s.cursor.append byte((value and 0b0111_1111) or 0b1000_0000)
-    value = value shr 7
-  stream.s.cursor.append byte(value and 0b1111_1111)
+  #Write the VarInt.
+  while raw > type(raw)(VAR_INT_VALUE_MASK):
+    #We could convert raw to a byte, but that'll trigger a bounds check.
+    stream.s.cursor.append(byte(raw and U(VAR_INT_VALUE_MASK)) or VAR_INT_CONTINUATION_MASK)
+    raw = raw shr 7
+    inc(bytesWritten)
 
-proc encodeField(stream: OutputStreamHandle, fieldNum: int, value: VarIntTypes) =
-  stream.s.cursor.append protoHeader(fieldNum, Varint)
-  stream.put(value)
-
-proc put(stream: OutputStreamHandle, value: SomeFloat) =
-  when typeof(value) is float64:
-    var value = cast[int64](value)
+  #If this was a positive number, or zig-zagged, we only need to write this last byte.
+  if (value >= type(value)(0)) or (subtype == SIntSubType):
+    stream.s.cursor.append(byte(raw))
+  #We need to write blank bytes until the length is 10.
   else:
-    var value = cast[int32](value)
+    stream.s.cursor.append(byte(raw) or VAR_INT_CONTINUATION_MASK)
+    while bytesWritten < 9:
+      stream.s.cursor.append(VAR_INT_CONTINUATION_MASK)
+    stream.s.cursor.append(byte(0))
 
-  for _ in 0 ..< sizeof(value):
-    stream.s.cursor.append byte(value and 0b1111_1111)
-    value = value shr 8
+proc writeFixed64(stream: OutputStreamHandle, fieldNum: uint,
+                 value: Fixed64Types) =
+  stream.s.cursor.append(key(fieldNum, Fixed64))
+  var raw = cast[uint64](value)
+  for _ in 0 ..< 8:
+    stream.s.cursor.append(byte(raw and LAST_BYTE))
+    raw = raw shr 8
 
-proc encodeField(stream: OutputStreamHandle, fieldNum: int, value: float64) =
-  stream.s.cursor.append protoHeader(fieldNum, Fixed64)
-  stream.put(value)
+proc writeValue*[T](value: T): seq[byte]
+proc writeLengthDelimited(stream: OutputStreamHandle, fieldNum: uint,
+                 value: LengthDelimitedTypes) =
+  when type(value) is CastableLengthDelimitedTypes:
+    var bytes = cast[seq[byte]](value)
+    if bytes.len == 0:
+      return
+    elif bytes.len > 255:
+      raise newException(ProtobufWriteError, "Too long length-delimited buffer when casting a string/seq.")
+    stream.s.cursor.append(key(fieldNum, LengthDelimited))
+    stream.s.cursor.append(byte(bytes.len))
+    for b in bytes:
+      stream.s.cursor.append(b)
+  elif type(value) is object:
+    var bytes = writeValue(value)
+    if bytes.len == 0:
+      return
+    elif bytes.len > 255:
+      raise newException(ProtobufWriteError, "Too long length-delimited buffer when handling a nested object.")
+    stream.s.cursor.append(key(fieldNum, LengthDelimited))
+    stream.s.cursor.append(byte(bytes.len))
+    for b in bytes:
+      stream.s.cursor.append(b)
+  else:
+    var bytes = value.toProtobuf()
+    if bytes.len == 0:
+      return
+    elif bytes.len > 255:
+      raise newException(ProtobufWriteError, "Too long length-delimited buffer returned from toProtobuf.")
+    stream.s.cursor.append(key(fieldNum, LengthDelimited))
+    stream.s.cursor.append(byte(bytes.len))
+    for b in bytes:
+      stream.s.cursor.append(b)
 
-proc encodeField(stream: OutputStreamHandle, fieldNum: int, value: float32) =
-  stream.s.cursor.append protoHeader(fieldNum, Fixed32)
-  stream.put(value)
+proc writeFixed32(stream: OutputStreamHandle, fieldNum: uint,
+                 value: Fixed32Types) =
+  stream.s.cursor.append(key(fieldNum, Fixed32))
+  var raw = cast[uint32](value)
+  for _ in 0 ..< 4:
+    stream.s.cursor.append(byte(raw and LAST_BYTE))
+    raw = raw shr 8
 
-proc put(stream: OutputStreamHandle, value: SomeLengthDelimited) =
-  stream.put(len(value).uint)
-  for b in value:
-    stream.s.cursor.append byte(b)
+proc writeField*[T](writer: var ProtobufWriter, value: T, field: static string) =
+  var counter = 1'u
+  enumInstanceSerializedFields(value, fieldName, fieldVar):
+    if field != fieldName:
+      inc(counter)
+    else:
+      #Either VarInt of Fixed.
+      when fieldVar is VarIntTypes:
+        #We need to grab the subtype off the type definition.
+        when T.hasCustomPragmaFixed(fieldName, pint):
+          writer.stream.writeVarInt(counter, fieldVar, PIntSubType)
+        elif T.hasCustomPragmaFixed(fieldName, puint):
+          writer.stream.writeVarInt(counter, fieldVar, UIntSubType)
+        elif T.hasCustomPragmaFixed(fieldName, sint):
+          writer.stream.writeVarInt(counter, fieldVar, SIntSubType)
+        #If this is actually a Fixed field, which has a type overlap with VarInt, write it as one.
+        elif T.hasCustomPragmaFixed(fieldName, fixed) or T.hasCustomPragmaFixed(fieldName, sfixed):
+          when sizeof(fieldVar) == 8:
+            writer.stream.writeFixed64(counter, fieldVar)
+          else:
+            writer.stream.writeFixed32(counter, fieldVar)
+        else:
+          {.fatal: "Writing a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
+      #Float64.
+      elif fieldVar is Fixed64Types:
+        writer.stream.writeFixed64(counter, fieldVar)
+      #Float32.
+      elif fieldVar is Fixed32Types:
+        writer.stream.writeFixed32(counter, fieldVar)
+      #Length delimited.
+      else:
+        writer.stream.writeLengthDelimited(counter, fieldVar)
 
-proc encodeField(stream: OutputStreamHandle, fieldNum: int, value: SomeLengthDelimited) =
-  stream.s.cursor.append protoHeader(fieldNum, LengthDelimited)
-  stream.put(value)
+proc writeValue*[T](value: T): seq[byte] =
+  var writer: ProtobufWriter = newProtobufWriter()
 
-proc put(stream: OutputStreamHandle, value: object) {.inline.}
+  when T is VarIntTypes:
+    when T is (PIntWrapped32 or PIntWrapped64):
+      writer.stream.writeVarInt(1, value.unwrap(), PIntSubType)
+    elif T is (UIntWrapped32 or UIntWrapped64):
+      writer.stream.writeVarInt(1, value.unwrap(), UIntSubType)
+    elif T is (SIntWrapped32 or SIntWrapped64):
+      writer.stream.writeVarInt(1, value.unwrap(), SIntSubType)
+    elif T is (FixedWrapped64 or SFixedWrapped64):
+      writer.stream.writeFixed64(1, value)
+    elif T is (FixedWrapped32 or SFixedWrapped32):
+      writer.stream.writeFixed32(1, value)
+    else:
+      {.fatal: "Writing a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
+  elif T is Fixed64Types:
+    writer.stream.writeFixed64(1, value)
+  elif T is Fixed32Types:
+    writer.stream.writeFixed32(1, value)
+  elif T is object:
+    enumInstanceSerializedFields(value, fieldName, _):
+      writer.writeField(value, fieldName)
+  else:
+    writer.stream.writeLengthDelimited(1, value)
 
-proc encodeField(stream: OutputStreamHandle, fieldNum: int, value: object) =
-  # This is currently needed in order to get the size
-  # of the output before adding it to the stream.
-  # Maybe there is a better way to do this
-  let objStream = memoryOutput()
-  objStream.put(value)
-
-  let objOutput = objStream.s.getOutput()
-  if objOutput.len > 0:
-    stream.s.cursor.append protoHeader(fieldNum, LengthDelimited)
-    stream.put(objOutput)
-
-proc put(stream: OutputStreamHandle, value: object) =
-  var fieldNum = 1
-  value.enumInstanceSerializedFields(_, val):
-    if default(type(val)) != val:
-      stream.encodeField(fieldNum, val)
-    inc fieldNum
-
-proc encode*(protobuf: var ProtoBuffer, value: object) =
-  protobuf.outstream.put(value)
-
-proc encodeField*(protobuf: var ProtoBuffer, fieldNum: int, value: AnyProtoType) =
-  protobuf.outstream.encodeField(fieldNum, value)
-
-proc encodeField*(protobuf: var ProtoBuffer, value: AnyProtoType) =
-  protobuf.encodeField(protobuf.fieldNum, value)
-  inc protobuf.fieldNum
-
-proc encodeField[T: not AnyProtoType](stream: OutputStreamHandle, fieldNum: int, value: T) =
-  stream.encodeField(fieldNum, value.toProtobuf)
-
-proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, fieldNum: int, value: T) =
-  protobuf.outstream.encodeField(fieldNum, value.toProtobuf)
-
-proc encodeField*[T: not AnyProtoType](protobuf: var ProtoBuffer, value: T) =
-  protobuf.encodeField(protobuf.fieldNum, value.toProtobuf)
-  inc protobuf.fieldNum
+  return writer.buffer()

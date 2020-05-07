@@ -15,6 +15,13 @@ type
   ProtoWireType* = enum
     VarInt, Fixed64, LengthDelimited, StartGroup, EndGroup, Fixed32
 
+  VarIntSubType* = enum
+    PIntSubType,
+    SIntSubType,
+    UIntSubType
+    FixedSubType,
+    SFixedSubType
+
   #Used to specify how to encode/decode primitives.
   #Despite being used outside of this library, all access is via templates.
   PIntWrapped32* = distinct int32
@@ -31,19 +38,23 @@ type
   #Signed native types utilizing the VarInt/Fixed wire types.
   PureSIntegerTypes* = SomeSignedInt or enum
   #Every Signed Integer Type.
-  SIntegerTypes* = SIntWrapped32 or SIntWrapped64 or
-                   PIntWrapped32 or PIntWrapped64 or
+  SIntegerTypes* = PIntWrapped32 or PIntWrapped64 or
+                   SIntWrapped32 or SIntWrapped64 or
                    SFixedWrapped32 or SFixedWrapped64 or
                    PureSIntegerTypes
 
   #Unsigned native types utilizing the VarInt/Fixed wire types.
-  PureUIntegerTypes* = SomeUnsignedInt or char
+  PureUIntegerTypes* = SomeUnsignedInt or char or bool
   #Every Unsigned Integer Type.
   UIntegerTypes* = UIntWrapped32 or UIntWrapped64 or
                    FixedWrapped32 or FixedWrapped64 or
-                   PureUIntegerTypes or bool
+                   PureUIntegerTypes
 
-  #Every type valid for the VarInt wire tupe.
+  #Every wrapped type that can be used with the VarInt wire type.
+  WrappedVarIntTypes* = PIntWrapped32 or PIntWrapped64 or
+                        SIntWrapped32 or SIntWrapped64 or
+                        UIntWrapped32 or UIntWrapped64
+  #Every type valid for the VarInt wire type.
   VarIntTypes* = SIntegerTypes or UIntegerTypes
 
   #Limited Fixed types.
@@ -69,10 +80,14 @@ else:
     Fixed64Types* = LimitedFixed64Types or int
     Fixed32Types* = LimitedFixed32Types
 
-#Legacy types being phased out.
-type
-  ProtoField*[T] = object
-    index*: int
-    value*: T
-  SomeLengthDelimited* = CastableLengthDelimitedTypes or cstring
-  AnyProtoType* = VarIntTypes or Fixed64Types or CastableLengthDelimitedTypes or Fixed32Types or object
+template unwrap*[T](value: T): untyped =
+  when T is (PIntWrapped32 or SIntWrapped32 or SFixedWrapped32):
+    int32(value)
+  elif T is (PIntWrapped64 or SIntWrapped64 or SFixedWrapped64):
+    int64(value)
+  elif T is (UIntWrapped32 or FixedWrapped32):
+    uint32(value)
+  elif T is (UIntWrapped64 or FixedWrapped64):
+    uint64(value)
+  else:
+    {.fatal: "Tried to get the unwrapped value of a non-wrapped type. This should never happen.".}

@@ -1,7 +1,9 @@
+#Parses the Protobuf binary wire protocol into the specified type.
+
 import options
 
 import stew/shims/macros
-import faststreams
+import faststreams/input_stream
 import serialization
 
 import internal
@@ -20,13 +22,6 @@ type
   ProtobufEOFError* = object of ProtobufError
   ProtobufLegacyError* = object of ProtobufError
   ProtobufMessageError* = object of ProtobufError
-
-  VarIntSubType = enum
-    PIntSubType,
-    SIntSubType,
-    UIntSubType
-    FixedSubType,
-    SFixedSubType
 
 #Ideally, these would be in a table.
 #That said, due to the context specific return type, which goes beyond the wire type, you need generics.
