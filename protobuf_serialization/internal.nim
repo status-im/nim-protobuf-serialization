@@ -59,8 +59,8 @@ type
 
   #Limited Fixed types.
   #Limited because there is one other pair of types which fits one of these definitions (int/uint).
-  LimitedFixed64Types = int64 or uint64 or float64
-  LimitedFixed32Types = int32 or uint32 or float32
+  LimitedFixed64Types = int64 or uint64 or float64 or FixedWrapped64 or SFixedWrapped64
+  LimitedFixed32Types = int32 or uint32 or float32 or FixedWrapped32 or SFixedWrapped32
 
   #Castable length delimited types.
   #These can be directly casted from a seq[byte] and do not require a custom converter.

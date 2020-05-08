@@ -236,14 +236,12 @@ proc readValue*[T](
     subtype = some(PIntSubType)
   elif T is (SIntWrapped32 or SIntWrapped64):
     subtype = some(SIntSubType)
-  elif T is (FixedWrapped32 or FixedWrapped64):
-    subtype = some(FixedSubType)
-  #In the case of bool, assuming the data is always 0/1, this will cause 1 to be interpreted as 1.
-  #Under zigzag, it's actually -1. That said, Nim considers both values as truthy, so this isn't a problem.
-  elif T is UIntegerTypes:
+  elif T is (UIntWrapped32 or UIntWrapped64):
     subtype = some(UIntSubType)
 
   while next.isSome():
     result.setFields(next.get(), stream, subtype)
     next = stream.s.next()
+    when T is not object:
+      return
   stream.s.close()

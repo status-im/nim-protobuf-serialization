@@ -25,27 +25,26 @@ macro generateWrapperConstructors(name: untyped, supported: typed,
                                   smaller: typed, larger: typed,
                                   err: string) =
   quote do:
-    template `name`*[T](value: T): untyped =
-      when T is not `supported`:
-        {.fatal: `err`.}
-      elif sizeof(T) == 8:
-        `larger`(value)
-      else:
-        `smaller`(value)
+    template `name`*(value: untyped): untyped =
+      when value is not `supported`:
+        {.fatal: `err` & $type(value).}
 
-    template `name`*(T: type): untyped =
-      when T is not `supported`:
-        {.fatal: `err`.}
-      elif sizeof(T) == 8:
-        `larger`
+      when value is type:
+        when sizeof(value) == 8:
+          `larger`
+        else:
+          `smaller`
       else:
-        `smaller`
+        when sizeof(value) == 8:
+          `larger`(value)
+        else:
+          `smaller`(value)
 
-generateWrapperConstructors(PInt, PureSIntegerTypes, PIntWrapped32, PIntWrapped64, "PInt should only be used with a signed integer type.")
-generateWrapperConstructors(UInt, PureUIntegerTypes, UIntWrapped32, UIntWrapped64, "UInt should only be used with an unsigned integer type.")
-generateWrapperConstructors(SInt, PureSIntegerTypes, SIntWrapped32, SIntWrapped64, "SInt should only be used with a signed integer type.")
-generateWrapperConstructors(Fixed, PureUIntegerTypes, FixedWrapped32, FixedWrapped64, "Fixed should only be used with an unsigned integer type.")
-generateWrapperConstructors(SFixed, PureSIntegerTypes, SFixedWrapped32, SFixedWrapped64, "SFixed should only be used with a signed integer type.")
+generateWrapperConstructors(PInt, SIntegerTypes, PIntWrapped32, PIntWrapped64, "PInt should only be used with a signed integer type.")
+generateWrapperConstructors(UInt, UIntegerTypes, UIntWrapped32, UIntWrapped64, "UInt should only be used with an unsigned integer type.")
+generateWrapperConstructors(SInt, SIntegerTypes, SIntWrapped32, SIntWrapped64, "SInt should only be used with a signed integer type.")
+generateWrapperConstructors(Fixed, UIntegerTypes, FixedWrapped32, FixedWrapped64, "Fixed should only be used with an unsigned integer type.")
+generateWrapperConstructors(SFixed, SIntegerTypes, SFixedWrapped32, SFixedWrapped64, "SFixed should only be used with a signed integer type.")
 
 #Used to specify how to encode/decode fields in an object.
 template pint*() {.pragma.}

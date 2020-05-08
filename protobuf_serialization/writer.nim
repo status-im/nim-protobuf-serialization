@@ -71,6 +71,7 @@ proc writeVarInt(
     stream.s.cursor.append(byte(raw) or VAR_INT_CONTINUATION_MASK)
     while bytesWritten < 9:
       stream.s.cursor.append(VAR_INT_CONTINUATION_MASK)
+      inc(bytesWritten)
     stream.s.cursor.append(byte(0))
 
 proc writeFixed64(
