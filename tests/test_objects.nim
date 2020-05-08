@@ -1,9 +1,6 @@
-import
-  unittest,
-  ../protobuf_serialization
+import unittest
 
-when defined(PIntWrapped32):
-  assert(false, "Internal types are being exported.")
+import ../protobuf_serialization
 
 type
   MyEnum = enum
