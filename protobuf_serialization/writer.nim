@@ -26,10 +26,14 @@ template uabs[U](number: VarIntTypes): U =
 #Created in response to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/5.
 var counter {.compileTime.}: int
 proc verifyWritable[T]() {.compileTime.} =
-  when T is object:
+  when T is (object or ref):
     counter = 0
-    enumInstanceSerializedFields(T(), _,  _):
-      inc(counter)
+    when T is ref:
+      enumInstanceSerializedFields(T()[], _,  _):
+        inc(counter)
+    else:
+      enumInstanceSerializedFields(T(), _,  _):
+        inc(counter)
     if counter > 32:
       raise newException(Defect, "Object has too many fields; Protobuf has a maximum of 32.")
 
@@ -96,39 +100,51 @@ proc writeFixed64(
     raw = raw shr 8
 
 #This has a XDeclaredButNotUsed false positive for some reason.
-proc writeValueInternal*[T](value: T): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].}
+proc writeValueInternal*[T](
+  value: T,
+  existingLength: var int
+): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].}
 
 proc writeLengthDelimited(
   stream: OutputStreamHandle,
   fieldNum: uint,
-  value: LengthDelimitedTypes
+  value: LengthDelimitedTypes,
+  existingLength: var int
 ) {.raises: [Defect, IOError, ProtobufWriteError].} =
-  when type(value) is CastableLengthDelimitedTypes:
-    let bytes = cast[seq[byte]](value)
-    if bytes.len == 0:
+  existingLength += 2
+  when value is CastableLengthDelimitedTypes:
+    if value.len == 0:
       return
-    elif bytes.len > 255:
+    existingLength += value.len
+    if existingLength > 255:
       raise newException(ProtobufWriteError, "Too long length-delimited buffer when casting a string/seq.")
+
     stream.s.cursor.append(key(fieldNum, LengthDelimited))
-    stream.s.cursor.append(byte(bytes.len))
-    for b in bytes:
+    stream.s.cursor.append(byte(value.len))
+    for b in cast[seq[byte]](value):
       stream.s.cursor.append(b)
-  elif type(value) is object:
-    let bytes = writeValueInternal(value)
+
+  elif value is (object or ref):
+    let bytes = writeValueInternal(value, existingLength)
     if bytes.len == 0:
       return
-    elif bytes.len > 255:
+    existingLength += bytes.len
+    if existingLength > 255:
       raise newException(ProtobufWriteError, "Too long length-delimited buffer when handling a nested object.")
+
     stream.s.cursor.append(key(fieldNum, LengthDelimited))
     stream.s.cursor.append(byte(bytes.len))
     for b in bytes:
       stream.s.cursor.append(b)
+
   else:
     let bytes = value.toProtobuf()
     if bytes.len == 0:
       return
-    elif bytes.len > 255:
+    existingLength += bytes.len
+    if existingLength > 255:
       raise newException(ProtobufWriteError, "Too long length-delimited buffer returned from toProtobuf.")
+
     stream.s.cursor.append(key(fieldNum, LengthDelimited))
     stream.s.cursor.append(byte(bytes.len))
     for b in bytes:
@@ -145,31 +161,55 @@ proc writeFixed32(
     stream.s.cursor.append(byte(raw and LAST_BYTE))
     raw = raw shr 8
 
-proc writeField*[T](
+proc writeFieldInternal[T](
   writer: ProtobufWriter,
   value: T,
-  field: static string
+  field: static string,
+  existingLength: var int
 ) {.raises: [Defect, IOError, ProtobufWriteError].} =
   #Fake raise, as this is only raised for a subset of types yet it's in raises.
   if false:
     raise newException(ProtobufWriteError, "")
 
   var counter = 1'u
-  enumInstanceSerializedFields(value, fieldName, fieldVar):
+  when value is ref:
+    var actualValue = value[]
+  else:
+    var actualValue = value
+  enumInstanceSerializedFields(actualValue, fieldName, fieldVar):
     if field != fieldName:
       inc(counter)
     else:
       #Either VarInt of Fixed.
       when fieldVar is VarIntTypes:
         #We need to grab the subtype off the type definition.
-        when T.hasCustomPragmaFixed(fieldName, pint):
+        #That said, hasCustomPragmaFixed doesn't work with ref types.
+        #We need to define a custom one in that case which will work.
+        #This is a hack which isn't guaranteed to maintain compatiblity with hasCustomPragmaFixed.
+        when getTypeImpl(T).kind == nnkRefTy:
+          macro hCP(field: static string, pragma: typed{nkSym}): untyped =
+            var actualT = newNimNode(nnkTypeDef).add(
+              T.getTypeImpl()[0],
+              newNimNode(nnkEmpty),
+              T.getTypeImpl()[0].getImpl()[2][0]
+            )
+            for f in recordFields(actualT):
+              var thisField = f.name
+              if thisField.kind == nnkAccQuoted: thisField = thisField[0]
+              if eqIdent(thisField, field):
+                return newLit(f.pragmas.findPragma(pragma) != nil)
+        else:
+          template hCP(field: static string, pragma: typed{nkSym}): untyped =
+            T.hasCustomPragmaFixed(field, pragma)
+
+        when hCP(fieldName, pint):
           writer.stream.writeVarInt(counter, fieldVar, PIntSubType)
-        elif T.hasCustomPragmaFixed(fieldName, puint):
+        elif hCP(fieldName, puint):
           writer.stream.writeVarInt(counter, fieldVar, UIntSubType)
-        elif T.hasCustomPragmaFixed(fieldName, sint):
+        elif hCP(fieldName, sint):
           writer.stream.writeVarInt(counter, fieldVar, SIntSubType)
         #If this is actually a Fixed field, which has a type overlap with VarInt, write it as one.
-        elif T.hasCustomPragmaFixed(fieldName, fixed) or T.hasCustomPragmaFixed(fieldName, sfixed):
+        elif hCP(fieldName, fixed) or hCP(fieldName, sfixed):
           when sizeof(fieldVar) == 8:
             writer.stream.writeFixed64(counter, fieldVar)
           else:
@@ -187,10 +227,19 @@ proc writeField*[T](
         writer.stream.writeFixed32(counter, fieldVar)
       #Length delimited.
       else:
-        writer.stream.writeLengthDelimited(counter, fieldVar)
+        writer.stream.writeLengthDelimited(counter, fieldVar, existingLength)
+
+template writeField*[T](
+  writer: ProtobufWriter,
+  value: T,
+  field: static string
+) =
+  var existingLength = 0
+  writeFieldInternal(writer, value, field, existingLength)
 
 proc writeValueInternal[T](
-  value: T
+  value: T,
+  existingLength: var int
 ): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].} =
   if false:
     raise newException(ProtobufWriteError, "")
@@ -214,11 +263,17 @@ proc writeValueInternal[T](
     writer.stream.writeFixed64(1, value)
   elif T is Fixed32Types:
     writer.stream.writeFixed32(1, value)
-  elif T is object:
-    enumInstanceSerializedFields(value, fieldName, _):
-      writer.writeField(value, fieldName)
+  elif T is (object or ref):
+    when T is ref:
+      if value.isNil:
+        return
+      enumInstanceSerializedFields(value[], fieldName, _):
+        writer.writeFieldInternal(value, fieldName, existingLength)
+    else:
+      enumInstanceSerializedFields(value, fieldName, _):
+        writer.writeFieldInternal(value, fieldName, existingLength)
   else:
-    writer.stream.writeLengthDelimited(1, value)
+    writer.stream.writeLengthDelimited(1, value, existingLength)
 
   return writer.buffer()
 
@@ -228,4 +283,5 @@ template writeValue*[T](
   when T is object:
     static:
       verifyWritable[T]()
-  writeValueInternal(value)
+  var existingLength = 0
+  writeValueInternal(value, existingLength)
