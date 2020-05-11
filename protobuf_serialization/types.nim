@@ -31,7 +31,7 @@ macro generateWrapperConstructors(
   quote do:
     template `name`*(value: untyped): untyped =
       when value is not `supported`:
-        {.fatal: `err` & $type(value).}
+        {.fatal: `err`.}
 
       when value is type:
         when sizeof(value) == 8:

@@ -172,6 +172,8 @@ template setIndividualField[T](value: var T, fieldKey: byte,
     if wire != byte(Fixed32):
       raise newException(ProtobufMessageError, "Invalid wire type for a float32: " & $wire)
     value = stream.readFixed32[:T]()
+  else:
+    {.fatal: "Trying to read a type we don't understand.".}
 
 template setFields[T](
   value: var T,

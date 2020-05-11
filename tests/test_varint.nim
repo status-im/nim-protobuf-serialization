@@ -91,7 +91,7 @@ template getVarint(buffer: seq[byte], length: int, value: untyped): VarintStatus
   elif value is SFixed(int32):
     value = readValue(Fixed32Key & buffer, type(value))
   else:
-    value = type(value)(readValue(VarIntKey & buffer, type(value)))
+    value = readValue(VarIntKey & buffer, type(value))
   VarintStatus.Success
 
 template encodeVarint[T](value: T): seq[byte] =

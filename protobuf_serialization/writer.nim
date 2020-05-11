@@ -150,6 +150,10 @@ proc writeField*[T](
   value: T,
   field: static string
 ) {.raises: [Defect, IOError, ProtobufWriteError].} =
+  #Fake raise, as this is only raised for a subset of types yet it's in raises.
+  if false:
+    raise newException(ProtobufWriteError, "")
+
   var counter = 1'u
   enumInstanceSerializedFields(value, fieldName, fieldVar):
     if field != fieldName:
@@ -188,6 +192,9 @@ proc writeField*[T](
 proc writeValueInternal[T](
   value: T
 ): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].} =
+  if false:
+    raise newException(ProtobufWriteError, "")
+
   let writer: ProtobufWriter = newProtobufWriter()
 
   when T is VarIntTypes:
