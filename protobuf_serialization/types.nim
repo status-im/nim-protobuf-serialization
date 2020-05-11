@@ -21,9 +21,13 @@ func newProtobufWriter*(): ProtobufWriter {.inline, raises: [].} =
 func buffer*(writer: ProtobufWriter): seq[byte] {.inline, raises: [].} =
   writer.stream.s.getOutput()
 
-macro generateWrapperConstructors(name: untyped, supported: typed,
-                                  smaller: typed, larger: typed,
-                                  err: string) =
+macro generateWrapperConstructors(
+  name: untyped,
+  supported: typed,
+  smaller: typed,
+  larger: typed,
+  err: string
+) =
   quote do:
     template `name`*(value: untyped): untyped =
       when value is not `supported`:

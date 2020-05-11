@@ -75,7 +75,9 @@ proc readVarInt[T](
   else:
     result = T(value)
 
-proc readFixed64[T](stream: InputStreamHandle): T {.raises: [Defect, IOError, ProtobufEOFError].} =
+proc readFixed64[T](
+  stream: InputStreamHandle
+): T {.raises: [Defect, IOError, ProtobufEOFError].} =
   type U = uint64
   var
     value = U(0)
@@ -87,7 +89,9 @@ proc readFixed64[T](stream: InputStreamHandle): T {.raises: [Defect, IOError, Pr
     value += U(next.get()) shl U(offset)
   result = cast[T](value)
 
-proc readFixed32[T](stream: InputStreamHandle): T {.raises: [Defect, IOError, ProtobufEOFError].} =
+proc readFixed32[T](
+  stream: InputStreamHandle
+): T {.raises: [Defect, IOError, ProtobufEOFError].} =
   type U = uint64
   var
     value = U(0)
