@@ -23,6 +23,16 @@ template uabs[U](number: VarIntTypes): U =
   else:
     U(number)
 
+#Created in response to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/5.
+var counter {.compileTime.}: int
+proc verifyWritable[T]() {.compileTime.} =
+  when T is object:
+    counter = 0
+    enumInstanceSerializedFields(T(), _,  _):
+      inc(counter)
+    if counter > 32:
+      raise newException(Defect, "Object has too many fields; Protobuf has a maximum of 32.")
+
 proc writeVarInt(
   stream: OutputStreamHandle,
   fieldNum: uint,
@@ -86,7 +96,7 @@ proc writeFixed64(
     raw = raw shr 8
 
 #This has a XDeclaredButNotUsed false positive for some reason.
-proc writeValue*[T](value: T): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].}
+proc writeValueInternal*[T](value: T): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].}
 
 proc writeLengthDelimited(
   stream: OutputStreamHandle,
@@ -104,7 +114,7 @@ proc writeLengthDelimited(
     for b in bytes:
       stream.s.cursor.append(b)
   elif type(value) is object:
-    let bytes = writeValue(value)
+    let bytes = writeValueInternal(value)
     if bytes.len == 0:
       return
     elif bytes.len > 255:
@@ -172,7 +182,9 @@ proc writeField*[T](
       else:
         writer.stream.writeLengthDelimited(counter, fieldVar)
 
-proc writeValue*[T](value: T): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].} =
+proc writeValueInternal[T](
+  value: T
+): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].} =
   let writer: ProtobufWriter = newProtobufWriter()
 
   when T is VarIntTypes:
@@ -199,3 +211,11 @@ proc writeValue*[T](value: T): seq[byte] {.raises: [Defect, IOError, ProtobufWri
     writer.stream.writeLengthDelimited(1, value)
 
   return writer.buffer()
+
+template writeValue*[T](
+  value: T
+): seq[byte] =
+  when T is object:
+    static:
+      verifyWritable[T]()
+  writeValueInternal(value)
