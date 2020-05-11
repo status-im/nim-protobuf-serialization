@@ -170,6 +170,9 @@ proc writeField*[T](
             writer.stream.writeFixed64(counter, fieldVar)
           else:
             writer.stream.writeFixed32(counter, fieldVar)
+        #This default is okay as any encoding of a boolean will produce the same truthy/falsey value.
+        elif fieldVar is bool:
+          writer.stream.writeVarInt(counter, fieldVar, UIntSubType)
         else:
           {.fatal: "Writing a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
       #Float64.

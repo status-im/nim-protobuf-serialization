@@ -189,16 +189,18 @@ template setFields[T](
     var counter = 1
     enumInstanceSerializedFields(value, fieldName, fieldVar):
       when fieldVar is not LengthDelimitedTypes:
-        var subtype: VarIntSubType
+        var subtype: Option[VarIntSubType]
 
       if counter != ((fieldKey and FIELD_NUMBER_MASK).int shr 3):
         inc(counter)
       else:
         #Only calculate the subtype for VarInt.
-        #In every other case, the letiable type is enough.
+        #In every other case, the type is enough.
         #Writing does have further specification rules, but those aren't needed here.
         #We don't need to track the boolean type as literally every encoding will parse to the same true/false.
-        when (fieldVar is VarIntTypes) and (fieldVar is not bool):
+        when fieldVar is bool:
+          subtype = some(UIntSubType)
+        elif (fieldVar is VarIntTypes) and (fieldVar is not bool):
           mixin hasCustomPragmaFixed, wireType
           if fieldKey.wireType == byte(VarInt):
             const
@@ -212,24 +214,24 @@ template setFields[T](
             elif hasPUInt and (fieldVar is not UIntegerTypes):
               {.fatal: "Invalid application of the puint pragma to a signed number.".}
             elif hasPInt:
-              subtype = PIntSubType
+              subtype = some(PIntSubType)
             elif hasSInt:
-              subtype = SIntSubType
+              subtype = some(SIntSubType)
             elif hasPUInt:
-              subtype = UIntSubType
+              subtype = some(UIntSubType)
 
         when fieldVar is LengthDelimitedTypes:
           setLengthDelimitedField(fieldVar, fieldKey, stream)
           break
         else:
-          setIndividualField(fieldVar, fieldKey, stream, some(subtype))
+          setIndividualField(fieldVar, fieldKey, stream, subtype)
           break
 
 proc readValue*[T](
   bytes: seq[byte],
   ty: typedesc[T]
 ): T {.raises: [Defect, IOError, ProtobufEOFError, ProtobufMessageError].} =
-  when T is (PureSIntegerTypes or PureUIntegerTypes):
+  when (T is (PureSIntegerTypes or PureUIntegerTypes)) and (T is not bool):
     {.fatal: "Reading into a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
 
   var
@@ -240,7 +242,7 @@ proc readValue*[T](
     subtype = some(PIntSubType)
   elif T is (SIntWrapped32 or SIntWrapped64):
     subtype = some(SIntSubType)
-  elif T is (UIntWrapped32 or UIntWrapped64):
+  elif T is (UIntWrapped32 or UIntWrapped64 or bool):
     subtype = some(UIntSubType)
 
   while next.isSome():

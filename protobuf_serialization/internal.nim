@@ -64,7 +64,7 @@ type
 
   #Castable length delimited types.
   #These can be directly casted from a seq[byte] and do not require a custom converter.
-  CastableLengthDelimitedTypes* = string or seq[char or byte or uint8]
+  CastableLengthDelimitedTypes* = string or seq[char or byte or uint8 or bool]
   #This type is literally every other type.
   #Every other type is considered custom, due to the need for their own converters.
   #While cstring/array are built-ins, and therefore should have converters provided, but they still need converters.
