@@ -108,23 +108,25 @@ proc writeFixed64(
     stream.s.cursor.append(byte(raw and LAST_BYTE))
     raw = raw shr 8
 
-#This has a XDeclaredButNotUsed false positive for some reason.
 proc writeValueInternal*[T](
   value: T,
+  sub: bool,
   existingLength: var int
 ): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].}
-
 proc writeLengthDelimited(
   stream: OutputStreamHandle,
   fieldNum: uint,
   value: LengthDelimitedTypes,
+  sub: bool,
   existingLength: var int
 ) {.raises: [Defect, IOError, ProtobufWriteError].} =
-  existingLength += 2
   if existingLength > 255:
     raise newException(ProtobufWriteError, "Too long length-delimited buffer when recursively entering writeLengthDelimited.")
+  existingLength += 2
 
   when value is CastableLengthDelimitedTypes:
+    if sub:
+      existingLength -= 2
     if value.len == 0:
       existingLength -= 2
       return
@@ -139,12 +141,12 @@ proc writeLengthDelimited(
       stream.s.cursor.append(b)
 
   elif value is (object or ref):
-    let bytes = writeValueInternal(value, existingLength)
+    let bytes = writeValueInternal(value, true, existingLength)
     if bytes.len == 0:
       existingLength -= 2
       return
+    existingLength += 2
 
-    existingLength += bytes.len
     if existingLength > 255:
       raise newException(ProtobufWriteError, "Too long length-delimited buffer when handling a nested object.")
 
@@ -159,7 +161,6 @@ proc writeLengthDelimited(
       existingLength -= 2
       return
 
-    existingLength += bytes.len
     if existingLength > 255:
       raise newException(ProtobufWriteError, "Too long length-delimited buffer returned from toProtobuf.")
 
@@ -185,6 +186,7 @@ proc writeFieldInternal[T](
   writer: ProtobufWriter,
   value: T,
   field: static string,
+  sub: bool,
   existingLength: var int
 ) {.raises: [Defect, IOError, ProtobufWriteError].} =
   #Fake raise, as this is only raised for a subset of types yet it's in raises.
@@ -247,7 +249,7 @@ proc writeFieldInternal[T](
         writer.stream.writeFixed32(counter, fieldVar)
       #Length delimited.
       else:
-        writer.stream.writeLengthDelimited(counter, fieldVar, existingLength)
+        writer.stream.writeLengthDelimited(counter, fieldVar, sub, existingLength)
 
 template writeField*[T](
   writer: ProtobufWriter,
@@ -255,10 +257,11 @@ template writeField*[T](
   field: static string
 ) =
   var existingLength = 0
-  writeFieldInternal(writer, value, field, existingLength)
+  writeFieldInternal(writer, value, field, false, existingLength)
 
 proc writeValueInternal[T](
   value: T,
+  sub: bool,
   existingLength: var int
 ): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].} =
   if false:
@@ -290,12 +293,12 @@ proc writeValueInternal[T](
       if value.isNil:
         return
       enumInstanceSerializedFields(value[], fieldName, _):
-        writer.writeFieldInternal(value, fieldName, existingLength)
+        writer.writeFieldInternal(value, fieldName, sub, existingLength)
     else:
       enumInstanceSerializedFields(value, fieldName, _):
-        writer.writeFieldInternal(value, fieldName, existingLength)
+        writer.writeFieldInternal(value, fieldName, sub, existingLength)
   else:
-    writer.stream.writeLengthDelimited(1, value, existingLength)
+    writer.stream.writeLengthDelimited(1, value, sub, existingLength)
 
   return writer.buffer()
 
@@ -306,4 +309,4 @@ template writeValue*[T](
     static:
       verifyWritable[T]()
   var existingLength = 0
-  writeValueInternal(value, existingLength)
+  writeValueInternal(value, false, existingLength)

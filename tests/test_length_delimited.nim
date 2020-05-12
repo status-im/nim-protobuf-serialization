@@ -2,6 +2,14 @@ import unittest
 
 import ../protobuf_serialization
 
+type
+  TwoStrings = object
+    a: string
+    b: string
+
+  TwoStringsWrapped = object
+    strings: TwoStrings
+
 suite "Test Length Delimited Encoding/Decoding":
   test "Can encode/decode string":
     let
@@ -35,3 +43,20 @@ suite "Test Length Delimited Encoding/Decoding":
     let tooLong = newSeq[byte](256)
     expect ProtobufWriteError:
       discard writeValue(tooLong)
+
+  #Bottom two tests are because of https://github.com/kayabaNerve/nim-protobuf-serialization/issues/13.
+  test "Can handle buffers which almost exceed the length":
+    discard writeValue(TwoStringsWrapped(strings: TwoStrings(
+      #Field key + buffer length + 253 bytes hits the maximum buffer size exactly.
+      #If this assigns any length to b, which should be omitted, this will fail.
+      a: newString(253)
+    )))
+
+  test "Can handle buffers which just exceed the length":
+    expect ProtobufWriteError:
+      discard writeValue(TwoStringsWrapped(strings: TwoStrings(
+        #Field key + buffer length + 251 bytes set 253 bytes used.
+        a: newString(251),
+        #Another field key + buffer length + 1 byte makes it 256.
+        b: newString(1)
+      )))
