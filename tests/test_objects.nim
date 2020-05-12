@@ -3,6 +3,24 @@ import unittest
 import ../protobuf_serialization
 
 type
+  TestEnum = enum
+    NegTwo = -2, NegOne, Zero, One, Two
+
+  DistinctInt* = distinct int32
+
+  Basic = object
+    a {.puint.}: uint64
+    b: string
+    c {.puint.}: char
+
+  Wrapper = object
+    d {.sint.}: int32
+    e {.sint.}: int64
+    f: Basic
+    g: string
+    h: bool
+    i: DistinctInt
+
   Nested = ref object
     child: Nested
     data: string
@@ -10,7 +28,60 @@ type
   Circular = ref object
     child: Circular
 
+#Instead of relying on writeValue, you could instead write your own implementations.
+#Any byte sequence returned by this will be passed directly to the matching fromProtobuf.
+#This means doing this this way requires knowing what wire type to prepend.
+#That said, as this is for distinct objects, that shouldn't be too problematic.
+proc toProtobuf*(x: DistinctInt): seq[byte] =
+  result = writeValue(SInt(x.int32))
+  if result.len == 0:
+    return
+  result = result[1 ..< result.len]
+
+proc fromProtobuf*[T: DistinctInt](bytes: seq[byte]): DistinctInt =
+  if bytes.len == 0:
+    return
+  result = DistinctInt((@[wireType(SInt(int32))] & bytes).readValue(SInt(int32)))
+
+proc `==`(lhs: DistinctInt, rhs: DistinctInt): bool {.borrow.}
+
 suite "Test Object Encoding/Decoding":
+  #The following two tests don't actually test objects. They test user-defined types.
+  #One should be automatically resolved. One can't be resolved.
+  test "Can encode/decode enums":
+    template enumTest(value: TestEnum, integer: int): untyped =
+      let output = writeValue(SInt(value))
+      if integer == 0:
+        check output.len == 0
+      else:
+        check output == @[byte(8), byte(integer)]
+      check TestEnum(readValue(output, SInt(TestEnum))) == value
+
+    enumTest(NegTwo, 3)
+    enumTest(NegOne, 1)
+    enumTest(Zero, 0)
+    enumTest(One, 2)
+    enumTest(Two, 4)
+
+  test "Can encode/decode distinct types":
+    var x: DistinctInt = 5.DistinctInt
+    check writeValue(x).readValue(DistinctInt) == x
+
+  test "Can encode/decode a basic object":
+    let obj = Basic(a: 100, b: "Test string.", c: 'C')
+    check writeValue(obj).readValue(Basic) == obj
+
+  test "Can encode/decode a wrapper object":
+    let obj = Wrapper(
+      d: 300,
+      e: 200,
+      f: Basic(a: 100, b: "Test string.", c: 'C'),
+      g: "Other test string.",
+      h: true,
+      i: 124521.DistinctInt
+    )
+    check writeValue(obj).readValue(Wrapper) == obj
+
   test "Doesn't write too-big nested objects":
     expect ProtobufWriteError:
       discard writeValue(Nested(

@@ -2,6 +2,9 @@ import unittest
 
 import ../protobuf_serialization
 
+#Import test_objects for the DistinctInt type and its converters.
+import test_objects
+
 type X = object
   y {.pint.}: int
 
@@ -33,7 +36,7 @@ suite "Test Encoding of Empty Objects/Values":
     check writeValue(X()).len == 0
 
   test "Empty distinct type":
-    discard
+    check writeValue(DistinctInt(0)).len == 0
 
   test "Empty fixed32":
     check writeValue(SFixed(0'i32)).len == 0

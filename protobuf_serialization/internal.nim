@@ -32,6 +32,7 @@ type
   PlatformDependentTypes* = (not (int32 or int64 or uint32 or uint64 or float32 or float64)) and (int or uint or float)
   #Signed native types utilizing the VarInt/Fixed wire types.
   PureSIntegerTypes* = SomeSignedInt or enum
+
   #Every Signed Integer Type.
   SIntegerTypes* = PIntWrapped32 or PIntWrapped64 or
                    SIntWrapped32 or SIntWrapped64 or
@@ -47,8 +48,11 @@ type
 
   #Every wrapped type that can be used with the VarInt wire type.
   WrappedVarIntTypes* = PIntWrapped32 or PIntWrapped64 or
-                        SIntWrapped32 or SIntWrapped64 or
-                        UIntWrapped32 or UIntWrapped64
+                        UIntWrapped32 or UIntWrapped64 or
+                        SIntWrapped32 or SIntWrapped64
+  #Every wrapped type that can be used with the Fixed wire types.
+  WrappedFixedTypes* = FixedWrapped32 or FixedWrapped64 or
+                       SFixedWrapped32 or SFixedWrapped64
   #Every type valid for the VarInt wire type.
   VarIntTypes* = SIntegerTypes or UIntegerTypes
 
