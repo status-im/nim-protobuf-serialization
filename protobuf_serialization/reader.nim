@@ -137,7 +137,7 @@ template setLengthDelimitedField[T](
 
   when T is CastableLengthDelimitedTypes:
     value = cast[T](stream.readLengthDelimited())
-  elif T is object:
+  elif T is (object or ref):
     value = stream.readLengthDelimited().readValue(type(T))
   else:
     value = stream.readLengthDelimited().fromProtobuf[:T]()
@@ -145,7 +145,7 @@ template setLengthDelimitedField[T](
 template setIndividualField[T](value: var T, fieldKey: byte,
                                stream: InputStreamHandle,
                                subtypeArg: Option[VarIntSubType]) =
-  when T is object:
+  when T is (object or ref):
     {.fatal: "Object made it to set individual field. This should never happen.".}
 
   mixin wireType
@@ -173,15 +173,15 @@ template setIndividualField[T](value: var T, fieldKey: byte,
       raise newException(ProtobufMessageError, "Invalid wire type for a float32: " & $wire)
     value = stream.readFixed32[:T]()
   else:
-    {.fatal: "Trying to read a type we don't understand.".}
+    {.fatal: "Trying to read a type we don't understand. This should never happen.".}
 
-template setFields[T](
+proc setFields[T](
   value: var T,
   fieldKey: byte,
   stream: InputStreamHandle,
   subtypeArg: Option[VarIntSubType]
 ) =
-  when T is not object:
+  when T is not (object or ref):
     when T is LengthDelimitedTypes:
       setLengthDelimitedField(value, fieldKey, stream)
     elif T is PlatformDependentTypes:
@@ -191,7 +191,45 @@ template setFields[T](
   else:
     #This iterative approach is extremely poor.
     var counter = 1
-    enumInstanceSerializedFields(value, fieldName, fieldVar):
+    when getTypeImpl(T).kind == nnkRefTy:
+      if value.isNil:
+        value = T()
+
+      macro hCP(field: static string, pragma: typed{nkSym}): untyped =
+        var actualT = newNimNode(nnkTypeDef).add(
+          T.getTypeImpl()[0],
+          newNimNode(nnkEmpty),
+          T.getTypeImpl()[0].getImpl()[2][0]
+        )
+        for f in recordFields(actualT):
+          var thisField = f.name
+          if thisField.kind == nnkAccQuoted: thisField = thisField[0]
+          if eqIdent(thisField, field):
+            return newLit(f.pragmas.findPragma(pragma) != nil)
+
+      macro enumSerialized(body: untyped): untyped =
+        result = quote do:
+          for fieldName, fieldVar in fieldPairs(value[]):
+            when not hCP(fieldName, dontSerialize):
+              `body`
+
+        var queue = @[result]
+        while queue.len != 0:
+          var next = queue.pop()
+          for c in 0 ..< next.len:
+            if eqIdent(next[c], ident("fieldName")):
+              next[c] = result[0]
+            elif eqIdent(next[c], ident("fieldVar")):
+              next[c] = result[1]
+            else:
+              queue.add(next[c])
+    else:
+      macro enumSerialized(body: untyped): untyped =
+        result = quote do:
+          enumInstanceSerializedFields(value, fieldName, fieldVar):
+            `body`
+
+    enumSerialized():
       when fieldVar is not LengthDelimitedTypes:
         when fieldVar is PlatformDependentTypes:
           {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
@@ -254,6 +292,6 @@ proc readValue*[T](
   while next.isSome():
     result.setFields(next.get(), stream, subtype)
     next = stream.s.next()
-    when T is not object:
+    when T is not (object or ref):
       return
   stream.s.close()

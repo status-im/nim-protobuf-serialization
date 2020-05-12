@@ -45,6 +45,21 @@ proc fromProtobuf*[T: DistinctInt](bytes: seq[byte]): DistinctInt =
 
 proc `==`(lhs: DistinctInt, rhs: DistinctInt): bool {.borrow.}
 
+proc `==`(lhs: Nested, rhs: Nested): bool =
+  var
+    lastLeft = lhs
+    lastRight = rhs
+  while not lastLeft.isNil:
+    if lastRight.isNil:
+      return false
+    if lastLeft.data != lastRight.data:
+      return false
+    lastLeft = lastLeft.child
+    lastRight = lastRight.child
+  if not lastRight.isNil:
+    return false
+  result = true
+
 suite "Test Object Encoding/Decoding":
   #The following two tests don't actually test objects. They test user-defined types.
   #One should be automatically resolved. One can't be resolved.
@@ -113,4 +128,12 @@ suite "Test Object Encoding/Decoding":
       discard writeValue(root)
 
   test "Can read nested objects":
-    discard
+    var obj: Nested = Nested(
+      child: Nested(
+        data: "Child data."
+      ),
+      data: "Parent data."
+    )
+    echo writeValue(obj).readValue(Nested).data
+    echo writeValue(obj).readValue(Nested).child.data
+    check writeValue(obj).readValue(Nested) == obj
