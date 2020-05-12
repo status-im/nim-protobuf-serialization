@@ -7,13 +7,13 @@ type
     ME1, ME2, ME3
 
   Test1 = object
-    a {.puint.}: uint
+    a {.puint.}: uint64
     b: string
     c {.puint.}: char
 
   Test3 = object
-    g {.sint.}: int
-    h {.sint.}: int
+    g {.sint.}: int32
+    h {.sint.}: int64
     i: Test1
     j: string
     k {.puint.}: bool

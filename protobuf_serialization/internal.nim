@@ -1,12 +1,5 @@
 #Variables needed by the Reader and Writer which should NOT be exported outside of this library.
 
-#This check should truly never trigger.
-#Why would anyone try to use Protobuf on an Arduino or similar device?
-#That said, it is possible, and this library does assume the architecture is one of the two.
-#Better safe than sorry.
-when sizeof(int) notin {4, 8}:
-  {.fatal: "This library only works on 32-bit and 64-bit systems.".}
-
 const
   VAR_INT_CONTINUATION_MASK*: byte = 0b1000_0000
   VAR_INT_VALUE_MASK*: byte = 0b0111_1111
@@ -35,6 +28,8 @@ type
   SFixedWrapped32* = distinct int32
   SFixedWrapped64* = distinct int64
 
+  #Number types which are platform-dependent and therefore unsafe.
+  PlatformDependentTypes* = (not (int32 or int64 or uint32 or uint64 or float32 or float64)) and (int or uint or float)
   #Signed native types utilizing the VarInt/Fixed wire types.
   PureSIntegerTypes* = SomeSignedInt or enum
   #Every Signed Integer Type.

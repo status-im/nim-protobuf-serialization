@@ -26,14 +26,21 @@ template uabs[U](number: VarIntTypes): U =
 #Created in response to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/5.
 var counter {.compileTime.}: int
 proc verifyWritable[T]() {.compileTime.} =
-  when T is (object or ref):
+  when T is PlatformDependentTypes:
+    {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
+  elif T is (object or ref):
     counter = 0
     when T is ref:
-      enumInstanceSerializedFields(T()[], _,  _):
-        inc(counter)
+      var tInstance = T()[]
     else:
-      enumInstanceSerializedFields(T(), _,  _):
-        inc(counter)
+      var tInstance = T()
+
+    #We could use totalSerializedFields for this.
+    #That said, we need to iterate over every field anyways.
+    enumInstanceSerializedFields(tInstance, _, fieldVar):
+      inc(counter)
+      when T is PlatformDependentTypes:
+        {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
     if counter > 32:
       raise newException(Defect, "Object has too many fields; Protobuf has a maximum of 32.")
 

@@ -184,6 +184,8 @@ template setFields[T](
   when T is not object:
     when T is LengthDelimitedTypes:
       setLengthDelimitedField(value, fieldKey, stream)
+    elif T is PlatformDependentTypes:
+      {.fatal: "Reading into a number requires specifying the amount of bits via the type: " & $type(T).}
     else:
       setIndividualField(value, fieldKey, stream, subtypeArg)
   else:
@@ -191,6 +193,8 @@ template setFields[T](
     var counter = 1
     enumInstanceSerializedFields(value, fieldName, fieldVar):
       when fieldVar is not LengthDelimitedTypes:
+        when fieldVar is PlatformDependentTypes:
+          {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
         var subtype: Option[VarIntSubType]
 
       if counter != ((fieldKey and FIELD_NUMBER_MASK).int shr 3):
