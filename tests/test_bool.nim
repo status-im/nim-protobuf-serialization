@@ -16,6 +16,15 @@ type
     x: bool
 
 suite "Test Boolean Encoding/Decoding":
+  test "Can encode/decode boolean without subtype specification":
+    check writeValue(true).readValue(bool)
+    check not writeValue(false).readValue(bool)
+
+    check writeValue(BoolType(x: true)).readValue(BoolType).x
+    check not writeValue(BoolType(x: false)).readValue(BoolType).x
+
+  #Skipping subtype specification only works when every encoding has the same truthiness.
+  #That's what this tests. It should be noted 1 encodes as 1/1/2 for the following.
   test "Can encode/decode boolean as signed VarInt":
     check not writeValue(PInt(0'i32)).readValue(bool)
     check writeValue(PInt(1'i32)).readValue(bool)
