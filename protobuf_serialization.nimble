@@ -15,8 +15,9 @@ requires "nim >= 1.2.0",
          "serialization"
 
 task test, "Run all tests":
-  exec "nim c -r --threads:off tests/test_all"
-  exec "nim c -r --threads:on tests/test_all"
+  #Explicitly specify the call depth limit in case the default changes in the future.
+  exec "nim c -d:nimCallDepthLimit=2000 -r --threads:off tests/test_all"
+  exec "nim c -d:nimCallDepthLimit=2000 -r --threads:on tests/test_all"
 
   #Also iterate over every test in tests/fail, and verify they fail to compile.
   echo "\r\n\x1B[0;94m[Suite]\x1B[0;37m Test Fail to Compile"

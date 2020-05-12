@@ -121,9 +121,14 @@ proc writeLengthDelimited(
   existingLength: var int
 ) {.raises: [Defect, IOError, ProtobufWriteError].} =
   existingLength += 2
+  if existingLength > 255:
+    raise newException(ProtobufWriteError, "Too long length-delimited buffer when recursively entering writeLengthDelimited.")
+
   when value is CastableLengthDelimitedTypes:
     if value.len == 0:
+      existingLength -= 2
       return
+
     existingLength += value.len
     if existingLength > 255:
       raise newException(ProtobufWriteError, "Too long length-delimited buffer when casting a string/seq.")
@@ -136,7 +141,9 @@ proc writeLengthDelimited(
   elif value is (object or ref):
     let bytes = writeValueInternal(value, existingLength)
     if bytes.len == 0:
+      existingLength -= 2
       return
+
     existingLength += bytes.len
     if existingLength > 255:
       raise newException(ProtobufWriteError, "Too long length-delimited buffer when handling a nested object.")
@@ -149,7 +156,9 @@ proc writeLengthDelimited(
   else:
     let bytes = value.toProtobuf()
     if bytes.len == 0:
+      existingLength -= 2
       return
+
     existingLength += bytes.len
     if existingLength > 255:
       raise newException(ProtobufWriteError, "Too long length-delimited buffer returned from toProtobuf.")
