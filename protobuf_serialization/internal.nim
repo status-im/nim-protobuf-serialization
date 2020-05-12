@@ -52,10 +52,11 @@ type
   #Every type valid for the VarInt wire type.
   VarIntTypes* = SIntegerTypes or UIntegerTypes
 
-  #Limited Fixed types.
-  #Limited because there is one other pair of types which fits one of these definitions (int/uint).
-  LimitedFixed64Types = int64 or uint64 or float64 or FixedWrapped64 or SFixedWrapped64
-  LimitedFixed32Types = int32 or uint32 or float32 or FixedWrapped32 or SFixedWrapped32
+  #Fixed types.
+  FixedTypes* = UIntegerTypes or FixedWrapped64 or FixedWrapped32
+  SFixedTypes* = SIntegerTypes or SomeFloat or SFixedWrapped64 or SFixedWrapped32
+  Fixed64Types* = int64 or uint64 or float64 or FixedWrapped64 or SFixedWrapped64
+  Fixed32Types* = int32 or uint32 or float32 or FixedWrapped32 or SFixedWrapped32
 
   #Castable length delimited types.
   #These can be directly casted from a seq[byte] and do not require a custom converter.
@@ -63,17 +64,7 @@ type
   #This type is literally every other type.
   #Every other type is considered custom, due to the need for their own converters.
   #While cstring/array are built-ins, and therefore should have converters provided, but they still need converters.
-  LengthDelimitedTypes* = not (VarIntTypes or LimitedFixed64Types or LimitedFixed32Types)
-
-#Full definitions for the Fixed Types.
-when sizeof(int) == 4:
-  type
-    Fixed64Types* = LimitedFixed64Types
-    Fixed32Types* = LimitedFixed32Types or int
-else:
-  type
-    Fixed64Types* = LimitedFixed64Types or int
-    Fixed32Types* = LimitedFixed32Types
+  LengthDelimitedTypes* = not (VarIntTypes or Fixed64Types or Fixed32Types)
 
 template unwrap*[T](value: T): untyped =
   when T is (PIntWrapped32 or SIntWrapped32 or SFixedWrapped32):

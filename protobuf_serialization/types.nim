@@ -47,8 +47,8 @@ macro generateWrapperConstructors(
 generateWrapperConstructors(PInt, SIntegerTypes, PIntWrapped32, PIntWrapped64, "PInt should only be used with a signed integer type.")
 generateWrapperConstructors(UInt, UIntegerTypes, UIntWrapped32, UIntWrapped64, "UInt should only be used with an unsigned integer type.")
 generateWrapperConstructors(SInt, SIntegerTypes, SIntWrapped32, SIntWrapped64, "SInt should only be used with a signed integer type.")
-generateWrapperConstructors(Fixed, UIntegerTypes, FixedWrapped32, FixedWrapped64, "Fixed should only be used with an unsigned integer type.")
-generateWrapperConstructors(SFixed, SIntegerTypes, SFixedWrapped32, SFixedWrapped64, "SFixed should only be used with a signed integer type.")
+generateWrapperConstructors(Fixed, FixedTypes, FixedWrapped32, FixedWrapped64, "Fixed should only be used with an unsigned integer type.")
+generateWrapperConstructors(SFixed, SFixedTypes, SFixedWrapped32, SFixedWrapped64, "SFixed should only be used with a signed integer type.")
 
 #Used to specify how to encode/decode fields in an object.
 template pint*() {.pragma.}

@@ -71,7 +71,7 @@ proc writeVarInt(
     #That said, while it'd have better complexity, it may not be faster.
     bytesWritten: uint = 0
 
-  #If we're using SInt, we need to transform the value to its zigzagged equivalent.
+  #If we're using SInt, we need to transform the value to its zig-zagged equivalent.
   if subtype == SIntSubType:
     raw = (raw shl 1) xor (raw shr ((sizeof(raw) * 8) - 1))
     if value < type(value)(0):
@@ -100,8 +100,10 @@ proc writeFixed64(
   fieldNum: uint,
   value: Fixed64Types
 ) {.raises: [Defect, IOError].} =
-  stream.s.cursor.append(key(fieldNum, Fixed64))
   var raw = cast[uint64](value)
+  if raw == 0:
+    return
+  stream.s.cursor.append(key(fieldNum, Fixed64))
   for _ in 0 ..< 8:
     stream.s.cursor.append(byte(raw and LAST_BYTE))
     raw = raw shr 8
@@ -162,8 +164,10 @@ proc writeFixed32(
   fieldNum: uint,
   value: Fixed32Types
 ) {.raises: [Defect, IOError].} =
-  stream.s.cursor.append(key(fieldNum, Fixed32))
   var raw = cast[uint32](value)
+  if raw == 0:
+    return
+  stream.s.cursor.append(key(fieldNum, Fixed32))
   for _ in 0 ..< 4:
     stream.s.cursor.append(byte(raw and LAST_BYTE))
     raw = raw shr 8
@@ -258,6 +262,8 @@ proc writeValueInternal[T](
       writer.stream.writeVarInt(1, value.unwrap(), PIntSubType)
     elif T is (UIntWrapped32 or UIntWrapped64):
       writer.stream.writeVarInt(1, value.unwrap(), UIntSubType)
+    elif T is bool:
+      writer.stream.writeVarInt(1, value, UIntSubType)
     elif T is (SIntWrapped32 or SIntWrapped64):
       writer.stream.writeVarInt(1, value.unwrap(), SIntSubType)
     elif T is (FixedWrapped64 or SFixedWrapped64):
