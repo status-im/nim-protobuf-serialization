@@ -1,5 +1,7 @@
 #Writes the specified type into a buffer using the Protobuf binary wire format.
 
+import options
+
 import stew/shims/macros
 import faststreams/output_stream
 import serialization
@@ -26,13 +28,20 @@ template uabs[U](number: VarIntTypes): U =
 #Created in response to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/5.
 var counter {.compileTime.}: int
 proc verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
+  when T is not (object or ref):
+    type AT = T
+  else:
+    var instance = T()
+    createActualTypeFromPotentialOption(instance)
+
+  when AT is PlatformDependentTypes:
     {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
-  elif T is (object or ref):
+  elif AT is (object or ref):
     counter = 0
-    when T is ref:
-      var tInstance = T()[]
+    when AT is ref:
+      var tInstance = AT()[]
     else:
-      var tInstance = T()
+      var tInstance = AT()
 
     #We could use totalSerializedFields for this.
     #That said, we need to iterate over every field anyways.
@@ -113,6 +122,7 @@ proc writeValueInternal*[T](
   sub: bool,
   existingLength: var int
 ): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].}
+
 proc writeLengthDelimited(
   stream: OutputStreamHandle,
   fieldNum: uint,

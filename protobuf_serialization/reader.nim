@@ -203,6 +203,9 @@ proc setFields[T](
   if false:
     raise newException(ProtobufDataRemainingError, "")
 
+  when T is (object or ref):
+    createActualTypeFromPotentialOption(value)
+
   when T is not (object or ref):
     when T is PlatformDependentTypes:
       {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
@@ -216,20 +219,19 @@ proc setFields[T](
       counter = 1'u8
       fieldNumber = uint8((fieldKey and FIELD_NUMBER_MASK).int shr 3)
       alreadySet: set[uint8]
-    if int(fieldNumber) > totalSerializedFields(T):
+    if int(fieldNumber) > totalSerializedFields(AT):
       raise newException(ProtobufMessageError, "Unknown field number specified.")
 
-    when getTypeImpl(T).kind == nnkRefTy:
+    when getTypeImpl(AT).kind == nnkRefTy:
       if value.isNil:
-        value = T()
+        value = AT()
 
       macro hCP(field: static string, pragma: typed{nkSym}): untyped =
-        var actualT = newNimNode(nnkTypeDef).add(
-          T.getTypeImpl()[0],
+        for f in recordFields(newNimNode(nnkTypeDef).add(
+          AT.getTypeImpl()[0],
           newNimNode(nnkEmpty),
-          T.getTypeImpl()[0].getImpl()[2][0]
-        )
-        for f in recordFields(actualT):
+          AT.getTypeImpl()[0].getImpl()[2][0]
+        )):
           var thisField = f.name
           if thisField.kind == nnkAccQuoted: thisField = thisField[0]
           if eqIdent(thisField, field):
@@ -297,12 +299,16 @@ proc setFields[T](
             elif hasPUInt:
               subtype = some(UIntSubType)
 
-        when fieldVar is LengthDelimitedTypes:
-          setLengthDelimitedField(fieldVar, fieldKey, stream)
-          break
+        var fakeField: type(fieldVar)
+        when fakeField is LengthDelimitedTypes:
+          setLengthDelimitedField(fakeField, fieldKey, stream)
         else:
-          setIndividualField(fieldVar, fieldKey, stream, subtype)
-          break
+          setIndividualField(fakeField, fieldKey, stream, subtype)
+        when fieldVar is Option:
+          fieldVar = some(fakeField)
+        else:
+          fieldVar = fakeField
+        break
 
 proc readValue*[T](
   bytes: seq[byte],
@@ -314,24 +320,35 @@ proc readValue*[T](
   ProtobufDataRemainingError,
   ProtobufMessageError
 ].} =
-  when (T is (PureSIntegerTypes or PureUIntegerTypes)) and (T is not bool):
+  when T is not (object or ref):
+    type AT = T
+  else:
+    var instance = T()
+    createActualTypeFromPotentialOption(instance)
+
+  when (AT is (PureSIntegerTypes or PureUIntegerTypes)) and (AT is not bool):
     {.fatal: "Reading into a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
 
   var
     stream = memoryInput(bytes)
     next = stream.s.next()
     subtype: Option[VarIntSubType]
-  when T is (PIntWrapped32 or PIntWrapped64):
+  when AT is (PIntWrapped32 or PIntWrapped64):
     subtype = some(PIntSubType)
-  elif T is (SIntWrapped32 or SIntWrapped64):
+  elif AT is (SIntWrapped32 or SIntWrapped64):
     subtype = some(SIntSubType)
-  elif T is (UIntWrapped32 or UIntWrapped64 or bool):
+  elif AT is (UIntWrapped32 or UIntWrapped64 or bool):
     subtype = some(UIntSubType)
 
   while next.isSome():
-    result.setFields(next.get(), stream, subtype)
+    when T is Option:
+      var fakeValue: AT
+      fakeValue.setFields(next.get(), stream, subtype)
+      result = some(fakeValue)
+    else:
+      result.setFields(next.get(), stream, subtype)
     next = stream.s.next()
-    when T is not (object or ref):
+    when T is (Option or (not (object or ref))):
       break
   stream.s.close()
 
