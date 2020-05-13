@@ -4,13 +4,13 @@ import ../protobuf_serialization
 
 type
   PIntType = object
-    x {.pint.}: int
+    x {.pint.}: int32
 
   UIntType = object
-    x {.puint.}: uint
+    x {.puint.}: uint32
 
   SIntType = object
-    x {.sint.}: int
+    x {.sint.}: int32
 
   BoolType = object
     x: bool
@@ -40,8 +40,8 @@ suite "Test Boolean Encoding/Decoding":
     check not writeValue(UInt(0'u64)).readValue(bool)
     check writeValue(UInt(1'u64)).readValue(bool)
 
-    check not writeValue(UIntType(x: 0'u)).readValue(BoolType).x
-    check writeValue(UIntType(x: 1'u)).readValue(BoolType).x
+    check not writeValue(UIntType(x: 0'u32)).readValue(BoolType).x
+    check writeValue(UIntType(x: 1'u32)).readValue(BoolType).x
 
   test "Can encode/decode boolean as zig-zagged VarInt":
     check not writeValue(SInt(0'i32)).readValue(bool)

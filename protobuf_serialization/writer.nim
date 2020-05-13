@@ -39,7 +39,7 @@ proc verifyWritable[T]() {.compileTime.} =
     #That said, we need to iterate over every field anyways.
     enumInstanceSerializedFields(tInstance, _, fieldVar):
       inc(counter)
-      when T is PlatformDependentTypes:
+      when fieldVar is PlatformDependentTypes:
         {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
     if counter > 32:
       raise newException(Defect, "Object has too many fields; Protobuf has a maximum of 32.")
@@ -210,12 +210,12 @@ proc writeFieldInternal[T](
         #This is a hack which isn't guaranteed to maintain compatiblity with hasCustomPragmaFixed.
         when getTypeImpl(T).kind == nnkRefTy:
           macro hCP(field: static string, pragma: typed{nkSym}): untyped =
-            var actualT = newNimNode(nnkTypeDef).add(
+            var AT = newNimNode(nnkTypeDef).add(
               T.getTypeImpl()[0],
               newNimNode(nnkEmpty),
               T.getTypeImpl()[0].getImpl()[2][0]
             )
-            for f in recordFields(actualT):
+            for f in recordFields(AT):
               var thisField = f.name
               if thisField.kind == nnkAccQuoted: thisField = thisField[0]
               if eqIdent(thisField, field):

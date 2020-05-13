@@ -136,7 +136,7 @@ template setLengthDelimitedField[T](
 
   let wire = fieldKey.wireType
   if wire != byte(LengthDelimited):
-    raise newException(ProtobufMessageError, "Invalid wire type for a length delimited sequence/object: " & $wire)
+    raise newException(ProtobufMessageError, "Invalid wire type for a length delimited sequence/object.")
 
   when T is CastableLengthDelimitedTypes:
     value = cast[T](stream.readLengthDelimited())
@@ -160,27 +160,27 @@ template setIndividualField[T](value: var T, fieldKey: byte,
       of byte(VarInt):
         mixin isNone
         if subtypeArg.isNone():
-          raise newException(ProtobufMessageError, "Invalid subtype (Fixed/SFixed) for a VarInt: " & $wire)
+          raise newException(ProtobufMessageError, "Invalid subtype (Fixed/SFixed) for a VarInt.")
         value = stream.readVarInt[:T](subtypeArg.get())
       of byte(Fixed64):
         if T is not Fixed64Types:
-          raise newException(ProtobufMessageError, "Invalid wire type for an Fixed64: " & $wire)
+          raise newException(ProtobufMessageError, "Invalid wire type for an Fixed64.")
         value = stream.readFixed64[:T]()
       of byte(Fixed32):
         if T is not Fixed32Types:
-          raise newException(ProtobufMessageError, "Invalid wire type for an Fixed32: " & $wire)
+          raise newException(ProtobufMessageError, "Invalid wire type for an Fixed32.")
         value = stream.readFixed32[:T]()
       else:
-        raise newException(ProtobufMessageError, "Invalid wire type for an integer: " & $wire)
+        raise newException(ProtobufMessageError, "Invalid wire type for an integer.")
   #Float64.
   elif T is Fixed64Types:
     if wire != byte(Fixed64):
-      raise newException(ProtobufMessageError, "Invalid wire type for a float64: " & $wire)
+      raise newException(ProtobufMessageError, "Invalid wire type for a float64.")
     value = stream.readFixed64[:T]()
   #Float32.
   elif T is Fixed32Types:
     if wire != byte(Fixed32):
-      raise newException(ProtobufMessageError, "Invalid wire type for a float32: " & $wire)
+      raise newException(ProtobufMessageError, "Invalid wire type for a float32.")
     value = stream.readFixed32[:T]()
   else:
     {.fatal: "Trying to read a type we don't understand. This should never happen.".}
