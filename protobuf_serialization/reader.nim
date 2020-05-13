@@ -147,7 +147,7 @@ template setLengthDelimitedField[T](
 
 template setIndividualField[T](value: var T, fieldKey: byte,
                                stream: InputStreamHandle,
-                               subtypeArg: Option[VarIntSubType]) =
+                               subtype: Option[VarIntSubType]) =
   when T is (object or ref):
     {.fatal: "Object made it to set individual field. This should never happen.".}
 
@@ -159,9 +159,9 @@ template setIndividualField[T](value: var T, fieldKey: byte,
     case wire:
       of byte(VarInt):
         mixin isNone
-        if subtypeArg.isNone():
+        if subtype.isNone():
           raise newException(ProtobufMessageError, "Invalid subtype (Fixed/SFixed) for a VarInt.")
-        value = stream.readVarInt[:T](subtypeArg.get())
+        value = stream.readVarInt[:T](subtype.get())
       of byte(Fixed64):
         if T is not Fixed64Types:
           raise newException(ProtobufMessageError, "Invalid wire type for an Fixed64.")
@@ -204,10 +204,10 @@ proc setFields[T](
     raise newException(ProtobufDataRemainingError, "")
 
   when T is not (object or ref):
-    when T is LengthDelimitedTypes:
+    when T is PlatformDependentTypes:
+      {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
+    elif T is LengthDelimitedTypes:
       setLengthDelimitedField(value, fieldKey, stream)
-    elif T is PlatformDependentTypes:
-      {.fatal: "Reading into a number requires specifying the amount of bits via the type: " & $type(T).}
     else:
       setIndividualField(value, fieldKey, stream, subtypeArg)
   else:

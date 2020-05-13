@@ -6,7 +6,7 @@ import ../protobuf_serialization
 import test_objects
 
 type X = object
-  y {.pint.}: int
+  y {.pint.}: int32
 
 suite "Test Encoding of Empty Objects/Values":
   test "Empty boolean":
@@ -24,7 +24,7 @@ suite "Test Encoding of Empty Objects/Values":
     check writeValue(SInt(0'i32)).len == 0
     check writeValue(SInt(0'i64)).len == 0
 
-  test "Empty fixed64":
+  test "Empty Fixed64":
     check writeValue(SFixed(0'i64)).len == 0
     check writeValue(Fixed(0'u64)).len == 0
     check writeValue(SFixed(0'f64)).len == 0
@@ -38,7 +38,7 @@ suite "Test Encoding of Empty Objects/Values":
   test "Empty distinct type":
     check writeValue(DistinctInt(0)).len == 0
 
-  test "Empty fixed32":
+  test "Empty Fixed32":
     check writeValue(SFixed(0'i32)).len == 0
     check writeValue(Fixed(0'u32)).len == 0
     check writeValue(SFixed(0'f32)).len == 0

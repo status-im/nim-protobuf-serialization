@@ -25,8 +25,7 @@ template uabs[U](number: VarIntTypes): U =
 
 #Created in response to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/5.
 var counter {.compileTime.}: int
-proc verifyWritable[T]() {.compileTime.} =
-  when T is PlatformDependentTypes:
+proc verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
     {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
   elif T is (object or ref):
     counter = 0
@@ -90,6 +89,7 @@ proc writeVarInt(
   #We need to write blank bytes until the length is 10.
   else:
     stream.s.cursor.append(byte(raw) or VAR_INT_CONTINUATION_MASK)
+    inc(bytesWritten)
     while bytesWritten < 9:
       stream.s.cursor.append(VAR_INT_CONTINUATION_MASK)
       inc(bytesWritten)
@@ -302,11 +302,16 @@ proc writeValueInternal[T](
 
   return writer.buffer()
 
-template writeValue*[T](
+proc writeValue*[T](
   value: T
 ): seq[byte] =
   when T is object:
     static:
-      verifyWritable[T]()
+      verifyWritable(T)
+
   var existingLength = 0
-  writeValueInternal(value, false, existingLength)
+  when T is Option:
+    if value.isSome():
+      result = writeValueInternal(value.get(), false, existingLength)
+  else:
+    result = writeValueInternal(value, false, existingLength)
