@@ -13,7 +13,7 @@ const
   FIELD_NUMBER_MASK: byte = 0b1111_1000
   WIRE_TYPE_MASK: byte = 0b0000_0111
 
-#We don't cast this back to a ProtoWireType despite exclusively comparing it against ProtoWireTypes.
+#We don't cast this back to a ProtobufWireType despite exclusively comparing it against ProtobufWireTypes.
 #This is so an invalid wire type doesn't trigger boundChecks.
 template wireType(key: byte): byte =
   key and WIRE_TYPE_MASK
@@ -30,10 +30,7 @@ type
 proc readVarInt[T](
   stream: InputStreamHandle,
   subtype: VarIntSubType
-): T {.raises: [Defect, IOError, ProtobufEOFError, ProtobufMessageError].} =
-  if subtype in {FixedSubType, SFixedSubType}:
-    raise newException(ProtobufMessageError, "VarInt message used for a Fixed data type.")
-
+): T {.raises: [Defect, IOError, ProtobufEOFError].} =
   when sizeof(result) == 8:
     type
       S = int64
@@ -50,7 +47,7 @@ proc readVarInt[T](
   while (next and VAR_INT_CONTINUATION_MASK) != 0:
     let option = stream.s.next()
 
-    if option.isNone:
+    if option.isNone():
       raise newException(ProtobufEOFError, "Couldn't read a VarInt from this stream.")
 
     next = option.get()
@@ -161,10 +158,17 @@ template setIndividualField[T](value: var T, fieldKey: byte,
   when T is VarIntTypes:
     case wire:
       of byte(VarInt):
+        mixin isNone
+        if subtypeArg.isNone():
+          raise newException(ProtobufMessageError, "Invalid subtype (Fixed/SFixed) for a VarInt: " & $wire)
         value = stream.readVarInt[:T](subtypeArg.get())
       of byte(Fixed64):
+        if T is not Fixed64Types:
+          raise newException(ProtobufMessageError, "Invalid wire type for an Fixed64: " & $wire)
         value = stream.readFixed64[:T]()
       of byte(Fixed32):
+        if T is not Fixed32Types:
+          raise newException(ProtobufMessageError, "Invalid wire type for an Fixed32: " & $wire)
         value = stream.readFixed32[:T]()
       else:
         raise newException(ProtobufMessageError, "Invalid wire type for an integer: " & $wire)

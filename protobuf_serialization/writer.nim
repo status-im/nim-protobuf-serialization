@@ -12,7 +12,7 @@ const LAST_BYTE = 0b1111_1111
 type ProtobufWriteError* = object of ProtobufError
 
 #Create a field key.
-template key(fieldNum: uint, wire: ProtoWireType): byte =
+template key(fieldNum: uint, wire: ProtobufWireType): byte =
   ((byte(fieldNum shl 3)) or wire.byte).byte
 
 #Get the unsigned absolute value of a number.

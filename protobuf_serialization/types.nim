@@ -57,7 +57,7 @@ template sint*() {.pragma.}
 template fixed*() {.pragma.}
 template sfixed*() {.pragma.}
 
-#We don't cast this back to a ProtoWireType so it can prepended to a seq[bytes].
+#We don't cast this back to a ProtobufWireType so it can prepended to a seq[bytes].
 template wireType*(value: untyped): byte =
   when value is WrappedVarIntTypes:
     byte(VarInt) + (1 shl 3)

@@ -5,7 +5,7 @@ const
   VAR_INT_VALUE_MASK*: byte = 0b0111_1111
 
 type
-  ProtoWireType* = enum
+  ProtobufWireType* = enum
     VarInt, Fixed64, LengthDelimited, StartGroup, EndGroup, Fixed32
 
   VarIntSubType* = enum
