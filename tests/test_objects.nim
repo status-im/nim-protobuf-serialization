@@ -97,6 +97,31 @@ suite "Test Object Encoding/Decoding":
     )
     check writeValue(obj).readValue(Wrapper) == obj
 
+  test "Can encode/decode partial object":
+    let
+      obj = Wrapper(
+        d: 300,
+        e: 200,
+        f: Basic(a: 100, b: "Test string.", c: 'C'),
+        g: "Other test string.",
+        h: true,
+        i: 124521.DistinctInt
+      )
+      writer = newProtobufWriter()
+
+    writer.writeField(obj, "d")
+    writer.writeField(obj, "f")
+    writer.writeField(obj, "g")
+    writer.writeField(obj, "i")
+
+    let result = writer.buffer().readValue(Wrapper)
+    check result.d == obj.d
+    check result.f == obj.f
+    check result.g == obj.g
+    check result.i == obj.i
+    check result.e == 0
+    check result.h == false
+
   test "Can encode/decode out of order object":
     let
       obj = Wrapper(
