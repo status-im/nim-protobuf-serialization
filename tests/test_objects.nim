@@ -97,6 +97,27 @@ suite "Test Object Encoding/Decoding":
     )
     check writeValue(obj).readValue(Wrapper) == obj
 
+  test "Can encode/decode out of order object":
+    let
+      obj = Wrapper(
+        d: 300,
+        e: 200,
+        f: Basic(a: 100, b: "Test string.", c: 'C'),
+        g: "Other test string.",
+        h: true,
+        i: 124521.DistinctInt
+      )
+      writer = newProtobufWriter()
+
+    writer.writeField(obj, "f")
+    writer.writeField(obj, "i")
+    writer.writeField(obj, "d")
+    writer.writeField(obj, "e")
+    writer.writeField(obj, "h")
+    writer.writeField(obj, "g")
+
+    check writer.buffer().readValue(Wrapper) == obj
+
   test "Doesn't write too-big nested objects":
     expect ProtobufWriteError:
       discard writeValue(Nested(
@@ -134,6 +155,4 @@ suite "Test Object Encoding/Decoding":
       ),
       data: "Parent data."
     )
-    echo writeValue(obj).readValue(Nested).data
-    echo writeValue(obj).readValue(Nested).child.data
     check writeValue(obj).readValue(Nested) == obj
