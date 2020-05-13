@@ -19,9 +19,10 @@ template wireType(key: byte): byte =
   key and WIRE_TYPE_MASK
 
 type
-  ProtobufEOFError* = object of ProtobufError
-  ProtobufLegacyError* = object of ProtobufError
-  ProtobufMessageError* = object of ProtobufError
+  ProtobufReadError* = object of ProtobufError
+  ProtobufEOFError* = object of ProtobufReadError
+  ProtobufDataRemainingError* = object of ProtobufReadError
+  ProtobufMessageError* = object of ProtobufReadError
 
 #Ideally, these would be in a table.
 #That said, due to the context specific return type, which goes beyond the wire type, you need generics.
@@ -103,7 +104,6 @@ proc readFixed32[T](
     value += U(next.get()) shl U(offset)
   result = cast[T](value)
 
-#This had name resolution errors when placed elsewhere.
 proc readLengthDelimited(
   stream: InputStreamHandle
 ): seq[byte] {.raises: [Defect, IOError, ProtobufEOFError].} =
@@ -122,7 +122,13 @@ proc readLengthDelimited(
 proc readValue*[T](
   bytes: seq[byte],
   ty: typedesc[T]
-): T {.raises: [Defect, IOError, ProtobufEOFError, ProtobufMessageError].}
+): T {.raises: [
+  Defect,
+  IOError,
+  ProtobufEOFError,
+  ProtobufDataRemainingError,
+  ProtobufMessageError
+].}
 
 template setLengthDelimitedField[T](
   value: var T,
@@ -180,7 +186,19 @@ proc setFields[T](
   fieldKey: byte,
   stream: InputStreamHandle,
   subtypeArg: Option[VarIntSubType]
-) =
+) {.raises: [
+  Defect,
+  IOError,
+  ProtobufEOFError,
+  ProtobufDataRemainingError,
+  ProtobufMessageError
+].} =
+  #Fake raises to stop the raises from causing warnings about unused Exceptions.
+  if false:
+    raise newException(ProtobufMessageError, "")
+  if false:
+    raise newException(ProtobufDataRemainingError, "")
+
   when T is not (object or ref):
     when T is LengthDelimitedTypes:
       setLengthDelimitedField(value, fieldKey, stream)
@@ -190,7 +208,13 @@ proc setFields[T](
       setIndividualField(value, fieldKey, stream, subtypeArg)
   else:
     #This iterative approach is extremely poor.
-    var counter = 1
+    var
+      counter = 1'u8
+      fieldNumber = uint8((fieldKey and FIELD_NUMBER_MASK).int shr 3)
+      alreadySet: set[uint8]
+    if int(fieldNumber) > totalSerializedFields(T):
+      raise newException(ProtobufMessageError, "Unknown field number specified.")
+
     when getTypeImpl(T).kind == nnkRefTy:
       if value.isNil:
         value = T()
@@ -235,9 +259,14 @@ proc setFields[T](
           {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
         var subtype: Option[VarIntSubType]
 
-      if counter != ((fieldKey and FIELD_NUMBER_MASK).int shr 3):
+      if counter != fieldNumber:
         inc(counter)
       else:
+        #If we already read this field, raise.
+        if alreadySet.contains(fieldNumber):
+          raise newException(ProtobufMessageError, "Buffer had the same field twice.")
+        alreadySet.incl(fieldNumber)
+
         #Only calculate the subtype for VarInt.
         #In every other case, the type is enough.
         #Writing does have further specification rules, but those aren't needed here.
@@ -274,7 +303,13 @@ proc setFields[T](
 proc readValue*[T](
   bytes: seq[byte],
   ty: typedesc[T]
-): T {.raises: [Defect, IOError, ProtobufEOFError, ProtobufMessageError].} =
+): T {.raises: [
+  Defect,
+  IOError,
+  ProtobufEOFError,
+  ProtobufDataRemainingError,
+  ProtobufMessageError
+].} =
   when (T is (PureSIntegerTypes or PureUIntegerTypes)) and (T is not bool):
     {.fatal: "Reading into a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
 
@@ -293,5 +328,9 @@ proc readValue*[T](
     result.setFields(next.get(), stream, subtype)
     next = stream.s.next()
     when T is not (object or ref):
-      return
+      break
   stream.s.close()
+
+  when not defined(ProtobufAllowRemainingData):
+    if next.isSome():
+      raise newException(ProtobufDataRemainingError, "Buffer for a single value still had data remaining after it.")

@@ -156,3 +156,22 @@ suite "Test Object Encoding/Decoding":
       data: "Parent data."
     )
     check writeValue(obj).readValue(Nested) == obj
+
+  test "Doesn't allow remaining data in the buffer":
+    expect ProtobufDataRemainingError:
+      discard (SInt(5).writeValue() & @[byte(1)]).readValue(SInt(int32))
+
+  test "Doesn't allow unknown fields":
+    expect ProtobufMessageError:
+      discard (writeValue(Basic(a: 100, b: "Test string.", c: 'C')) & @[byte(4 shl 3)]).readValue(Basic)
+
+  test "Doesn't allow duplicate fields":
+    let
+      obj = Basic(a: 100, b: "Test string.", c: 'C')
+      writer = newProtobufWriter()
+
+    writer.writeField(obj, "b")
+    writer.writeField(obj, "b")
+
+    expect ProtobufMessageError:
+      discard writer.buffer().readValue(Wrapper)
