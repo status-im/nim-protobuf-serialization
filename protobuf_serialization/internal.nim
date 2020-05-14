@@ -72,6 +72,9 @@ type
 
 macro createActualTypeFromPotentialOption*(option: typed): untyped =
   var inst = getTypeInst(option)
+  if (inst.kind == nnkSym) and (inst.strVal == "AT"):
+    raise newException(Defect, "Option[Option[T]] declared. This is not a valid serializable object. For more info, see https://github.com/kayabaNerve/nim-protobuf-serialization/issues/14.")
+
   if (inst.kind == nnkBracketExpr) and (inst[0].kind == nnkSym) and (inst[0].strVal == "Option"):
     result = newStmtList()
     result.add(
