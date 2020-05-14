@@ -28,29 +28,27 @@ template uabs[U](number: VarIntTypes): U =
 #Created in response to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/5.
 var counter {.compileTime.}: int
 proc verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
-  when T is not (object or ref):
-    type AT = T
+  when T is Option:
+    createActualTypeFromPotentialOption(T())
+    verifyWritable(AT)
   else:
-    var instance = T()
-    createActualTypeFromPotentialOption(instance)
+    when T is PlatformDependentTypes:
+      {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
+    elif T is (object or ref):
+      counter = 0
+      when T is ref:
+        var tInstance = T()[]
+      else:
+        var tInstance = T()
 
-  when AT is PlatformDependentTypes:
-    {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
-  elif AT is (object or ref):
-    counter = 0
-    when AT is ref:
-      var tInstance = AT()[]
-    else:
-      var tInstance = AT()
-
-    #We could use totalSerializedFields for this.
-    #That said, we need to iterate over every field anyways.
-    enumInstanceSerializedFields(tInstance, _, fieldVar):
-      inc(counter)
-      when fieldVar is PlatformDependentTypes:
-        {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
-    if counter > 32:
-      raise newException(Defect, "Object has too many fields; Protobuf has a maximum of 32.")
+      #We could use totalSerializedFields for this.
+      #That said, we need to iterate over every field anyways.
+      enumInstanceSerializedFields(tInstance, _, fieldVar):
+        inc(counter)
+        when fieldVar is PlatformDependentTypes:
+          {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
+      if counter > 32:
+        raise newException(Defect, "Object has too many fields; Protobuf has a maximum of 32.")
 
 proc writeVarInt(
   stream: OutputStreamHandle,
@@ -277,40 +275,49 @@ proc writeValueInternal[T](
   if false:
     raise newException(ProtobufWriteError, "")
 
-  let writer: ProtobufWriter = newProtobufWriter()
-
-  when T is VarIntTypes:
-    when T is (PIntWrapped32 or PIntWrapped64):
-      writer.stream.writeVarInt(1, value.unwrap(), PIntSubType)
-    elif T is (UIntWrapped32 or UIntWrapped64):
-      writer.stream.writeVarInt(1, value.unwrap(), UIntSubType)
-    elif T is bool:
-      writer.stream.writeVarInt(1, value, UIntSubType)
-    elif T is (SIntWrapped32 or SIntWrapped64):
-      writer.stream.writeVarInt(1, value.unwrap(), SIntSubType)
-    elif T is (FixedWrapped64 or SFixedWrapped64):
-      writer.stream.writeFixed64(1, value)
-    elif T is (FixedWrapped32 or SFixedWrapped32):
-      writer.stream.writeFixed32(1, value)
+  when T is Option:
+    if value.isSome():
+      if type(value.get()) is (VarIntTypes or FixedTypes):
+        return writeValueInternal(value.get(), false, existingLength, optionSubtype)
+      else:
+        return writeValueInternal(value.get(), false, existingLength)
     else:
-      {.fatal: "Writing a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
-  elif T is Fixed64Types:
-    writer.stream.writeFixed64(1, value)
-  elif T is Fixed32Types:
-    writer.stream.writeFixed32(1, value)
-  elif T is (object or ref):
-    when T is ref:
-      if value.isNil:
-        return
-      enumInstanceSerializedFields(value[], fieldName, _):
-        writer.writeFieldInternal(value, fieldName, sub, existingLength)
-    else:
-      enumInstanceSerializedFields(value, fieldName, _):
-        writer.writeFieldInternal(value, fieldName, sub, existingLength)
+      return
   else:
-    writer.stream.writeLengthDelimited(1, value, sub, existingLength)
+    let writer: ProtobufWriter = newProtobufWriter()
 
-  return writer.buffer()
+    when T is VarIntTypes:
+      when T is (PIntWrapped32 or PIntWrapped64):
+        writer.stream.writeVarInt(1, value.unwrap(), PIntSubType)
+      elif T is (UIntWrapped32 or UIntWrapped64):
+        writer.stream.writeVarInt(1, value.unwrap(), UIntSubType)
+      elif T is bool:
+        writer.stream.writeVarInt(1, value, UIntSubType)
+      elif T is (SIntWrapped32 or SIntWrapped64):
+        writer.stream.writeVarInt(1, value.unwrap(), SIntSubType)
+      elif T is (FixedWrapped64 or SFixedWrapped64):
+        writer.stream.writeFixed64(1, value)
+      elif T is (FixedWrapped32 or SFixedWrapped32):
+        writer.stream.writeFixed32(1, value)
+      else:
+        {.fatal: "Writing a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
+    elif T is Fixed64Types:
+      writer.stream.writeFixed64(1, value)
+    elif T is Fixed32Types:
+      writer.stream.writeFixed32(1, value)
+    elif T is (object or ref):
+      when T is ref:
+        if value.isNil:
+          return
+        enumInstanceSerializedFields(value[], fieldName, _):
+          writer.writeFieldInternal(value, fieldName, sub, existingLength)
+      else:
+        enumInstanceSerializedFields(value, fieldName, _):
+          writer.writeFieldInternal(value, fieldName, sub, existingLength)
+    else:
+      writer.stream.writeLengthDelimited(1, value, sub, existingLength)
+
+    return writer.buffer()
 
 proc writeValue*[T](
   value: T
@@ -320,8 +327,4 @@ proc writeValue*[T](
       verifyWritable(T)
 
   var existingLength = 0
-  when T is Option:
-    if value.isSome():
-      result = writeValueInternal(value.get(), false, existingLength)
-  else:
-    result = writeValueInternal(value, false, existingLength)
+  writeValueInternal(value, false, existingLength)

@@ -2,8 +2,7 @@ import unittest
 
 import ../protobuf_serialization
 
-#Import test_objects for the DistinctInt type and its converters.
-import test_objects
+from test_objects import DistinctInt, `==`
 
 type X = object
   y {.pint.}: int32

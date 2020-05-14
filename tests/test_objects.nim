@@ -13,7 +13,7 @@ type
     b: string
     c {.puint.}: char
 
-  Wrapper = object
+  Wrapped = object
     d {.sint.}: int32
     e {.sint.}: int64
     f: Basic
@@ -21,9 +21,9 @@ type
     h: bool
     i: DistinctInt
 
-  Nested = ref object
-    child: Nested
-    data: string
+  Nested* = ref object
+    child*: Nested
+    data*: string
 
   Circular = ref object
     child: Circular
@@ -43,9 +43,9 @@ proc fromProtobuf*[T: DistinctInt](bytes: seq[byte]): DistinctInt =
     return
   result = DistinctInt((@[wireType(SInt(int32))] & bytes).readValue(SInt(int32)))
 
-proc `==`(lhs: DistinctInt, rhs: DistinctInt): bool {.borrow.}
+proc `==`*(lhs: DistinctInt, rhs: DistinctInt): bool {.borrow.}
 
-proc `==`(lhs: Nested, rhs: Nested): bool =
+proc `==`*(lhs: Nested, rhs: Nested): bool =
   var
     lastLeft = lhs
     lastRight = rhs
@@ -87,7 +87,7 @@ suite "Test Object Encoding/Decoding":
     check writeValue(obj).readValue(Basic) == obj
 
   test "Can encode/decode a wrapper object":
-    let obj = Wrapper(
+    let obj = Wrapped(
       d: 300,
       e: 200,
       f: Basic(a: 100, b: "Test string.", c: 'C'),
@@ -95,11 +95,11 @@ suite "Test Object Encoding/Decoding":
       h: true,
       i: 124521.DistinctInt
     )
-    check writeValue(obj).readValue(Wrapper) == obj
+    check writeValue(obj).readValue(Wrapped) == obj
 
   test "Can encode/decode partial object":
     let
-      obj = Wrapper(
+      obj = Wrapped(
         d: 300,
         e: 200,
         f: Basic(a: 100, b: "Test string.", c: 'C'),
@@ -114,7 +114,7 @@ suite "Test Object Encoding/Decoding":
     writer.writeField(obj, "g")
     writer.writeField(obj, "i")
 
-    let result = writer.buffer().readValue(Wrapper)
+    let result = writer.buffer().readValue(Wrapped)
     check result.d == obj.d
     check result.f == obj.f
     check result.g == obj.g
@@ -124,7 +124,7 @@ suite "Test Object Encoding/Decoding":
 
   test "Can encode/decode out of order object":
     let
-      obj = Wrapper(
+      obj = Wrapped(
         d: 300,
         e: 200,
         f: Basic(a: 100, b: "Test string.", c: 'C'),
@@ -141,7 +141,7 @@ suite "Test Object Encoding/Decoding":
     writer.writeField(obj, "h")
     writer.writeField(obj, "g")
 
-    check writer.buffer().readValue(Wrapper) == obj
+    check writer.buffer().readValue(Wrapped) == obj
 
   test "Doesn't write too-big nested objects":
     expect ProtobufWriteError:
@@ -199,4 +199,4 @@ suite "Test Object Encoding/Decoding":
     writer.writeField(obj, "b")
 
     expect ProtobufMessageError:
-      discard writer.buffer().readValue(Wrapper)
+      discard writer.buffer().readValue(Wrapped)

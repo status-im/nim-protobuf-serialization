@@ -1,6 +1,5 @@
 #Variables needed by the Reader and Writer which should NOT be exported outside of this library.
 
-import options
 import macros
 
 const
@@ -15,8 +14,6 @@ type
     PIntSubType,
     SIntSubType,
     UIntSubType
-    FixedSubType,
-    SFixedSubType
 
   #Used to specify how to encode/decode primitives.
   #Despite being used outside of this library, all access is via templates.
@@ -74,25 +71,19 @@ type
   LengthDelimitedTypes* = not (VarIntTypes or Fixed64Types or Fixed32Types)
 
 macro createActualTypeFromPotentialOption*(option: typed): untyped =
-  when option is Option:
-    result = newNimNode(nnkTypeSection).add(
-      newNimNode(nnkTypeDef).add(
-        ident("AT"),
-        newNimNode(nnkEmpty),
-        ident(getTypeInst(option)[1].strVal)
+  var inst = getTypeInst(option)
+  if (inst.kind == nnkBracketExpr) and (inst[0].kind == nnkSym) and (inst[0].strVal == "Option"):
+    result = newStmtList()
+    result.add(
+      newNimNode(nnkTypeSection).add(
+        newNimNode(nnkTypeDef).add(
+          ident("AT"),
+          newNimNode(nnkEmpty),
+          inst[1]
+        )
       )
     )
   else:
-    var inst = getTypeInst(option)
-    if inst.len == 0:
-      inst = ident(inst.strVal)
-    else:
-      if eqIdent(inst[0], ident("Option")):
-        inst = inst[1]
-      else:
-        for c in 0 ..< inst.len:
-          inst[c] = ident(inst[c].strVal)
-
     result = newNimNode(nnkTypeSection).add(
       newNimNode(nnkTypeDef).add(
         ident("AT"),
