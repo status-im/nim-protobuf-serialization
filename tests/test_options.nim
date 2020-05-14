@@ -2,7 +2,20 @@ import options
 import unittest
 
 import ../protobuf_serialization
-from ../protobuf_serialization/internal import unwrap
+from ../protobuf_serialization/internal import WrappedVarIntTypes, WrappedFixedTypes, unwrap
+
+from test_objects import DistinctInt, toProtobuf, fromProtobuf, `==`
+
+type
+  Basic = object
+    x {.sint.}: int32
+
+  Wrapped = object
+    y {.sint.}: Option[int32]
+
+  Nested = ref object
+    child: Option[Nested]
+    z: Option[Wrapped]
 
 template testNone[T](ty: typedesc[T]) =
   let output = writeValue(none(ty))
@@ -12,10 +25,10 @@ template testNone[T](ty: typedesc[T]) =
 template testSome[T](value: T) =
     let output = writeValue(some(value))
     check output == writeValue(value)
-    when T is bool:
-      check output.readValue(Option[T]) == some(value)
-    else:
+    when T is (WrappedVarIntTypes or WrappedFixedTypes):
       check output.readValue(Option[T]).get().unwrap() == some(value).get().unwrap()
+    else:
+      check output.readValue(Option[T]) == some(value)
 
 suite "Test Encoding/Decoding of Options":
   test "Option boolean":
@@ -54,11 +67,61 @@ suite "Test Encoding/Decoding of Options":
     fixedTest(SFixed(5.5'f32))
     fixedTest(SFixed(-5.5'f32))
 
-  #[test "Option length-delimited":
-    check writeValue("").len == 5
+  test "Option length-delimited":
+    testNone(string)
+    testNone(seq[byte])
+
+    testSome("Testing string.")
+    testSome(@[byte(0), 1, 2, 3, 4])
 
   test "Option object":
-    check writeValue(X()).len == 5
+    testNone(Basic)
+    testNone(Wrapped)
+
+    testSome(Basic(x: 5'i32))
+
+    var
+      noneWrapped = Wrapped(y: none(int32))
+      someWrapped = Wrapped(y: some(5'i32))
+    testSome(noneWrapped)
+    testSome(someWrapped)
+
+  #[test "Option ref":
+    testNone(Nested)
+
+    testSome(Nested(
+      child: none(Nested),
+      z: none(Wrapped)
+    ))
+
+    testSome(Nested(
+      child: none(Nested),
+      z: some(Wrapped(y: some(5'i32)))
+    ))
+
+    testSome(Nested(
+      child: some(Nested(
+        child: none(Nested),
+        z: none(Wrapped)
+      )),
+      z: some(Wrapped(y: some(5'i32)))
+    ))
+
+    testSome(Nested(
+      child: some(Nested(
+        child: none(Nested),
+        z: some(Wrapped(y: some(5'i32)))
+      )),
+      z: some(Wrapped(y: some(5'i32)))
+    ))
+
+    testSome(Nested(
+      child: Nested(
+        z: "Child data."
+      ),
+      z: "Parent data."
+    ))]#
 
   test "Option distinct type":
-    check writeValue(DistinctInt(5)).len == 5]#
+    testNone(DistinctInt)
+    testSome(DistinctInt(5))

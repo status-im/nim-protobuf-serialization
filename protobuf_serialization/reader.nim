@@ -127,27 +127,43 @@ proc readValue*[T](
   ProtobufMessageError
 ].}
 
-template setLengthDelimitedField[T](
-  value: var T,
+proc setLengthDelimitedField[S](
+  sourceValue: S,
   fieldKey: byte,
   stream: InputStreamHandle
-) =
-  mixin wireType, readLengthDelimited
+): S {.raises: [
+  Defect,
+  IOError,
+  ProtobufEOFError,
+  ProtobufDataRemainingError,
+  ProtobufMessageError
+].} =
+  createActualTypeFromPotentialOption("LDAT", sourceValue)
+  mixin LDAT, wireType, readLengthDelimited
 
   let wire = fieldKey.wireType
   if wire != byte(LengthDelimited):
     raise newException(ProtobufMessageError, "Invalid wire type for a length delimited sequence/object.")
 
-  when T is CastableLengthDelimitedTypes:
-    value = cast[T](stream.readLengthDelimited())
-  elif T is (object or ref):
-    value = stream.readLengthDelimited().readValue(type(T))
+  var preResult: LDAT
+  when LDAT is CastableLengthDelimitedTypes:
+    preResult = cast[LDAT](stream.readLengthDelimited())
+  elif LDAT is (object or ref):
+    preResult = stream.readLengthDelimited().readValue(S)
   else:
-    value = stream.readLengthDelimited().fromProtobuf[:T]()
+    preResult = stream.readLengthDelimited().fromProtobuf[:LDAT]()
 
-template setIndividualField[T](value: var T, fieldKey: byte,
-                               stream: InputStreamHandle,
-                               subtype: Option[VarIntSubType]) =
+  when S is Option:
+    result = some(preResult)
+  else:
+    result = preResult
+
+template setIndividualField[T](
+  value: var T,
+  fieldKey: byte,
+  stream: InputStreamHandle,
+  subtype: Option[VarIntSubType]
+) =
   when T is (object or ref):
     {.fatal: "Object made it to set individual field. This should never happen.".}
 
@@ -203,22 +219,30 @@ proc setFields[T](
   if false:
     raise newException(ProtobufDataRemainingError, "")
 
-  when T is (object or ref):
-    createActualTypeFromPotentialOption(value)
-
-  when T is not (object or ref):
-    when T is PlatformDependentTypes:
+  createActualTypeFromPotentialOption("AT", value)
+  mixin AT
+  var fakeValue: AT
+  when AT is not (object or ref):
+    when AT is PlatformDependentTypes:
       {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
-    elif T is LengthDelimitedTypes:
-      setLengthDelimitedField(value, fieldKey, stream)
+    elif AT is LengthDelimitedTypes:
+      when T is Option:
+        value = some(setLengthDelimitedField(fakeValue, fieldKey, stream))
+      else:
+        value = setLengthDelimitedField(value, fieldKey, stream)
     else:
-      setIndividualField(value, fieldKey, stream, subtypeArg)
+      when T is Option:
+        setIndividualField(fakeValue, fieldKey, stream, subtypeArg)
+        value = some(fakeValue)
+      else:
+        setIndividualField(value, fieldKey, stream, subtypeArg)
   else:
+    fakeValue = AT()
+
     #This iterative approach is extremely poor.
     var
       counter = 1'u8
       fieldNumber = uint8((fieldKey and FIELD_NUMBER_MASK).int shr 3)
-      alreadySet: set[uint8]
     if int(fieldNumber) > totalSerializedFields(AT):
       raise newException(ProtobufMessageError, "Unknown field number specified.")
 
@@ -239,7 +263,7 @@ proc setFields[T](
 
       macro enumSerialized(body: untyped): untyped =
         result = quote do:
-          for fieldName, fieldVar in fieldPairs(value[]):
+          for fieldName, fieldVar in fieldPairs(fakeValue[]):
             when not hCP(fieldName, dontSerialize):
               `body`
 
@@ -255,42 +279,38 @@ proc setFields[T](
               queue.add(next[c])
     else:
       macro enumSerialized(body: untyped): untyped =
-        result = quote do:
-          enumInstanceSerializedFields(value, fieldName, fieldVar):
+        quote do:
+          enumInstanceSerializedFields(fakeValue, fieldName, fieldVar):
             `body`
 
     enumSerialized():
-      when fieldVar is not LengthDelimitedTypes:
-        when fieldVar is PlatformDependentTypes:
-          {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
-        var subtype: Option[VarIntSubType]
-
+      when fieldVar is PlatformDependentTypes:
+        {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
       if counter != fieldNumber:
         inc(counter)
       else:
-        #If we already read this field, raise.
-        if alreadySet.contains(fieldNumber):
-          raise newException(ProtobufMessageError, "Buffer had the same field twice.")
-        alreadySet.incl(fieldNumber)
+        createActualTypeFromPotentialOption("SAT", fieldVar)
+        var fakeField: SAT
 
         #Only calculate the subtype for VarInt.
         #In every other case, the type is enough.
         #Writing does have further specification rules, but those aren't needed here.
         #We don't need to track the boolean type as literally every encoding will parse to the same true/false.
-        when fieldVar is bool:
+        var subtype: Option[VarIntSubType]
+        when SAT is bool:
           subtype = some(UIntSubType)
-        elif (fieldVar is VarIntTypes) and (fieldVar is not bool):
+        elif SAT is VarIntTypes:
           mixin hasCustomPragmaFixed, wireType
           if fieldKey.wireType == byte(VarInt):
             const
-              hasPInt = T.hasCustomPragmaFixed(fieldName, pint)
-              hasPUInt = T.hasCustomPragmaFixed(fieldName, puint)
-              hasSInt = T.hasCustomPragmaFixed(fieldName, sint)
+              hasPInt = AT.hasCustomPragmaFixed(fieldName, pint)
+              hasPUInt = AT.hasCustomPragmaFixed(fieldName, puint)
+              hasSInt = AT.hasCustomPragmaFixed(fieldName, sint)
             when (uint(hasPInt) + uint(hasPUInt) + uint(hasSInt)) != 1:
               {.fatal: fieldName & " either had multiple encoding formats or none specified.".}
-            elif (hasPInt or hasSInt) and (fieldVar is not SIntegerTypes):
+            elif (hasPInt or hasSInt) and (SAT is not SIntegerTypes):
               {.fatal: "Invalid application of the pint/sint pragma to an unsigned number.".}
-            elif hasPUInt and (fieldVar is not UIntegerTypes):
+            elif hasPUInt and (SAT is not UIntegerTypes):
               {.fatal: "Invalid application of the puint pragma to a signed number.".}
             elif hasPInt:
               subtype = some(PIntSubType)
@@ -299,15 +319,27 @@ proc setFields[T](
             elif hasPUInt:
               subtype = some(UIntSubType)
 
-        var fakeField: type(fieldVar)
-        when fakeField is LengthDelimitedTypes:
-          setLengthDelimitedField(fakeField, fieldKey, stream)
+        when SAT is LengthDelimitedTypes:
+          when fieldVar is Option:
+            fieldVar = some(setLengthDelimitedField(fieldVar, fieldKey, stream))
+          else:
+            fieldVar = setLengthDelimitedField(fieldVar, fieldKey, stream)
         else:
-          setIndividualField(fakeField, fieldKey, stream, subtype)
-        when fieldVar is Option:
-          fieldVar = some(fakeField)
-        else:
-          fieldVar = fakeField
+          when fieldVar is Option:
+            setIndividualField(fakeField, fieldKey, stream, subtype)
+            fieldVar = some(fakeField)
+          else:
+            setIndividualField(fieldVar, fieldKey, stream, subtype)
+
+        macro mergeField(mergeInto: untyped, toMerge: untyped): untyped =
+          result = newNimNode(nnkAsgn).add(
+            newNimNode(nnkDotExpr).add(
+              mergeInto,
+              ident(fieldName)
+            ),
+            toMerge
+          )
+        mergeField(value, fieldVar)
         break
 
 proc readValue*[T](
@@ -323,8 +355,7 @@ proc readValue*[T](
   when T is not (object or ref):
     type AT = T
   else:
-    var instance = T()
-    createActualTypeFromPotentialOption(instance)
+    createActualTypeFromPotentialOption("AT", T())
 
   when (AT is (PureSIntegerTypes or PureUIntegerTypes)) and (AT is not bool):
     {.fatal: "Reading into a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
@@ -332,6 +363,7 @@ proc readValue*[T](
   var
     stream = memoryInput(bytes)
     next = stream.s.next()
+    alreadySet: set[uint8]
     subtype: Option[VarIntSubType]
   when AT is (PIntWrapped32 or PIntWrapped64):
     subtype = some(PIntSubType)
@@ -341,12 +373,16 @@ proc readValue*[T](
     subtype = some(UIntSubType)
 
   while next.isSome():
+    if alreadySet.contains(next.get() and FIELD_NUMBER_MASK):
+      raise newException(ProtobufMessageError, "Buffer had the same field twice.")
+    alreadySet.incl(next.get() and FIELD_NUMBER_MASK)
+
     when T is Option:
       var fakeValue: AT
-      fakeValue.setFields(next.get(), stream, subtype)
+      setFields(fakeValue, next.get(), stream, subtype)
       result = some(fakeValue)
     else:
-      result.setFields(next.get(), stream, subtype)
+      setFields(result, next.get(), stream, subtype)
     next = stream.s.next()
     when T is (Option or (not (object or ref))):
       break

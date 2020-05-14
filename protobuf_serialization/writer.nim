@@ -29,7 +29,7 @@ template uabs[U](number: VarIntTypes): U =
 var counter {.compileTime.}: int
 proc verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
   when T is Option:
-    createActualTypeFromPotentialOption(T())
+    createActualTypeFromPotentialOption("AT", T())
     verifyWritable(AT)
   else:
     when T is PlatformDependentTypes:
@@ -118,7 +118,8 @@ proc writeFixed64(
 proc writeValueInternal*[T](
   value: T,
   sub: bool,
-  existingLength: var int
+  existingLength: var int,
+  optionSubtype: Option[VarIntSubType] = none(VarIntSubType)
 ): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].}
 
 proc writeLengthDelimited(
@@ -206,10 +207,18 @@ proc writeFieldInternal[T](
     var actualValue = value[]
   else:
     var actualValue = value
-  enumInstanceSerializedFields(actualValue, fieldName, fieldVar):
+  enumInstanceSerializedFields(actualValue, fieldName, preFieldVar):
     if field != fieldName:
       inc(counter)
     else:
+      when preFieldVar is Option:
+        if preFieldVar.isNone():
+          return
+        createActualTypeFromPotentialOption("AT", preFieldVar)
+        var fieldVar: AT = preFieldVar.get()
+      else:
+        var fieldVar = preFieldVar
+
       #Either VarInt of Fixed.
       when fieldVar is VarIntTypes:
         #We need to grab the subtype off the type definition.
@@ -270,7 +279,8 @@ template writeField*[T](
 proc writeValueInternal[T](
   value: T,
   sub: bool,
-  existingLength: var int
+  existingLength: var int,
+  optionSubtype: Option[VarIntSubType] = none(VarIntSubType)
 ): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].} =
   if false:
     raise newException(ProtobufWriteError, "")
@@ -286,7 +296,20 @@ proc writeValueInternal[T](
   else:
     let writer: ProtobufWriter = newProtobufWriter()
 
-    when T is VarIntTypes:
+    when T is bool:
+      writer.stream.writeVarInt(1, value, UIntSubType)
+    elif T is (PureSIntegerTypes or PureUIntegerTypes):
+      if optionSubtype.isSome():
+        case optionSubtype.get():
+          of PIntSubType:
+            writer.stream.writeVarInt(1, value, PIntSubType)
+          of UIntSubType:
+            writer.stream.writeVarInt(1, value, UIntSubType)
+          of SIntSubType:
+            writer.stream.writeVarInt(1, value, SIntSubType)
+      else:
+        raise newException(Defect, "Tried to write a pure Integer, AKA an Option[SomeInteger], yet didn't set a subtype. This should never happen.")
+    elif T is VarIntTypes:
       when T is (PIntWrapped32 or PIntWrapped64):
         writer.stream.writeVarInt(1, value.unwrap(), PIntSubType)
       elif T is (UIntWrapped32 or UIntWrapped64):

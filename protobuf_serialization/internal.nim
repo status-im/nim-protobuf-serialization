@@ -70,7 +70,7 @@ type
   #While cstring/array are built-ins, and therefore should have converters provided, but they still need converters.
   LengthDelimitedTypes* = not (VarIntTypes or Fixed64Types or Fixed32Types)
 
-macro createActualTypeFromPotentialOption*(option: typed): untyped =
+macro createActualTypeFromPotentialOption*(name: string, option: typed): untyped =
   var inst = getTypeInst(option)
   if (inst.kind == nnkSym) and (inst.strVal == "AT"):
     raise newException(Defect, "Option[Option[T]] declared. This is not a valid serializable object. For more info, see https://github.com/kayabaNerve/nim-protobuf-serialization/issues/14.")
@@ -80,7 +80,7 @@ macro createActualTypeFromPotentialOption*(option: typed): untyped =
     result.add(
       newNimNode(nnkTypeSection).add(
         newNimNode(nnkTypeDef).add(
-          ident("AT"),
+          ident(name.strVal),
           newNimNode(nnkEmpty),
           inst[1]
         )
@@ -89,7 +89,7 @@ macro createActualTypeFromPotentialOption*(option: typed): untyped =
   else:
     result = newNimNode(nnkTypeSection).add(
       newNimNode(nnkTypeDef).add(
-        ident("AT"),
+        ident(name.strVal),
         newNimNode(nnkEmpty),
         inst
       )
