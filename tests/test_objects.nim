@@ -38,10 +38,10 @@ proc toProtobuf*(x: DistinctInt): seq[byte] =
     return
   result = result[1 ..< result.len]
 
-proc fromProtobuf*[T: DistinctInt](bytes: seq[byte]): DistinctInt =
+proc fromProtobuf*(bytes: seq[byte], value: var DistinctInt) =
   if bytes.len == 0:
     return
-  result = DistinctInt((@[wireType(SInt(int32))] & bytes).readValue(SInt(int32)))
+  value = DistinctInt((@[wireType(SInt(int32))] & bytes).readValue(SInt(int32)))
 
 proc `==`*(lhs: DistinctInt, rhs: DistinctInt): bool {.borrow.}
 

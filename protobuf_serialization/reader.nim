@@ -138,23 +138,26 @@ proc setLengthDelimitedField[S](
   ProtobufDataRemainingError,
   ProtobufMessageError
 ].} =
-  createActualTypeFromPotentialOption("LDAT", sourceValue)
-  mixin LDAT, wireType, readLengthDelimited
+  mixin wireType, readLengthDelimited
+
+  #Fake raises to stop the raises from causing warnings about unused Exceptions.
+  if false:
+    raise newException(ProtobufDataRemainingError, "")
 
   let wire = fieldKey.wireType
   if wire != byte(LengthDelimited):
     raise newException(ProtobufMessageError, "Invalid wire type for a length delimited sequence/object.")
 
-  var preResult: LDAT
-  when LDAT is CastableLengthDelimitedTypes:
-    preResult = cast[LDAT](stream.readLengthDelimited())
-  elif LDAT is (object or ref):
+  var preResult: getActualType(sourceValue)
+  when preResult is CastableLengthDelimitedTypes:
+    preResult = cast[type(preResult)](stream.readLengthDelimited())
+  elif preResult is (object or ref):
     when sourceValue is Option:
       preResult = stream.readLengthDelimited().readValue(S).get()
     else:
       preResult = stream.readLengthDelimited().readValue(S)
   else:
-    preResult = stream.readLengthDelimited().fromProtobuf[:LDAT]()
+    stream.readLengthDelimited().fromProtobuf(preResult)
 
   when S is Option:
     result = some(preResult)
@@ -216,19 +219,17 @@ proc setFields[T](
   ProtobufDataRemainingError,
   ProtobufMessageError
 ].} =
-  #Fake raises to stop the raises from causing warnings about unused Exceptions.
   if false:
     raise newException(ProtobufMessageError, "")
   if false:
     raise newException(ProtobufDataRemainingError, "")
 
-  createActualTypeFromPotentialOption("AT", value)
-  mixin AT
+  type AT = getActualType(value)
   var fakeValue: AT
-  when AT is not (object or ref):
-    when AT is PlatformDependentTypes:
+  when fakeValue is not (object or ref):
+    when fakeValue is PlatformDependentTypes:
       {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
-    elif AT is LengthDelimitedTypes:
+    elif fakeValue is LengthDelimitedTypes:
       value = setLengthDelimitedField(value, fieldKey, stream)
     else:
       when T is Option:
@@ -246,15 +247,15 @@ proc setFields[T](
     if int(fieldNumber) > totalSerializedFields(AT):
       raise newException(ProtobufMessageError, "Unknown field number specified.")
 
-    when getTypeImpl(AT).kind == nnkRefTy:
+    when fakeValue is ref:
       when T is Option:
-        var valueCopy: AT = AT()
+        var valueCopy = AT()
         if value.isSome():
           valueCopy = value.get()
       else:
         var valueCopy = value
-      if valueCopy.isNil:
-        valueCopy = AT()
+        if valueCopy.isNil:
+          valueCopy = AT()
       when T is Option:
         value = some(valueCopy)
       else:
@@ -299,17 +300,17 @@ proc setFields[T](
       if counter != fieldNumber:
         inc(counter)
       else:
-        createActualTypeFromPotentialOption("SAT", fieldVar)
-        var fakeField: SAT
+        var fakeField: getActualType(fieldVar)
 
         #Only calculate the subtype for VarInt.
         #In every other case, the type is enough.
         #Writing does have further specification rules, but those aren't needed here.
         #We don't need to track the boolean type as literally every encoding will parse to the same true/false.
-        var subtype: Option[VarIntSubType]
-        when SAT is bool:
+        when fakeField is not LengthDelimitedTypes:
+          var subtype: Option[VarIntSubType]
+        when fakeField is bool:
           subtype = some(UIntSubType)
-        elif SAT is VarIntTypes:
+        elif fakeField is VarIntTypes:
           mixin hasCustomPragmaFixed, wireType
           if fieldKey.wireType == byte(VarInt):
             const
@@ -318,9 +319,9 @@ proc setFields[T](
               hasSInt = AT.hasCustomPragmaFixed(fieldName, sint)
             when (uint(hasPInt) + uint(hasPUInt) + uint(hasSInt)) != 1:
               {.fatal: fieldName & " either had multiple encoding formats or none specified.".}
-            elif (hasPInt or hasSInt) and (SAT is not SIntegerTypes):
+            elif (hasPInt or hasSInt) and (fakeField is not SIntegerTypes):
               {.fatal: "Invalid application of the pint/sint pragma to an unsigned number.".}
-            elif hasPUInt and (SAT is not UIntegerTypes):
+            elif hasPUInt and (fakeField is not UIntegerTypes):
               {.fatal: "Invalid application of the puint pragma to a signed number.".}
             elif hasPInt:
               subtype = some(PIntSubType)
@@ -329,7 +330,7 @@ proc setFields[T](
             elif hasPUInt:
               subtype = some(UIntSubType)
 
-        when SAT is LengthDelimitedTypes:
+        when fakeField is LengthDelimitedTypes:
           when fieldVar is Option:
             when type(setLengthDelimitedField(fieldVar, fieldKey, stream)) is Option:
               fieldVar = setLengthDelimitedField(fieldVar, fieldKey, stream)

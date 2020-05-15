@@ -214,7 +214,7 @@ proc writeFieldInternal[T](
       when preFieldVar is Option:
         if preFieldVar.isNone():
           return
-        var fieldVar: returnActualTypeFromPotentialOption(preFieldVar) = preFieldVar.get()
+        var fieldVar: getActualType(preFieldVar) = preFieldVar.get()
       else:
         var fieldVar = preFieldVar
 
