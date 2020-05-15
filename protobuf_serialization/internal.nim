@@ -70,40 +70,96 @@ type
   #While cstring/array are built-ins, and therefore should have converters provided, but they still need converters.
   LengthDelimitedTypes* = not (VarIntTypes or Fixed64Types or Fixed32Types)
 
-macro createActualTypeFromPotentialOption*(name: string, option: typed): untyped =
-  var inst = getTypeInst(option)
-  if (inst.kind == nnkSym) and (inst.strVal == "AT"):
-    raise newException(Defect, "Option[Option[T]] declared. This is not a valid serializable object. For more info, see https://github.com/kayabaNerve/nim-protobuf-serialization/issues/14.")
+proc getTypeChain(impure: NimNode): seq[NimNode] {.compileTime.} =
+  var current = impure
+  result = @[]
+  while true:
+    let
+      impl = getTypeImpl(current)
+      inst = getTypeInst(current)
+    if impl.kind == nnkRefTy:
+      result.add(newNimNode(nnkRefTy))
+      result[^1].add(inst)
+      current = impl[0]
+    elif inst.kind == nnkSym:
+      if (result.len == 0) or (
+        not (
+          (result[^1].kind == nnkSym) and
+          (result[^1].strVal == inst.strVal)
+        )
+      ):
+        result.add(inst)
+      break
+    elif (inst.kind == nnkBracketExpr) and (inst[0].kind == nnkSym) and (inst[0].strVal == "Option"):
+      current = inst[1]
+      result.add(newNimNode(nnkBracketExpr))
+    else:
+      break
 
-  if (inst.kind == nnkBracketExpr) and (inst[0].kind == nnkSym) and (inst[0].strVal == "Option"):
-    result = newStmtList()
-    result.add(
-      newNimNode(nnkTypeSection).add(
-        newNimNode(nnkTypeDef).add(
-          ident(name.strVal),
-          newNimNode(nnkEmpty),
-          inst[1]
+macro flatType(impure: typed): untyped =
+  getTypeChain(impure)[^1]
+
+template flatMapInternal[T, B](value: T, base: typedesc[B]): Option[B] =
+  when value is Option:
+    if value.isNone():
+      none(base)
+    else:
+      flatMapInternal(value.get(), base)
+  elif value is ref:
+    if value.isNil:
+      none(base)
+    else:
+      flatMapInternal(value[], base)
+  else:
+    some(value)
+
+macro flatMap*(value: typed): untyped =
+  let flattened = getTypeChain(value)[^1]
+  quote do:
+    flatMapInternal(`value`, type(`flattened`))
+
+template boxInternal[T, B](value: var T, option: Option[B], box: untyped) =
+  if option.isNone():
+    when value is not Option:
+      when value is (object or ref):
+        value = type(value)()
+      else:
+        var blank: type(value)
+        value = blank
+    else:
+      value = none(type(value.get()))
+  else:
+    value = box
+
+macro box*(value: typed, option: typed): untyped =
+  let chain = getTypeChain(value)
+  var wrap = newNimNode(nnkCall).add(ident("get"), option)
+  for l in countdown(high(chain) - 1, 0):
+    if chain[l].kind == nnkRefTy:
+      wrap = newBlockStmt(
+        newStmtList(
+          newNimNode(nnkVarSection).add(
+            newNimNode(nnkIdentDefs).add(
+              ident("newRef"),
+              newNimNode(nnkEmpty),
+              newNimNode(nnkCall).add(chain[l][0])
+            )
+          ),
+          newNimNode(nnkAsgn).add(
+            newNimNode(nnkBracketExpr).add(
+              ident("newRef")
+            ),
+            wrap
+          ),
+          ident("newRef")
         )
       )
-    )
-  else:
-    result = newNimNode(nnkTypeSection).add(
-      newNimNode(nnkTypeDef).add(
-        ident(name.strVal),
-        newNimNode(nnkEmpty),
-        inst
-      )
-    )
+    elif chain[l].kind == nnkBracketExpr:
+      wrap = newNimNode(nnkCall).add(ident("some"), wrap)
 
-macro getActualType*(option: typed): untyped =
-  var inst = getTypeInst(option)
-  if (inst.kind == nnkSym) and (inst.strVal == "AT"):
-    raise newException(Defect, "Option[Option[T]] declared. This is not a valid serializable object. For more info, see https://github.com/kayabaNerve/nim-protobuf-serialization/issues/14.")
-
-  if (inst.kind == nnkBracketExpr) and (inst[0].kind == nnkSym) and (inst[0].strVal == "Option"):
-    result = inst[1]
-  else:
-    result = inst
+  quote do:
+    boxInternal(`value`, `option`):
+      `wrap`
 
 template unwrap*[T](value: T): untyped =
   when T is (PIntWrapped32 or SIntWrapped32 or SFixedWrapped32):
