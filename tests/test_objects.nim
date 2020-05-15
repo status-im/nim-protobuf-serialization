@@ -183,8 +183,10 @@ suite "Test Object Encoding/Decoding":
     check writeValue(obj).readValue(Nested) == obj
 
   test "Doesn't allow remaining data in the buffer":
-    expect ProtobufDataRemainingError:
+    expect ProtobufReadError:
       discard (SInt(5).writeValue() & @[byte(1)]).readValue(SInt(int32))
+    expect ProtobufReadError:
+      discard (Basic(a: 100, b: "Test string.", c: 'C').writeValue() & @[byte(1)]).readValue(Basic)
 
   test "Doesn't allow unknown fields":
     expect ProtobufMessageError:

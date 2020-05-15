@@ -13,16 +13,22 @@ const
   FIELD_NUMBER_MASK: byte = 0b1111_1000
   WIRE_TYPE_MASK: byte = 0b0000_0111
 
+type
+  ProtobufReadError* = object of ProtobufError
+  ProtobufEOFError* = object of ProtobufReadError
+  ProtobufMessageError* = object of ProtobufReadError
+
 #We don't cast this back to a ProtobufWireType despite exclusively comparing it against ProtobufWireTypes.
 #This is so an invalid wire type doesn't trigger boundChecks.
 template wireType(key: byte): byte =
   key and WIRE_TYPE_MASK
 
-type
-  ProtobufReadError* = object of ProtobufError
-  ProtobufEOFError* = object of ProtobufReadError
-  ProtobufDataRemainingError* = object of ProtobufReadError
-  ProtobufMessageError* = object of ProtobufReadError
+template fieldNumber(key: byte): byte =
+  (key and FIELD_NUMBER_MASK) shr 3
+
+template wireCheck(typeclass: untyped, expected: ProtobufWireType) =
+  if T is not typeclass:
+    raise newException(ProtobufMessageError, "Invalid wire type. Expected " & $expected & ".")
 
 #Ideally, these would be in a table.
 #That said, due to the context specific return type, which goes beyond the wire type, you need generics.
@@ -123,7 +129,6 @@ proc readValue*[T](
   Defect,
   IOError,
   ProtobufEOFError,
-  ProtobufDataRemainingError,
   ProtobufMessageError
 ].}
 
@@ -135,14 +140,9 @@ proc setLengthDelimitedField[S](
   Defect,
   IOError,
   ProtobufEOFError,
-  ProtobufDataRemainingError,
   ProtobufMessageError
 ].} =
   mixin wireType, readLengthDelimited
-
-  #Fake raises to stop the raises from causing warnings about unused Exceptions.
-  if false:
-    raise newException(ProtobufDataRemainingError, "")
 
   let wire = fieldKey.wireType
   if wire != byte(LengthDelimited):
@@ -164,48 +164,31 @@ proc setLengthDelimitedField[S](
   else:
     result = preResult
 
-template setIndividualField[T](
-  value: var T,
+proc setIndividualField[T](
   fieldKey: byte,
   stream: InputStreamHandle,
   subtype: Option[VarIntSubType]
-) =
+): T =
   when T is (object or ref):
     {.fatal: "Object made it to set individual field. This should never happen.".}
 
   mixin wireType
   let wire = fieldKey.wireType
 
-  #VarInt and fixed integers.
-  when T is VarIntTypes:
-    case wire:
-      of byte(VarInt):
-        mixin isNone
-        if subtype.isNone():
-          raise newException(ProtobufMessageError, "Invalid subtype (Fixed/SFixed) for a VarInt.")
-        value = stream.readVarInt[:T](subtype.get())
-      of byte(Fixed64):
-        if T is not Fixed64Types:
-          raise newException(ProtobufMessageError, "Invalid wire type for an Fixed64.")
-        value = stream.readFixed64[:T]()
-      of byte(Fixed32):
-        if T is not Fixed32Types:
-          raise newException(ProtobufMessageError, "Invalid wire type for an Fixed32.")
-        value = stream.readFixed32[:T]()
-      else:
-        raise newException(ProtobufMessageError, "Invalid wire type for an integer.")
-  #Float64.
-  elif T is Fixed64Types:
-    if wire != byte(Fixed64):
-      raise newException(ProtobufMessageError, "Invalid wire type for a float64.")
-    value = stream.readFixed64[:T]()
-  #Float32.
-  elif T is Fixed32Types:
-    if wire != byte(Fixed32):
-      raise newException(ProtobufMessageError, "Invalid wire type for a float32.")
-    value = stream.readFixed32[:T]()
-  else:
-    {.fatal: "Trying to read a type we don't understand. This should never happen.".}
+  case wire:
+    of byte(VarInt):
+      mixin isNone
+      if subtype.isNone():
+        raise newException(ProtobufMessageError, "Invalid subtype (Fixed/SFixed) for a VarInt.")
+      result = stream.readVarInt[:T](subtype.get())
+    of byte(Fixed64):
+      wireCheck(Fixed64Types, Fixed64)
+      result = stream.readFixed64[:T]()
+    of byte(Fixed32):
+      wireCheck(Fixed32Types, Fixed32)
+      result = stream.readFixed32[:T]()
+    else:
+      raise newException(ProtobufMessageError, "Invalid wire type for an integer.")
 
 proc setFields[T](
   value: var T,
@@ -216,13 +199,10 @@ proc setFields[T](
   Defect,
   IOError,
   ProtobufEOFError,
-  ProtobufDataRemainingError,
   ProtobufMessageError
 ].} =
   if false:
     raise newException(ProtobufMessageError, "")
-  if false:
-    raise newException(ProtobufDataRemainingError, "")
 
   type AT = getActualType(value)
   var fakeValue: AT
@@ -233,18 +213,17 @@ proc setFields[T](
       value = setLengthDelimitedField(value, fieldKey, stream)
     else:
       when T is Option:
-        setIndividualField(fakeValue, fieldKey, stream, subtypeArg)
-        value = some(fakeValue)
+        value = some(setIndividualField[AT](fieldKey, stream, subtypeArg))
       else:
-        setIndividualField(value, fieldKey, stream, subtypeArg)
+        value = setIndividualField[T](fieldKey, stream, subtypeArg)
   else:
     fakeValue = AT()
 
     #This iterative approach is extremely poor.
     var
       counter = 1'u8
-      fieldNumber = uint8((fieldKey and FIELD_NUMBER_MASK).int shr 3)
-    if int(fieldNumber) > totalSerializedFields(AT):
+      fieldNumber = fieldKey.fieldNumber
+    if (fieldNumber == 0) or (int(fieldNumber) > totalSerializedFields(AT)):
       raise newException(ProtobufMessageError, "Unknown field number specified.")
 
     when fakeValue is ref:
@@ -340,10 +319,10 @@ proc setFields[T](
             fieldVar = setLengthDelimitedField(fieldVar, fieldKey, stream)
         else:
           when fieldVar is Option:
-            setIndividualField(fakeField, fieldKey, stream, subtype)
+            fakeField = setIndividualField[type(fakeField)](fieldKey, stream, subtype)
             fieldVar = some(fakeField)
           else:
-            setIndividualField(fieldVar, fieldKey, stream, subtype)
+            fieldVar = setIndividualField[type(fakeField)](fieldKey, stream, subtype)
 
         macro mergeField(mergeInto: untyped, toMerge: untyped): untyped =
           result = newNimNode(nnkAsgn).add(
@@ -374,7 +353,6 @@ proc readValue*[T](
   Defect,
   IOError,
   ProtobufEOFError,
-  ProtobufDataRemainingError,
   ProtobufMessageError
 ].} =
   when T is not (object or ref):
@@ -388,7 +366,6 @@ proc readValue*[T](
   var
     stream = memoryInput(bytes)
     next = stream.s.next()
-    alreadySet: set[uint8]
     subtype: Option[VarIntSubType]
   when AT is (PIntWrapped32 or PIntWrapped64):
     subtype = some(PIntSubType)
@@ -398,16 +375,6 @@ proc readValue*[T](
     subtype = some(UIntSubType)
 
   while next.isSome():
-    if alreadySet.contains(next.get() and FIELD_NUMBER_MASK):
-      raise newException(ProtobufMessageError, "Buffer had the same field twice.")
-    alreadySet.incl(next.get() and FIELD_NUMBER_MASK)
-
     setFields(result, next.get(), stream, subtype)
     next = stream.s.next()
-    when AT is not (object or ref):
-      break
   stream.s.close()
-
-  when not defined(ProtobufAllowRemainingData):
-    if next.isSome():
-      raise newException(ProtobufDataRemainingError, "Buffer for a single value still had data remaining after it.")
