@@ -149,7 +149,10 @@ proc setLengthDelimitedField[S](
   when LDAT is CastableLengthDelimitedTypes:
     preResult = cast[LDAT](stream.readLengthDelimited())
   elif LDAT is (object or ref):
-    preResult = stream.readLengthDelimited().readValue(S)
+    when sourceValue is Option:
+      preResult = stream.readLengthDelimited().readValue(S).get()
+    else:
+      preResult = stream.readLengthDelimited().readValue(S)
   else:
     preResult = stream.readLengthDelimited().fromProtobuf[:LDAT]()
 
@@ -226,10 +229,7 @@ proc setFields[T](
     when AT is PlatformDependentTypes:
       {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
     elif AT is LengthDelimitedTypes:
-      when T is Option:
-        value = some(setLengthDelimitedField(fakeValue, fieldKey, stream))
-      else:
-        value = setLengthDelimitedField(value, fieldKey, stream)
+      value = setLengthDelimitedField(value, fieldKey, stream)
     else:
       when T is Option:
         setIndividualField(fakeValue, fieldKey, stream, subtypeArg)
@@ -247,8 +247,18 @@ proc setFields[T](
       raise newException(ProtobufMessageError, "Unknown field number specified.")
 
     when getTypeImpl(AT).kind == nnkRefTy:
-      if value.isNil:
-        value = AT()
+      when T is Option:
+        var valueCopy: AT = AT()
+        if value.isSome():
+          valueCopy = value.get()
+      else:
+        var valueCopy = value
+      if valueCopy.isNil:
+        valueCopy = AT()
+      when T is Option:
+        value = some(valueCopy)
+      else:
+        value = valueCopy
 
       macro hCP(field: static string, pragma: typed{nkSym}): untyped =
         for f in recordFields(newNimNode(nnkTypeDef).add(
@@ -321,7 +331,10 @@ proc setFields[T](
 
         when SAT is LengthDelimitedTypes:
           when fieldVar is Option:
-            fieldVar = some(setLengthDelimitedField(fieldVar, fieldKey, stream))
+            when type(setLengthDelimitedField(fieldVar, fieldKey, stream)) is Option:
+              fieldVar = setLengthDelimitedField(fieldVar, fieldKey, stream)
+            else:
+              fieldVar = some(setLengthDelimitedField(fieldVar, fieldKey, stream))
           else:
             fieldVar = setLengthDelimitedField(fieldVar, fieldKey, stream)
         else:
@@ -339,7 +352,18 @@ proc setFields[T](
             ),
             toMerge
           )
-        mergeField(value, fieldVar)
+        when T is Option:
+          if value.isNone():
+            when AT is (object or ref):
+              value = some(AT())
+          var valueCopy = value.get()
+        else:
+          var valueCopy = value
+        mergeField(valueCopy, fieldVar)
+        when T is Option:
+          value = some(valueCopy)
+        else:
+          value = valueCopy
         break
 
 proc readValue*[T](
@@ -377,14 +401,9 @@ proc readValue*[T](
       raise newException(ProtobufMessageError, "Buffer had the same field twice.")
     alreadySet.incl(next.get() and FIELD_NUMBER_MASK)
 
-    when T is Option:
-      var fakeValue: AT
-      setFields(fakeValue, next.get(), stream, subtype)
-      result = some(fakeValue)
-    else:
-      setFields(result, next.get(), stream, subtype)
+    setFields(result, next.get(), stream, subtype)
     next = stream.s.next()
-    when T is (Option or (not (object or ref))):
+    when AT is not (object or ref):
       break
   stream.s.close()
 

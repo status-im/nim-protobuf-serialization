@@ -14,8 +14,11 @@ type
     y {.sint.}: Option[int32]
 
   Nested = ref object
-    child: Option[Nested]
+    #child: Option[Nested]
     z: Option[Wrapped]
+
+proc `==`*(lhs: Nested, rhs: Nested): bool =
+  lhs.z == rhs.z
 
 template testNone[T](ty: typedesc[T]) =
   let output = writeValue(none(ty))
@@ -80,47 +83,38 @@ suite "Test Encoding/Decoding of Options":
 
     testSome(Basic(x: 5'i32))
 
-    var
-      noneWrapped = Wrapped(y: none(int32))
-      someWrapped = Wrapped(y: some(5'i32))
-    testSome(noneWrapped)
+    #The following test isn't possible.
+    #y won't be encoded because it's none.
+    #Since it's not encoded, nothing in the object will be.
+    #This means the object itself won't be.
+    #var noneWrapped = Wrapped(y: none(int32))
+    #testSome(noneWrapped)
+
+    var someWrapped = Wrapped(y: some(5'i32))
     testSome(someWrapped)
 
-  #[test "Option ref":
+  test "Option ref":
     testNone(Nested)
 
     testSome(Nested(
-      child: none(Nested),
-      z: none(Wrapped)
-    ))
-
-    testSome(Nested(
-      child: none(Nested),
+      #child: none(Nested),
       z: some(Wrapped(y: some(5'i32)))
     ))
 
     testSome(Nested(
-      child: some(Nested(
-        child: none(Nested),
-        z: none(Wrapped)
-      )),
+      #child: some(Nested(
+        #child: none(Nested),
+      #  z: some(Wrapped(y: some(5'i32)))
+      #)),
       z: some(Wrapped(y: some(5'i32)))
     ))
 
     testSome(Nested(
-      child: some(Nested(
-        child: none(Nested),
-        z: some(Wrapped(y: some(5'i32)))
-      )),
+      #child: some(Nested(
+      #  z: some(Wrapped(y: some(5'i32)))
+      #)),
       z: some(Wrapped(y: some(5'i32)))
     ))
-
-    testSome(Nested(
-      child: Nested(
-        z: "Child data."
-      ),
-      z: "Parent data."
-    ))]#
 
   test "Option distinct type":
     testNone(DistinctInt)

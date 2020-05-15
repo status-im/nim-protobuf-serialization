@@ -95,6 +95,16 @@ macro createActualTypeFromPotentialOption*(name: string, option: typed): untyped
       )
     )
 
+macro returnActualTypeFromPotentialOption*(option: typed): untyped =
+  var inst = getTypeInst(option)
+  if (inst.kind == nnkSym) and (inst.strVal == "AT"):
+    raise newException(Defect, "Option[Option[T]] declared. This is not a valid serializable object. For more info, see https://github.com/kayabaNerve/nim-protobuf-serialization/issues/14.")
+
+  if (inst.kind == nnkBracketExpr) and (inst[0].kind == nnkSym) and (inst[0].strVal == "Option"):
+    result = inst[1]
+  else:
+    result = inst
+
 template unwrap*[T](value: T): untyped =
   when T is (PIntWrapped32 or SIntWrapped32 or SFixedWrapped32):
     int32(value)

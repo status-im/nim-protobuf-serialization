@@ -214,8 +214,7 @@ proc writeFieldInternal[T](
       when preFieldVar is Option:
         if preFieldVar.isNone():
           return
-        createActualTypeFromPotentialOption("AT", preFieldVar)
-        var fieldVar: AT = preFieldVar.get()
+        var fieldVar: returnActualTypeFromPotentialOption(preFieldVar) = preFieldVar.get()
       else:
         var fieldVar = preFieldVar
 
@@ -267,6 +266,7 @@ proc writeFieldInternal[T](
       #Length delimited.
       else:
         writer.stream.writeLengthDelimited(counter, fieldVar, sub, existingLength)
+      break
 
 template writeField*[T](
   writer: ProtobufWriter,
@@ -274,7 +274,11 @@ template writeField*[T](
   field: static string
 ) =
   var existingLength = 0
-  writeFieldInternal(writer, value, field, false, existingLength)
+  when T is Option:
+    if value.isSome():
+      writeFieldInternal(writer, value.get(), field, false, existingLength)
+  else:
+    writeFieldInternal(writer, value, field, false, existingLength)
 
 proc writeValueInternal[T](
   value: T,
