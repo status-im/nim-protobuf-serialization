@@ -1,5 +1,6 @@
 #Variables needed by the Reader and Writer which should NOT be exported outside of this library.
 
+import options
 import macros
 
 const
@@ -9,11 +10,6 @@ const
 type
   ProtobufWireType* = enum
     VarInt, Fixed64, LengthDelimited, StartGroup, EndGroup, Fixed32
-
-  VarIntSubType* = enum
-    PIntSubType,
-    SIntSubType,
-    UIntSubType
 
   #Used to specify how to encode/decode primitives.
   #Despite being used outside of this library, all access is via templates.
@@ -25,11 +21,17 @@ type
   SIntWrapped64* = distinct int64
   FixedWrapped32* = distinct uint32
   FixedWrapped64* = distinct uint64
-  SFixedWrapped32* = distinct int32
-  SFixedWrapped64* = distinct int64
+  SFixedWrapped32* = distinct uint32
+  SFixedWrapped64* = distinct uint64
+
+  PIntWrapped* = PIntWrapped32 or PIntWrapped64
+  UIntWrapped* = PIntWrapped32 or PIntWrapped64
+  SIntWrapped* = SIntWrapped32 or SIntWrapped64
+  Fixed32Wrapped* = FixedWrapped32 or SFixedWrapped32
+  Fixed64Wrapped* = FixedWrapped64 or SFixedWrapped64
 
   #Number types which are platform-dependent and therefore unsafe.
-  PlatformDependentTypes* = (not (int32 or int64 or uint32 or uint64 or float32 or float64)) and (int or uint or float)
+  PlatformDependentTypes* = int or uint or float
   #Signed native types utilizing the VarInt/Fixed wire types.
   PureSIntegerTypes* = SomeSignedInt or enum
 
@@ -50,17 +52,12 @@ type
   WrappedVarIntTypes* = PIntWrapped32 or PIntWrapped64 or
                         UIntWrapped32 or UIntWrapped64 or
                         SIntWrapped32 or SIntWrapped64
-  #Every wrapped type that can be used with the Fixed wire types.
-  WrappedFixedTypes* = FixedWrapped32 or FixedWrapped64 or
-                       SFixedWrapped32 or SFixedWrapped64
   #Every type valid for the VarInt wire type.
   VarIntTypes* = SIntegerTypes or UIntegerTypes
 
   #Fixed types.
-  FixedTypes* = UIntegerTypes or FixedWrapped64 or FixedWrapped32
-  SFixedTypes* = SIntegerTypes or SomeFloat or SFixedWrapped64 or SFixedWrapped32
-  Fixed64Types* = int64 or uint64 or float64 or FixedWrapped64 or SFixedWrapped64
-  Fixed32Types* = int32 or uint32 or float32 or FixedWrapped32 or SFixedWrapped32
+  FixedTypes* = SFixedTypes or PureUIntegerTypes
+  SFixedTypes* = PureSIntegerTypes or float32 or float64
 
   #Castable length delimited types.
   #These can be directly casted from a seq[byte] and do not require a custom converter.
@@ -68,7 +65,7 @@ type
   #This type is literally every other type.
   #Every other type is considered custom, due to the need for their own converters.
   #While cstring/array are built-ins, and therefore should have converters provided, but they still need converters.
-  LengthDelimitedTypes* = not (VarIntTypes or Fixed64Types or Fixed32Types)
+  LengthDelimitedTypes* = not (VarIntTypes or FixedTypes)
 
 proc getTypeChain(impure: NimNode): seq[NimNode] {.compileTime.} =
   var current = impure
@@ -77,7 +74,9 @@ proc getTypeChain(impure: NimNode): seq[NimNode] {.compileTime.} =
     let
       impl = getTypeImpl(current)
       inst = getTypeInst(current)
-    if impl.kind == nnkRefTy:
+    if (impl.kind == nnkBracketExpr) and (impl[0].strVal == "typeDesc"):
+      current = impl[1]
+    elif impl.kind == nnkRefTy:
       result.add(newNimNode(nnkRefTy))
       result[^1].add(inst)
       current = impl[0]
@@ -93,13 +92,22 @@ proc getTypeChain(impure: NimNode): seq[NimNode] {.compileTime.} =
     elif (inst.kind == nnkBracketExpr) and (inst[0].kind == nnkSym) and (inst[0].strVal == "Option"):
       current = inst[1]
       result.add(newNimNode(nnkBracketExpr))
+    elif inst.kind == nnkBracketExpr:
+      result.add(inst)
+      break
     else:
       break
 
-macro flatType(impure: typed): untyped =
+macro isPotentiallyNull*(impure: typed): bool =
+  for ty in getTypeChain(impure):
+    if (ty.kind == nnkRefTy) or (ty.kind == nnkBracketExpr):
+      return quote do: true
+  return quote do: false
+
+macro flatType*(impure: typed): untyped =
   getTypeChain(impure)[^1]
 
-template flatMapInternal[T, B](value: T, base: typedesc[B]): Option[B] =
+proc flatMapInternal[T, B](value: T, base: typedesc[B]): Option[B] =
   when value is Option:
     if value.isNone():
       none(base)

@@ -109,10 +109,10 @@ suite "Test Object Encoding/Decoding":
       )
       writer = newProtobufWriter()
 
-    writer.writeField(obj, "d")
-    writer.writeField(obj, "f")
-    writer.writeField(obj, "g")
-    writer.writeField(obj, "i")
+    writer.writeField(1, SInt(obj.d))
+    writer.writeField(3, obj.f)
+    writer.writeField(4, obj.g)
+    writer.writeField(6, obj.i)
 
     let result = writer.buffer().readValue(Wrapped)
     check result.d == obj.d
@@ -134,12 +134,12 @@ suite "Test Object Encoding/Decoding":
       )
       writer = newProtobufWriter()
 
-    writer.writeField(obj, "f")
-    writer.writeField(obj, "i")
-    writer.writeField(obj, "d")
-    writer.writeField(obj, "e")
-    writer.writeField(obj, "h")
-    writer.writeField(obj, "g")
+    writer.writeField(3, obj.f)
+    writer.writeField(6, obj.i)
+    writer.writeField(1, SInt(obj.d))
+    writer.writeField(2, SInt(obj.e))
+    writer.writeField(5, obj.h)
+    writer.writeField(4, obj.g)
 
     check writer.buffer().readValue(Wrapped) == obj
 
@@ -197,8 +197,8 @@ suite "Test Object Encoding/Decoding":
       obj = Basic(a: 100, b: "Test string.", c: 'C')
       writer = newProtobufWriter()
 
-    writer.writeField(obj, "b")
-    writer.writeField(obj, "b")
+    writer.writeField(2, obj.b)
+    writer.writeField(2, obj.b)
 
     expect ProtobufMessageError:
       discard writer.buffer().readValue(Wrapped)

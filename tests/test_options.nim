@@ -2,7 +2,7 @@ import options
 import unittest
 
 import ../protobuf_serialization
-from ../protobuf_serialization/internal import WrappedVarIntTypes, WrappedFixedTypes, unwrap
+from ../protobuf_serialization/internal import WrappedVarIntTypes, Fixed32Wrapped, Fixed64Wrapped, unwrap
 
 from test_objects import DistinctInt, toProtobuf, fromProtobuf, `==`
 
@@ -28,7 +28,7 @@ template testNone[T](ty: typedesc[T]) =
 template testSome[T](value: T) =
     let output = writeValue(some(value))
     check output == writeValue(value)
-    when T is (WrappedVarIntTypes or WrappedFixedTypes):
+    when T is (WrappedVarIntTypes or Fixed32Wrapped or Fixed64Wrapped):
       check output.readValue(Option[T]).get().unwrap() == some(value).get().unwrap()
     else:
       check output.readValue(Option[T]) == some(value)

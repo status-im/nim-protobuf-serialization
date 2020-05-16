@@ -31,7 +31,7 @@ macro generateWrapperConstructors(
   quote do:
     template `name`*(value: untyped): untyped =
       when value is not `supported`:
-        {.fatal: `err`.}
+        {.fatal: `err` & $type(value).}
 
       when value is type:
         when sizeof(value) == 8:
@@ -40,15 +40,15 @@ macro generateWrapperConstructors(
           `smaller`
       else:
         when sizeof(value) == 8:
-          `larger`(value)
+          cast[`larger`](value)
         else:
-          `smaller`(value)
+          cast[`smaller`](value)
 
 generateWrapperConstructors(PInt, SIntegerTypes, PIntWrapped32, PIntWrapped64, "PInt should only be used with a signed integer type.")
 generateWrapperConstructors(UInt, UIntegerTypes, UIntWrapped32, UIntWrapped64, "UInt should only be used with an unsigned integer type.")
 generateWrapperConstructors(SInt, SIntegerTypes, SIntWrapped32, SIntWrapped64, "SInt should only be used with a signed integer type.")
-generateWrapperConstructors(Fixed, FixedTypes, FixedWrapped32, FixedWrapped64, "Fixed should only be used with an unsigned integer type.")
-generateWrapperConstructors(SFixed, SFixedTypes, SFixedWrapped32, SFixedWrapped64, "SFixed should only be used with a signed integer type.")
+generateWrapperConstructors(Fixed, UIntegerTypes, FixedWrapped32, FixedWrapped64, "Fixed should only be used with an unsigned integer type.")
+generateWrapperConstructors(SFixed, SFixedTypes, SFixedWrapped32, SFixedWrapped64, "SFixed should only be used with a signed integer or float type.")
 
 #Used to specify how to encode/decode fields in an object.
 template pint*() {.pragma.}
@@ -61,7 +61,7 @@ template sfixed*() {.pragma.}
 template wireType*(value: untyped): byte =
   when value is WrappedVarIntTypes:
     byte(VarInt) + (1 shl 3)
-  elif value is WrappedFixedTypes:
+  elif value is FixedTypes:
     when sizeof(value) == 8:
       byte(Fixed64) + (1 shl 3)
     elif sizeof(value) == 4:

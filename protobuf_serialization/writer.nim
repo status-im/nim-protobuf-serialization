@@ -26,35 +26,33 @@ template uabs[U](number: VarIntTypes): U =
     U(number)
 
 #Created in response to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/5.
-var counter {.compileTime.}: int
 proc verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
-  when T is Option:
-    createActualTypeFromPotentialOption("AT", T())
-    verifyWritable(AT)
-  else:
-    when T is PlatformDependentTypes:
-      {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
-    elif T is (object or ref):
-      counter = 0
-      when T is ref:
-        var tInstance = T()[]
-      else:
-        var tInstance = T()
+  when T is PlatformDependentTypes:
+    {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
+  elif T is ((PureSIntegerTypes or PureUIntegerTypes) and (not bool)):
+    {.fatal: "Writing a number requires specifying the encoding to use.".}
+  elif T is (object or ref):
+    enumInstanceSerializedFields(T(), fieldName, fieldVar):
+      when fieldVar is PlatformDependentTypes:
+        {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
 
-      #We could use totalSerializedFields for this.
-      #That said, we need to iterate over every field anyways.
-      enumInstanceSerializedFields(tInstance, _, fieldVar):
-        inc(counter)
-        when fieldVar is PlatformDependentTypes:
-          {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
-      if counter > 32:
-        raise newException(Defect, "Object has too many fields; Protobuf has a maximum of 32.")
+      when fieldVar is (VarIntTypes or SFixedTypes):
+        var
+          hasPInt = ty.hasCustomPragmaFixed(fieldName, pint)
+          hasSInt = ty.hasCustomPragmaFixed(fieldName, sint)
+          hasUInt = (ty.hasCustomPragmaFixed(fieldName, puint) or (flatType(fieldVar) is bool))
+          hasFixed = ty.hasCustomPragmaFixed(fieldName, fixed)
+          hasSFixed = ty.hasCustomPragmaFixed(fieldName, sfixed)
+        if uint(hasPInt) + uint(hasSInt) + uint(hasUInt) + uint(hasFixed) + uint(hasSFixed) != 1:
+          raise newException(Defect, "Couldn't write " & fieldName & "; either none or multiple encodings were specified.")
+
+    if totalSerializedFields(T) > 32:
+      raise newException(Defect, "Object has too many fields; Protobuf has a maximum of 32.")
 
 proc writeVarInt(
   stream: OutputStreamHandle,
   fieldNum: uint,
-  value: VarIntTypes,
-  subtype: VarIntSubType
+  value: WrappedVarIntTypes
 ) {.raises: [Defect, IOError].} =
   when sizeof(value) == 8:
     type U = uint64
@@ -71,16 +69,16 @@ proc writeVarInt(
 
   var
     #Get the unsigned value which is what will be encoded.
-    raw: U = uabs[U](value)
+    raw: U = uabs[U](value.unwrap())
     #Written bytes.
     #This can be replaced with a countLeadingZeroBits solution so it's O(1), not O(n).
     #That said, while it'd have better complexity, it may not be faster.
     bytesWritten: uint = 0
 
   #If we're using SInt, we need to transform the value to its zig-zagged equivalent.
-  if subtype == SIntSubType:
+  if value is SIntWrapped:
     raw = (raw shl 1) xor (raw shr ((sizeof(raw) * 8) - 1))
-    if value < type(value)(0):
+    if value.unwrap() < 0:
       inc(raw)
 
   #Write the VarInt.
@@ -91,7 +89,7 @@ proc writeVarInt(
     inc(bytesWritten)
 
   #If this was a positive number, or zig-zagged, we only need to write this last byte.
-  if (value >= type(value)(0)) or (subtype == SIntSubType):
+  if (value.unwrap() >= 0) or (value is SIntWrapped):
     stream.s.cursor.append(byte(raw))
   #We need to write blank bytes until the length is 10.
   else:
@@ -102,256 +100,174 @@ proc writeVarInt(
       inc(bytesWritten)
     stream.s.cursor.append(byte(0))
 
-proc writeFixed64(
+proc writeFixed(
   stream: OutputStreamHandle,
   fieldNum: uint,
-  value: Fixed64Types
+  value: Fixed32Wrapped or Fixed64Wrapped
 ) {.raises: [Defect, IOError].} =
-  var raw = cast[uint64](value)
+  when sizeof(value) == 8:
+    var raw = cast[uint64](value)
+  else:
+    var raw = cast[uint32](value)
   if raw == 0:
     return
-  stream.s.cursor.append(key(fieldNum, Fixed64))
-  for _ in 0 ..< 8:
-    stream.s.cursor.append(byte(raw and LAST_BYTE))
-    raw = raw shr 8
-
-proc writeValueInternal*[T](
-  value: T,
-  sub: bool,
-  existingLength: var int,
-  optionSubtype: Option[VarIntSubType] = none(VarIntSubType)
-): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].}
-
-proc writeLengthDelimited(
-  stream: OutputStreamHandle,
-  fieldNum: uint,
-  value: LengthDelimitedTypes,
-  sub: bool,
-  existingLength: var int
-) {.raises: [Defect, IOError, ProtobufWriteError].} =
-  if existingLength > 255:
-    raise newException(ProtobufWriteError, "Too long length-delimited buffer when recursively entering writeLengthDelimited.")
-  existingLength += 2
-
-  when value is CastableLengthDelimitedTypes:
-    if sub:
-      existingLength -= 2
-    if value.len == 0:
-      existingLength -= 2
-      return
-
-    existingLength += value.len
-    if existingLength > 255:
-      raise newException(ProtobufWriteError, "Too long length-delimited buffer when casting a string/seq.")
-
-    stream.s.cursor.append(key(fieldNum, LengthDelimited))
-    stream.s.cursor.append(byte(value.len))
-    for b in cast[seq[byte]](value):
-      stream.s.cursor.append(b)
-
-  elif value is (object or ref):
-    let bytes = writeValueInternal(value, true, existingLength)
-    if bytes.len == 0:
-      existingLength -= 2
-      return
-    existingLength += 2
-
-    if existingLength > 255:
-      raise newException(ProtobufWriteError, "Too long length-delimited buffer when handling a nested object.")
-
-    stream.s.cursor.append(key(fieldNum, LengthDelimited))
-    stream.s.cursor.append(byte(bytes.len))
-    for b in bytes:
-      stream.s.cursor.append(b)
-
-  else:
-    let bytes = value.toProtobuf()
-    if bytes.len == 0:
-      existingLength -= 2
-      return
-
-    if existingLength > 255:
-      raise newException(ProtobufWriteError, "Too long length-delimited buffer returned from toProtobuf.")
-
-    stream.s.cursor.append(key(fieldNum, LengthDelimited))
-    stream.s.cursor.append(byte(bytes.len))
-    for b in bytes:
-      stream.s.cursor.append(b)
-
-proc writeFixed32(
-  stream: OutputStreamHandle,
-  fieldNum: uint,
-  value: Fixed32Types
-) {.raises: [Defect, IOError].} =
-  var raw = cast[uint32](value)
-  if raw == 0:
-    return
-  stream.s.cursor.append(key(fieldNum, Fixed32))
-  for _ in 0 ..< 4:
-    stream.s.cursor.append(byte(raw and LAST_BYTE))
-    raw = raw shr 8
-
-proc writeFieldInternal[T](
-  writer: ProtobufWriter,
-  value: T,
-  field: static string,
-  sub: bool,
-  existingLength: var int
-) {.raises: [Defect, IOError, ProtobufWriteError].} =
-  #Fake raise, as this is only raised for a subset of types yet it's in raises.
-  if false:
-    raise newException(ProtobufWriteError, "")
-
-  var counter = 1'u
-  when value is ref:
-    var actualValue = value[]
-  else:
-    var actualValue = value
-  enumInstanceSerializedFields(actualValue, fieldName, preFieldVar):
-    if field != fieldName:
-      inc(counter)
+  stream.s.cursor.append(key(
+    fieldNum,
+    when sizeof(value) == 8:
+      Fixed64
     else:
-      when preFieldVar is Option:
-        if preFieldVar.isNone():
-          return
-        var fieldVar: getActualType(preFieldVar) = preFieldVar.get()
-      else:
-        var fieldVar = preFieldVar
-
-      #Either VarInt of Fixed.
-      when fieldVar is VarIntTypes:
-        #We need to grab the subtype off the type definition.
-        #That said, hasCustomPragmaFixed doesn't work with ref types.
-        #We need to define a custom one in that case which will work.
-        #This is a hack which isn't guaranteed to maintain compatiblity with hasCustomPragmaFixed.
-        when getTypeImpl(T).kind == nnkRefTy:
-          macro hCP(field: static string, pragma: typed{nkSym}): untyped =
-            var AT = newNimNode(nnkTypeDef).add(
-              T.getTypeImpl()[0],
-              newNimNode(nnkEmpty),
-              T.getTypeImpl()[0].getImpl()[2][0]
-            )
-            for f in recordFields(AT):
-              var thisField = f.name
-              if thisField.kind == nnkAccQuoted: thisField = thisField[0]
-              if eqIdent(thisField, field):
-                return newLit(f.pragmas.findPragma(pragma) != nil)
-        else:
-          template hCP(field: static string, pragma: typed{nkSym}): untyped =
-            T.hasCustomPragmaFixed(field, pragma)
-
-        when hCP(fieldName, pint):
-          writer.stream.writeVarInt(counter, fieldVar, PIntSubType)
-        elif hCP(fieldName, puint):
-          writer.stream.writeVarInt(counter, fieldVar, UIntSubType)
-        elif hCP(fieldName, sint):
-          writer.stream.writeVarInt(counter, fieldVar, SIntSubType)
-        #If this is actually a Fixed field, which has a type overlap with VarInt, write it as one.
-        elif hCP(fieldName, fixed) or hCP(fieldName, sfixed):
-          when sizeof(fieldVar) == 8:
-            writer.stream.writeFixed64(counter, fieldVar)
-          else:
-            writer.stream.writeFixed32(counter, fieldVar)
-        #This default is okay as any encoding of a boolean will produce the same truthy/falsey value.
-        elif fieldVar is bool:
-          writer.stream.writeVarInt(counter, fieldVar, UIntSubType)
-        else:
-          {.fatal: "Writing a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
-      #Float64.
-      elif fieldVar is Fixed64Types:
-        writer.stream.writeFixed64(counter, fieldVar)
-      #Float32.
-      elif fieldVar is Fixed32Types:
-        writer.stream.writeFixed32(counter, fieldVar)
-      #Length delimited.
-      else:
-        writer.stream.writeLengthDelimited(counter, fieldVar, sub, existingLength)
-      break
-
-template writeField*[T](
-  writer: ProtobufWriter,
-  value: T,
-  field: static string
-) =
-  var existingLength = 0
-  when T is Option:
-    if value.isSome():
-      writeFieldInternal(writer, value.get(), field, false, existingLength)
-  else:
-    writeFieldInternal(writer, value, field, false, existingLength)
+      Fixed32
+  ))
+  for _ in 0 ..< sizeof(value):
+    stream.s.cursor.append(byte(raw and LAST_BYTE))
+    raw = raw shr 8
 
 proc writeValueInternal[T](
-  value: T,
-  sub: bool,
-  existingLength: var int,
-  optionSubtype: Option[VarIntSubType] = none(VarIntSubType)
-): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].} =
-  if false:
-    raise newException(ProtobufWriteError, "")
+  stream: OutputStreamHandle,
+  value: T
+) {.raises: [Defect, IOError, ProtobufWriteError].}
 
-  when T is Option:
-    if value.isSome():
-      if type(value.get()) is (VarIntTypes or FixedTypes):
-        return writeValueInternal(value.get(), false, existingLength, optionSubtype)
-      else:
-        return writeValueInternal(value.get(), false, existingLength)
-    else:
+proc writeLengthDelimited[T](
+  stream: OutputStreamHandle,
+  fieldNum: uint,
+  rootType: typedesc[T],
+  flatValue: LengthDelimitedTypes
+) {.raises: [Defect, IOError, ProtobufWriteError].} =
+  var bytes: seq[byte]
+
+  #String/byte seqs.
+  when flatValue is CastableLengthDelimitedTypes:
+    if flatValue.len == 0:
       return
+    bytes = cast[seq[byte]](flatValue)
+
+  #[
+  Why do generic types get their own section?
+  For the standard lib.
+  The standard lib objects are almost always generic.
+
+  By forcing toProtobuf to be called on them, and shipping toProtobufs for stdlib objects,
+  we can cleanly add support for stdlib types
+  without messy code or worries a new type will break another.
+  ]#
+  #elif rootType.isGeneric():
+  #  bytes = flatValue.toProtobuf()
+  #  if bytes.len == 0:
+  #    return
+
+  #Nested object which even if the sub-value is empty, should be encoded as long as it exists.
+  elif rootType.isPotentiallyNull():
+    var substream = memoryOutput()
+    writeValueInternal(substream, flatValue)
+    bytes = stream.s.getOutput()
+
+  #Object which should only be encoded if it has data.
+  elif flatValue is object:
+    var substream = memoryOutput()
+    writeValueInternal(substream, flatValue)
+    bytes = stream.s.getOutput()
+    if bytes.len == 0:
+      return
+
+  #Distinct types.
   else:
-    let writer: ProtobufWriter = newProtobufWriter()
+    bytes = flatValue.toProtobuf()
+    if bytes.len == 0:
+      return
 
-    when T is bool:
-      writer.stream.writeVarInt(1, value, UIntSubType)
-    elif T is (PureSIntegerTypes or PureUIntegerTypes):
-      if optionSubtype.isSome():
-        case optionSubtype.get():
-          of PIntSubType:
-            writer.stream.writeVarInt(1, value, PIntSubType)
-          of UIntSubType:
-            writer.stream.writeVarInt(1, value, UIntSubType)
-          of SIntSubType:
-            writer.stream.writeVarInt(1, value, SIntSubType)
-      else:
-        raise newException(Defect, "Tried to write a pure Integer, AKA an Option[SomeInteger], yet didn't set a subtype. This should never happen.")
-    elif T is VarIntTypes:
-      when T is (PIntWrapped32 or PIntWrapped64):
-        writer.stream.writeVarInt(1, value.unwrap(), PIntSubType)
-      elif T is (UIntWrapped32 or UIntWrapped64):
-        writer.stream.writeVarInt(1, value.unwrap(), UIntSubType)
-      elif T is bool:
-        writer.stream.writeVarInt(1, value, UIntSubType)
-      elif T is (SIntWrapped32 or SIntWrapped64):
-        writer.stream.writeVarInt(1, value.unwrap(), SIntSubType)
-      elif T is (FixedWrapped64 or SFixedWrapped64):
-        writer.stream.writeFixed64(1, value)
-      elif T is (FixedWrapped32 or SFixedWrapped32):
-        writer.stream.writeFixed32(1, value)
-      else:
-        {.fatal: "Writing a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
-    elif T is Fixed64Types:
-      writer.stream.writeFixed64(1, value)
-    elif T is Fixed32Types:
-      writer.stream.writeFixed32(1, value)
-    elif T is (object or ref):
-      when T is ref:
-        if value.isNil:
-          return
-        enumInstanceSerializedFields(value[], fieldName, _):
-          writer.writeFieldInternal(value, fieldName, sub, existingLength)
-      else:
-        enumInstanceSerializedFields(value, fieldName, _):
-          writer.writeFieldInternal(value, fieldName, sub, existingLength)
-    else:
-      writer.stream.writeLengthDelimited(1, value, sub, existingLength)
+  stream.s.cursor.append(key(fieldNum, LengthDelimited))
+  stream.s.cursor.append(byte(bytes.len))
+  for b in bytes:
+    stream.s.cursor.append(b)
 
-    return writer.buffer()
+proc writeFieldInternal[T](
+  stream: OutputStreamHandle,
+  fieldNum: uint,
+  value: T
+) {.raises: [Defect, IOError, ProtobufWriteError].} =
+  let flattenedOption = value.flatMap()
+  if flattenedOption.isNone():
+    return
+  let flattened = flattenedOption.get()
+
+  when flattened is bool:
+    stream.writeVarInt(fieldNum, UInt(flattened))
+  elif flattened is WrappedVarIntTypes:
+    stream.writeVarInt(fieldNum, flattened)
+  elif flattened is (Fixed32Wrapped or Fixed64Wrapped):
+    stream.writeFixed(fieldNum, flattened)
+  else:
+    writeLengthDelimited(stream, fieldNum, T, flattened)
+
+proc writeField*[T](
+  writer: ProtobufWriter,
+  fieldNum: uint,
+  value: T
+) {.raises: [Defect, IOError, ProtobufWriteError].} =
+  static: verifyWritable(flatType(T))
+  writer.stream.writeFieldInternal(fieldNum, value)
+
+proc writeValueInternal[T](
+  stream: OutputStreamHandle,
+  value: T
+) {.raises: [Defect, IOError, ProtobufWriteError].} =
+  let flattenedOption = value.flatMap()
+  if flattenedOption.isNone():
+    return
+  let flattened = flattenedOption.get()
+
+  when flattened is object:
+    var counter = 0'u
+    enumInstanceSerializedFields(flattened, fieldName, fieldVal):
+      inc(counter)
+      let flattenedFieldOption = fieldVal.flatMap()
+      if flattenedFieldOption.isSome():
+        let flattenedField = flattenedFieldOption.get()
+        when flattenedField is VarIntTypes:
+          let
+            hasPInt = flatType(value).hasCustomPragmaFixed(fieldName, pint)
+            hasSInt = flatType(value).hasCustomPragmaFixed(fieldName, sint)
+            hasUInt = (flatType(value).hasCustomPragmaFixed(fieldName, puint) or (flattenedField is bool))
+            hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
+            hasSFixed = flatType(value).hasCustomPragmaFixed(fieldName, sfixed)
+          discard hasPInt
+          discard hasSInt
+          discard hasUInt
+          discard hasFixed
+          discard hasSFixed
+
+          when flattenedField is SIntegerTypes:
+            if hasPInt:
+              stream.writeFieldInternal(counter, PInt(flattenedField))
+            elif hasSInt:
+              stream.writeFieldInternal(counter, SInt(flattenedField))
+            elif hasSFixed:
+              stream.writeFieldInternal(counter, SFixed(flattenedField))
+            else:
+              raise newException(Defect, "Signed pragma attached to non-signed field.")
+          elif flattenedField is UIntegerTypes:
+            if hasUInt:
+              stream.writeFieldInternal(counter, UInt(flattenedField))
+            elif hasFixed:
+              stream.writeFieldInternal(counter, Fixed(flattenedField))
+            else:
+              raise newException(Defect, "Unsigned pragma attached to non-signed field.")
+          elif flattenedField is (float32 or float64):
+            if hasSFixed:
+              stream.writeFieldInternal(counter, SFixed(flattenedField))
+            else:
+              raise newException(Defect, "Pragma other than SFixed attached to float.")
+          else:
+            {.panic: "Attempting to handle unknown number type. This should never happen.".}
+        else:
+          stream.writeFieldInternal(counter, flattenedField)
+  else:
+    stream.writeFieldInternal(1'u, flattened)
 
 proc writeValue*[T](
   value: T
-): seq[byte] =
-  when T is object:
-    static:
-      verifyWritable(T)
-
-  var existingLength = 0
-  writeValueInternal(value, false, existingLength)
+): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].} =
+  static: verifyWritable(type(flatType(T)))
+  var writer = newProtobufWriter()
+  writer.stream.writeValueInternal(value)
+  result = writer.buffer()

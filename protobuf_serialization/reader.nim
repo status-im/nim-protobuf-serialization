@@ -18,6 +18,14 @@ type
   ProtobufEOFError* = object of ProtobufReadError
   ProtobufMessageError* = object of ProtobufReadError
 
+  VarIntSubType = enum
+    PIntSubType,
+    SIntSubType,
+    UIntSubType
+
+  Fixed64Types = int64 or uint64 or float64 or FixedWrapped64 or SFixedWrapped64
+  Fixed32Types = int32 or uint32 or float32 or FixedWrapped32 or SFixedWrapped32
+
 #We don't cast this back to a ProtobufWireType despite exclusively comparing it against ProtobufWireTypes.
 #This is so an invalid wire type doesn't trigger boundChecks.
 template wireType(key: byte): byte =
@@ -29,6 +37,16 @@ template fieldNumber(key: byte): byte =
 template wireCheck(typeclass: untyped, expected: ProtobufWireType) =
   if T is not typeclass:
     raise newException(ProtobufMessageError, "Invalid wire type. Expected " & $expected & ".")
+
+macro getActualType(option: typed): untyped =
+  var inst = getTypeInst(option)
+  if (inst.kind == nnkSym) and (inst.strVal == "AT"):
+    raise newException(Defect, "Option[Option[T]] declared. This is not a valid serializable object. For more info, see https://github.com/kayabaNerve/nim-protobuf-serialization/issues/14.")
+
+  if (inst.kind == nnkBracketExpr) and (inst[0].kind == nnkSym) and (inst[0].strVal == "Option"):
+    result = inst[1]
+  else:
+    result = inst
 
 #Ideally, these would be in a table.
 #That said, due to the context specific return type, which goes beyond the wire type, you need generics.
@@ -224,7 +242,7 @@ proc setFields[T](
       counter = 1'u8
       fieldNumber = fieldKey.fieldNumber
     if (fieldNumber == 0) or (int(fieldNumber) > totalSerializedFields(AT)):
-      raise newException(ProtobufMessageError, "Unknown field number specified.")
+      raise newException(ProtobufMessageError, "Unknown field number specified: " & $fieldNumber)
 
     when fakeValue is ref:
       when T is Option:
@@ -358,7 +376,7 @@ proc readValue*[T](
   when T is not (object or ref):
     type AT = T
   else:
-    createActualTypeFromPotentialOption("AT", T())
+    type AT = getActualType(T())
 
   when (AT is (PureSIntegerTypes or PureUIntegerTypes)) and (AT is not bool):
     {.fatal: "Reading into a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
