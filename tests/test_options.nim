@@ -2,7 +2,7 @@ import options
 import unittest
 
 import ../protobuf_serialization
-from ../protobuf_serialization/internal import WrappedVarIntTypes, Fixed32Wrapped, Fixed64Wrapped, unwrap
+from ../protobuf_serialization/internal import WrappedVarIntTypes, Fixed32Wrapped, Fixed64Wrapped, unwrap, flatType, flatMap
 
 from test_objects import DistinctInt, toProtobuf, fromProtobuf, `==`
 
@@ -27,8 +27,8 @@ template testNone[T](ty: typedesc[T]) =
 
 template testSome[T](value: T) =
     let output = writeValue(some(value))
-    check output == writeValue(value)
-    when T is (WrappedVarIntTypes or Fixed32Wrapped or Fixed64Wrapped):
+    check output == writeValue(flatMap(value))
+    when flatType(T) is (WrappedVarIntTypes or Fixed32Wrapped or Fixed64Wrapped):
       check output.readValue(Option[T]).get().unwrap() == some(value).get().unwrap()
     else:
       check output.readValue(Option[T]) == some(value)
@@ -119,3 +119,9 @@ suite "Test Encoding/Decoding of Options":
   test "Option distinct type":
     testNone(DistinctInt)
     testSome(DistinctInt(5))
+
+  #This was banned at one point in this library's lifetime.
+  #It should work now.
+  test "Option Option":
+    testNone(string)
+    testSome(some("abc"))

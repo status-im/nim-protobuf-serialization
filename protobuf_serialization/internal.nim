@@ -56,6 +56,8 @@ type
   VarIntTypes* = SIntegerTypes or UIntegerTypes
 
   #Fixed types.
+  WrappedFixedTypes* = FixedWrapped32 or FixedWrapped64 or
+                       SFixedWrapped32 or SFixedWrapped64
   FixedTypes* = SFixedTypes or PureUIntegerTypes
   SFixedTypes* = PureSIntegerTypes or float32 or float64
 
@@ -126,22 +128,9 @@ macro flatMap*(value: typed): untyped =
   quote do:
     flatMapInternal(`value`, type(`flattened`))
 
-template boxInternal[T, B](value: var T, option: Option[B], box: untyped) =
-  if option.isNone():
-    when value is not Option:
-      when value is (object or ref):
-        value = type(value)()
-      else:
-        var blank: type(value)
-        value = blank
-    else:
-      value = none(type(value.get()))
-  else:
-    value = box
-
-macro box*(value: typed, option: typed): untyped =
-  let chain = getTypeChain(value)
-  var wrap = newNimNode(nnkCall).add(ident("get"), option)
+macro box*(variable: typed, value: typed): untyped =
+  let chain = getTypeChain(variable)
+  var wrap = value
   for l in countdown(high(chain) - 1, 0):
     if chain[l].kind == nnkRefTy:
       wrap = newBlockStmt(
@@ -166,8 +155,7 @@ macro box*(value: typed, option: typed): untyped =
       wrap = newNimNode(nnkCall).add(ident("some"), wrap)
 
   quote do:
-    boxInternal(`value`, `option`):
-      `wrap`
+    `variable` = `wrap`
 
 template unwrap*[T](value: T): untyped =
   when T is (PIntWrapped32 or SIntWrapped32 or SFixedWrapped32):

@@ -18,14 +18,6 @@ type
   ProtobufEOFError* = object of ProtobufReadError
   ProtobufMessageError* = object of ProtobufReadError
 
-  VarIntSubType = enum
-    PIntSubType,
-    SIntSubType,
-    UIntSubType
-
-  Fixed64Types = int64 or uint64 or float64 or FixedWrapped64 or SFixedWrapped64
-  Fixed32Types = int32 or uint32 or float32 or FixedWrapped32 or SFixedWrapped32
-
 #We don't cast this back to a ProtobufWireType despite exclusively comparing it against ProtobufWireTypes.
 #This is so an invalid wire type doesn't trigger boundChecks.
 template wireType(key: byte): byte =
@@ -34,28 +26,24 @@ template wireType(key: byte): byte =
 template fieldNumber(key: byte): byte =
   (key and FIELD_NUMBER_MASK) shr 3
 
-template wireCheck(typeclass: untyped, expected: ProtobufWireType) =
-  if T is not typeclass:
-    raise newException(ProtobufMessageError, "Invalid wire type. Expected " & $expected & ".")
-
-macro getActualType(option: typed): untyped =
-  var inst = getTypeInst(option)
-  if (inst.kind == nnkSym) and (inst.strVal == "AT"):
-    raise newException(Defect, "Option[Option[T]] declared. This is not a valid serializable object. For more info, see https://github.com/kayabaNerve/nim-protobuf-serialization/issues/14.")
-
-  if (inst.kind == nnkBracketExpr) and (inst[0].kind == nnkSym) and (inst[0].strVal == "Option"):
-    result = inst[1]
-  else:
-    result = inst
+proc eofSafeRead(stream: InputStream): byte =
+  if not stream.readable():
+    raise newException(ProtobufEOFError, "Couldn't read the next byte from this stream despite expecting one.")
+  result = stream.read()
 
 #Ideally, these would be in a table.
 #That said, due to the context specific return type, which goes beyond the wire type, you need generics.
 #As Generic types aren't concrete, they can't be used in a table.
-proc readVarInt[T](
+proc readVarInt[B; E: WrappedVarIntTypes](
   stream: InputStream,
-  subtype: VarIntSubType
-): T {.raises: [Defect, IOError, ProtobufEOFError].} =
-  when sizeof(result) == 8:
+  fieldVar: var B,
+  encoding: E,
+  key: byte
+) {.raises: [Defect, IOError, ProtobufEOFError, ProtobufMessageError].} =
+  type T = flatType(B)
+  when E is not WrappedVarIntTypes:
+    {.fatal: "Tried to read a VarInt without a specified encoding. This should never happen.".}
+  when sizeof(T) == 8:
     type
       S = int64
       U = uint64
@@ -64,76 +52,66 @@ proc readVarInt[T](
       S = int32
       U = uint32
 
+  if key.wireType != byte(VarInt):
+    raise newException(ProtobufMessageError, "Invalid wire type for a VarInt.")
+
   var
     value = U(0)
     offset = 0'i8
     next = VAR_INT_CONTINUATION_MASK
+    preResult: T
   while (next and VAR_INT_CONTINUATION_MASK) != 0:
-    if not stream.readable():
-      raise newException(ProtobufEOFError, "Couldn't read a VarInt from this stream.")
-
-    next = stream.read()
+    next = stream.eofSafeRead()
     value += (next and U(VAR_INT_VALUE_MASK)) shl offset
     offset += 7
 
   #Unsigned, requiring no further work.
-  if subtype == UIntSubType:
-    result = T(value)
+  when E is UIntWrapped:
+    preResult = T(value)
   #Zig-zagged.
-  elif subtype == SIntSubType:
-    result = T(S(value shr 1) xor -S(value and U(0b0000_0001)))
-  #Not zig-zagged, yet negative.
-  elif offset == 70:
-    #This should handle the lowest possible negative value.
-    #The cast to a signed value causes it to error/wrap to the lowest value.
-    #Said lowest value will be negative, multiplied by -1, and wrap again.
-    #This behavior requires boundChecks to be turned off in order to not raise though.
-    {.push boundChecks: off.}
-    result = T(-S(value + 1))
-    {.pop.}
-  #Not zig-zagged, yet positive.
+  elif E is SIntWrapped:
+    preResult = T(S(value shr 1) xor -S(value and U(0b0000_0001)))
   else:
-    result = T(value)
+    #Not zig-zagged, yet negative.
+    if offset == 70:
+      #This should handle the lowest possible negative value.
+      #The cast to a signed value causes it to error/wrap to the lowest value.
+      #Said lowest value will be negative, multiplied by -1, and wrap again.
+      #This behavior requires boundChecks to be turned off in order to not raise though.
+      {.push boundChecks: off.}
+      preResult = T(-S(value))
+      {.pop.}
+    #Not zig-zagged, yet positive.
+    else:
+      preResult = T(value)
 
-proc readFixed64[T](
-  stream: InputStream
-): T {.raises: [Defect, IOError, ProtobufEOFError].} =
-  type U = uint64
+  #Box the result back up.
+  box(fieldVar, preResult)
+
+proc readFixed[B](
+  stream: InputStream,
+  fieldVar: var B,
+  key: byte
+) {.raises: [Defect, IOError, ProtobufEOFError, ProtobufMessageError].} =
+  type T = flatType(B)
+  when sizeof(T) == 8:
+    type U = uint64
+    if key.wireType != byte(Fixed64):
+      raise newException(ProtobufMessageError, "Invalid wire type for a Fixed64.")
+  else:
+    type U = uint32
+    if key.wireType != byte(Fixed32):
+      raise newException(ProtobufMessageError, "Invalid wire type for a Fixed32.")
+
   var value = U(0)
-  for offset in countup(0, 56, 8):
-    if not stream.readable():
-      raise newException(ProtobufEOFError, "Couldn't read a fixed 64-bit number from this stream.")
-    value += U(stream.read()) shl U(offset)
-  result = cast[T](value)
+  for offset in countup(0, (sizeof(T) - 1) * 8, 8):
+    value += U(stream.eofSafeRead()) shl U(offset)
+  box(fieldVar, cast[T](value))
 
-proc readFixed32[T](
-  stream: InputStream
-): T {.raises: [Defect, IOError, ProtobufEOFError].} =
-  type U = uint64
-  var
-    value = U(0)
-  for offset in countup(0, 24, 8):
-    if not stream.readable():
-      raise newException(ProtobufEOFError, "Couldn't read a fixed 32-bit number from this stream.")
-    value += U(stream.read()) shl U(offset)
-  result = cast[T](value)
-
-proc readLengthDelimited(
-  stream: InputStream
-): seq[byte] {.raises: [Defect, IOError, ProtobufEOFError].} =
-  if not stream.readable():
-    raise newException(ProtobufEOFError, "Couldn't read a length delimited sequence from this stream.")
-
-  result = newSeq[byte](stream.read())
-  for b in 0 ..< result.len:
-    if not stream.readable():
-      raise newException(ProtobufEOFError, "Couldn't read a length delimited sequence from this stream.")
-    result[b] = stream.read()
-
-#readValue requires this function which requires readValue.
-#It should be noted this is recursive, and therefore can theoretically risk a stack overflow.
-#As long as circular types are detected at compile time, this shouldn't be a problem.
-proc readValue*[T](
+#readValue requires readLengthDelimited function which requires readValue.
+#This would risk infinite recursion, except nested sub-buffers have a limit of 255 bytes.
+#Every sub-sub-buffer contributes to the length of the original buffer.
+proc readValueInternal*[T](
   bytes: seq[byte],
   ty: typedesc[T]
 ): T {.raises: [
@@ -143,69 +121,40 @@ proc readValue*[T](
   ProtobufMessageError
 ].}
 
-proc setLengthDelimitedField[S](
-  sourceValue: S,
-  fieldKey: byte,
-  stream: InputStream
-): S {.raises: [
+proc readLengthDelimited[B](
+  stream: InputStream,
+  fieldVar: var B,
+  key: byte
+) {.raises: [
   Defect,
   IOError,
   ProtobufEOFError,
   ProtobufMessageError
 ].} =
-  mixin wireType, readLengthDelimited
-
-  let wire = fieldKey.wireType
-  if wire != byte(LengthDelimited):
+  if key.wireType != byte(LengthDelimited):
     raise newException(ProtobufMessageError, "Invalid wire type for a length delimited sequence/object.")
 
-  var preResult: getActualType(sourceValue)
-  when preResult is CastableLengthDelimitedTypes:
-    preResult = cast[type(preResult)](stream.readLengthDelimited())
-  elif preResult is (object or ref):
-    when sourceValue is Option:
-      preResult = stream.readLengthDelimited().readValue(S).get()
-    else:
-      preResult = stream.readLengthDelimited().readValue(S)
+  var
+    bytes = newSeq[byte](stream.eofSafeRead())
+    preResult: flatType(B)
+  for b in 0 ..< bytes.len:
+    bytes[b] = stream.eofSafeRead()
+
+  when preResult is not LengthDelimitedTypes:
+    {.fatal: "Tried to read a Length Delimited value which we didn't recognize. This should never happen.".}
+  elif preResult is CastableLengthDelimitedTypes:
+    preResult = cast[type(preResult)](bytes)
+  elif preResult is object:
+    preResult = bytes.readValueInternal(type(preResult))
   else:
-    stream.readLengthDelimited().fromProtobuf(preResult)
+    bytes.fromProtobuf(preResult)
 
-  when S is Option:
-    result = some(preResult)
-  else:
-    result = preResult
+  box(fieldVar, preResult)
 
-proc setIndividualField[T](
-  fieldKey: byte,
-  stream: InputStream,
-  subtype: Option[VarIntSubType]
-): T =
-  when T is (object or ref):
-    {.fatal: "Object made it to set individual field. This should never happen.".}
-
-  mixin wireType
-  let wire = fieldKey.wireType
-
-  case wire:
-    of byte(VarInt):
-      mixin isNone
-      if subtype.isNone():
-        raise newException(ProtobufMessageError, "Invalid subtype (Fixed/SFixed) for a VarInt.")
-      result = stream.readVarInt[:T](subtype.get())
-    of byte(Fixed64):
-      wireCheck(Fixed64Types, Fixed64)
-      result = stream.readFixed64[:T]()
-    of byte(Fixed32):
-      wireCheck(Fixed32Types, Fixed32)
-      result = stream.readFixed32[:T]()
-    else:
-      raise newException(ProtobufMessageError, "Invalid wire type for an integer.")
-
-proc setFields[T](
+proc setField[T](
   value: var T,
-  fieldKey: byte,
   stream: InputStream,
-  subtypeArg: Option[VarIntSubType]
+  key: byte
 ) {.raises: [
   Defect,
   IOError,
@@ -215,149 +164,85 @@ proc setFields[T](
   if false:
     raise newException(ProtobufMessageError, "")
 
-  type AT = getActualType(value)
-  var fakeValue: AT
-  when fakeValue is not (object or ref):
-    when fakeValue is PlatformDependentTypes:
-      {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
-    elif fakeValue is LengthDelimitedTypes:
-      value = setLengthDelimitedField(value, fieldKey, stream)
-    else:
-      when T is Option:
-        value = some(setIndividualField[AT](fieldKey, stream, subtypeArg))
-      else:
-        value = setIndividualField[T](fieldKey, stream, subtypeArg)
-  else:
-    fakeValue = AT()
+  when T is (ref or Option):
+    {.fatal: "Ref or Option made it to setField. This should never happen.".}
 
-    #This iterative approach is extremely poor.
+  elif T is not object:
+    when T is bool:
+      stream.readVarInt(value, UInt(value), key)
+    elif T is WrappedVarIntTypes:
+      stream.readVarInt(value, value, key)
+    elif T is WrappedFixedTypes:
+      stream.readFixed(value, key)
+    elif T is (PlatformDependentTypes or VarIntTypes or SFixedTypes):
+      {.fatal: "Reading into a number requires specifying both the amount of bits via the type, as well as the encoding format.".}
+    else:
+      stream.readLengthDelimited(value, key)
+
+  else:
+    #This iterative approach is extemely poor.
     var
       counter = 1'u8
-      fieldNumber = fieldKey.fieldNumber
-    if (fieldNumber == 0) or (int(fieldNumber) > totalSerializedFields(AT)):
+      fieldNumber = key.fieldNumber
+    if (fieldNumber == 0) or (uint(fieldNumber) > uint(totalSerializedFields(T))):
       raise newException(ProtobufMessageError, "Unknown field number specified: " & $fieldNumber)
 
-    when fakeValue is ref:
-      when T is Option:
-        var valueCopy = AT()
-        if value.isSome():
-          valueCopy = value.get()
-      else:
-        var valueCopy = value
-        if valueCopy.isNil:
-          valueCopy = AT()
-      when T is Option:
-        value = some(valueCopy)
-      else:
-        value = valueCopy
-
-      macro hCP(field: static string, pragma: typed{nkSym}): untyped =
-        for f in recordFields(newNimNode(nnkTypeDef).add(
-          AT.getTypeImpl()[0],
-          newNimNode(nnkEmpty),
-          AT.getTypeImpl()[0].getImpl()[2][0]
-        )):
-          var thisField = f.name
-          if thisField.kind == nnkAccQuoted: thisField = thisField[0]
-          if eqIdent(thisField, field):
-            return newLit(f.pragmas.findPragma(pragma) != nil)
-
-      macro enumSerialized(body: untyped): untyped =
-        result = quote do:
-          for fieldName, fieldVar in fieldPairs(fakeValue[]):
-            when not hCP(fieldName, dontSerialize):
-              `body`
-
-        var queue = @[result]
-        while queue.len != 0:
-          var next = queue.pop()
-          for c in 0 ..< next.len:
-            if eqIdent(next[c], ident("fieldName")):
-              next[c] = result[0]
-            elif eqIdent(next[c], ident("fieldVar")):
-              next[c] = result[1]
-            else:
-              queue.add(next[c])
-    else:
-      macro enumSerialized(body: untyped): untyped =
-        quote do:
-          enumInstanceSerializedFields(fakeValue, fieldName, fieldVar):
-            `body`
-
-    enumSerialized():
+    enumInstanceSerializedFields(value, fieldName, fieldVar):
       when fieldVar is PlatformDependentTypes:
         {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
+
       if counter != fieldNumber:
         inc(counter)
       else:
-        var fakeField: getActualType(fieldVar)
-
-        #Only calculate the subtype for VarInt.
+        #Only calculate the encoding VarInt.
         #In every other case, the type is enough.
-        #Writing does have further specification rules, but those aren't needed here.
         #We don't need to track the boolean type as literally every encoding will parse to the same true/false.
-        when fakeField is not LengthDelimitedTypes:
-          var subtype: Option[VarIntSubType]
-        when fakeField is bool:
-          subtype = some(UIntSubType)
-        elif fakeField is VarIntTypes:
-          mixin hasCustomPragmaFixed, wireType
-          if fieldKey.wireType == byte(VarInt):
-            const
-              hasPInt = AT.hasCustomPragmaFixed(fieldName, pint)
-              hasPUInt = AT.hasCustomPragmaFixed(fieldName, puint)
-              hasSInt = AT.hasCustomPragmaFixed(fieldName, sint)
-            when (uint(hasPInt) + uint(hasPUInt) + uint(hasSInt)) != 1:
-              {.fatal: fieldName & " either had multiple encoding formats or none specified.".}
-            elif (hasPInt or hasSInt) and (fakeField is not SIntegerTypes):
-              {.fatal: "Invalid application of the pint/sint pragma to an unsigned number.".}
-            elif hasPUInt and (fakeField is not UIntegerTypes):
-              {.fatal: "Invalid application of the puint pragma to a signed number.".}
-            elif hasPInt:
-              subtype = some(PIntSubType)
-            elif hasSInt:
-              subtype = some(SIntSubType)
-            elif hasPUInt:
-              subtype = some(UIntSubType)
+        when fieldVar is (WrappedVarIntTypes or WrappedFixedTypes):
+          {.fatal: "Don't specify an encoding for a field via its type; use a pragma.".}
 
-        when fakeField is LengthDelimitedTypes:
-          when fieldVar is Option:
-            when type(setLengthDelimitedField(fieldVar, fieldKey, stream)) is Option:
-              fieldVar = setLengthDelimitedField(fieldVar, fieldKey, stream)
-            else:
-              fieldVar = some(setLengthDelimitedField(fieldVar, fieldKey, stream))
+        var flattened: flatType(fieldVar)
+        when flattened is bool:
+          stream.readVarInt(flattened, UInt(flattened), key)
+        elif flattened is SIntegerTypes:
+          const
+            hasPInt = T.hasCustomPragmaFixed(fieldName, pint)
+            hasSInt = T.hasCustomPragmaFixed(fieldName, sint)
+            hasSFixed = T.hasCustomPragmaFixed(fieldName, sfixed)
+          when uint(hasPInt) + uint(hasSInt) + uint(hasSFixed) != 1:
+            {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
+          elif hasPInt:
+            stream.readVarInt(flattened, PInt(flattened), key)
+          elif hasSInt:
+            stream.readVarInt(flattened, SInt(flattened), key)
+          elif hasSFixed:
+            stream.readFixed(flattened, key)
           else:
-            fieldVar = setLengthDelimitedField(fieldVar, fieldKey, stream)
-        else:
-          when fieldVar is Option:
-            fakeField = setIndividualField[type(fakeField)](fieldKey, stream, subtype)
-            fieldVar = some(fakeField)
-          else:
-            fieldVar = setIndividualField[type(fakeField)](fieldKey, stream, subtype)
+            {.fatal: "Encoding pragma specified yet no enoding matched. This should never happen.".}
 
-        macro mergeField(mergeInto: untyped, toMerge: untyped): untyped =
-          result = newNimNode(nnkAsgn).add(
-            newNimNode(nnkDotExpr).add(
-              mergeInto,
-              ident(fieldName)
-            ),
-            toMerge
-          )
-        when T is Option:
-          if value.isNone():
-            when AT is (object or ref):
-              value = some(AT())
-          var valueCopy = value.get()
+        elif flattened is UIntegerTypes:
+          const
+            hasUInt = T.hasCustomPragmaFixed(fieldName, puint)
+            hasFixed = T.hasCustomPragmaFixed(fieldName, fixed)
+          when uint(hasUInt) + uint(hasFixed) != 1:
+            {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
+          elif hasUInt:
+            stream.readVarInt(flattened, UInt(flattened), key)
+          elif hasFixed:
+            stream.readFixed(flattened, key)
+
+        elif flattened is SFixedTypes:
+          const hasSFixed = T.hasCustomPramgaFixed(fieldName, sfixed)
+          when not hasSFixed:
+            {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
+          stream.readFixed(flattened, key)
+
         else:
-          var valueCopy = value
-        mergeField(valueCopy, fieldVar)
-        when T is Option:
-          value = some(valueCopy)
-        else:
-          value = valueCopy
+          stream.readLengthDelimited(flattened, key)
+
+        box(fieldVar, flattened)
         break
 
-proc readValue*[T](
+proc readValueInternal*[T](
   bytes: seq[byte],
   ty: typedesc[T]
 ): T {.raises: [
@@ -366,30 +251,18 @@ proc readValue*[T](
   ProtobufEOFError,
   ProtobufMessageError
 ].} =
-  when T is not (object or ref):
-    type AT = T
-  else:
-    type AT = getActualType(T())
-
-  when (AT is (PureSIntegerTypes or PureUIntegerTypes)) and (AT is not bool):
-    {.fatal: "Reading into a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
-
   if bytes.len == 0:
-    when T is ref:
-      return T()
-    else:
-      return
+    return
 
-  var
-    stream = memoryInput(bytes)
-    subtype: Option[VarIntSubType]
-  when AT is (PIntWrapped32 or PIntWrapped64):
-    subtype = some(PIntSubType)
-  elif AT is (SIntWrapped32 or SIntWrapped64):
-    subtype = some(SIntSubType)
-  elif AT is (UIntWrapped32 or UIntWrapped64 or bool):
-    subtype = some(UIntSubType)
-
+  var stream = memoryInput(bytes)
   while stream.readable():
-    setFields(result, stream.read(), stream, subtype)
+    result.setField(stream, stream.read())
   stream.close()
+
+template readValue*[B](
+  bytes: seq[byte],
+  ty: typedesc[B]
+): B =
+  var tResult: B
+  box(tResult, bytes.readValueInternal(flatType(B)))
+  tResult

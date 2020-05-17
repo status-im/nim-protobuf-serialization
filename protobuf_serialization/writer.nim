@@ -37,14 +37,14 @@ proc verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
         {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
 
       when fieldVar is (VarIntTypes or SFixedTypes):
-        var
+        const
           hasPInt = ty.hasCustomPragmaFixed(fieldName, pint)
           hasSInt = ty.hasCustomPragmaFixed(fieldName, sint)
           hasUInt = (ty.hasCustomPragmaFixed(fieldName, puint) or (flatType(fieldVar) is bool))
           hasFixed = ty.hasCustomPragmaFixed(fieldName, fixed)
           hasSFixed = ty.hasCustomPragmaFixed(fieldName, sfixed)
-        if uint(hasPInt) + uint(hasSInt) + uint(hasUInt) + uint(hasFixed) + uint(hasSFixed) != 1:
-          raise newException(Defect, "Couldn't write " & fieldName & "; either none or multiple encodings were specified.")
+        when uint(hasPInt) + uint(hasSInt) + uint(hasUInt) + uint(hasFixed) + uint(hasSFixed) != 1:
+          {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
 
     if totalSerializedFields(T) > 32:
       raise newException(Defect, "Object has too many fields; Protobuf has a maximum of 32.")
@@ -203,6 +203,9 @@ proc writeFieldInternal[T](
   sub: bool,
   existingLength: var int
 ) {.raises: [Defect, IOError, ProtobufWriteError].} =
+  if false:
+    raise newException(ProtobufWriteError, "")
+
   let flattenedOption = value.flatMap()
   if flattenedOption.isNone():
     return
@@ -232,6 +235,11 @@ proc writeValueInternal[T](
   sub: bool,
   existingLength: var int
 ) {.raises: [Defect, IOError, ProtobufWriteError].} =
+  if false:
+    raise newException(ProtobufWriteError, "")
+  if false:
+    raise newException(IOError, "")
+
   let flattenedOption = value.flatMap()
   if flattenedOption.isNone():
     return
@@ -246,38 +254,38 @@ proc writeValueInternal[T](
         let flattenedField = flattenedFieldOption.get()
         when flattenedField is VarIntTypes:
           when flattenedField is SIntegerTypes:
-            let
+            const
               hasPInt = flatType(value).hasCustomPragmaFixed(fieldName, pint)
               hasSInt = flatType(value).hasCustomPragmaFixed(fieldName, sint)
               hasSFixed = flatType(value).hasCustomPragmaFixed(fieldName, sfixed)
-            if hasPInt:
+            when hasPInt:
               stream.writeFieldInternal(counter, PInt(flattenedField), sub, existingLength)
             elif hasSInt:
               stream.writeFieldInternal(counter, SInt(flattenedField), sub, existingLength)
             elif hasSFixed:
               stream.writeFieldInternal(counter, SFixed(flattenedField), sub, existingLength)
             else:
-              raise newException(Defect, "Signed pragma attached to non-signed field.")
+              {.fatal: "Signed pragma attached to non-signed field.".}
 
           elif flattenedField is UIntegerTypes:
-            let
+            const
               hasUInt = (flatType(value).hasCustomPragmaFixed(fieldName, puint) or (flattenedField is bool))
               hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
-            if hasUInt:
+            when hasUInt:
               stream.writeFieldInternal(counter, UInt(flattenedField), sub, existingLength)
             elif hasFixed:
               stream.writeFieldInternal(counter, Fixed(flattenedField), sub, existingLength)
             else:
-              raise newException(Defect, "Unsigned pragma attached to non-signed field.")
+              {.fatal: "Unsigned pragma attached to non-signed field.".}
 
-          elif flattenedField is (float32 or float64):
-            let hasSFixed = flatType(value).hasCustomPragmaFixed(fieldName, sfixed)
-            if hasSFixed:
+          elif flattenedField is SFixedTypes:
+            const hasSFixed = flatType(value).hasCustomPragmaFixed(fieldName, sfixed)
+            when hasSFixed:
               stream.writeFieldInternal(counter, SFixed(flattenedField), sub, existingLength)
             else:
-              raise newException(Defect, "Pragma other than SFixed attached to float.")
+              {.fatal: "Pragma other than SFixed attached to float.".}
           else:
-            {.panic: "Attempting to handle unknown number type. This should never happen.".}
+            {.fatal: "Attempting to handle unknown number type. This should never happen.".}
         else:
           stream.writeFieldInternal(counter, flattenedField, sub, existingLength)
   else:
