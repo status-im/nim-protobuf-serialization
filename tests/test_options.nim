@@ -2,7 +2,7 @@ import options
 import unittest
 
 import ../protobuf_serialization
-from ../protobuf_serialization/internal import WrappedVarIntTypes, Fixed32Wrapped, Fixed64Wrapped, unwrap, flatType, flatMap
+from ../protobuf_serialization/internal import VarIntWrapped, FixedWrapped, unwrap, flatType, flatMap
 
 from test_objects import DistinctInt, toProtobuf, fromProtobuf, `==`
 
@@ -28,7 +28,7 @@ template testNone[T](ty: typedesc[T]) =
 template testSome[T](value: T) =
     let output = writeValue(some(value))
     check output == writeValue(flatMap(value))
-    when flatType(T) is (WrappedVarIntTypes or Fixed32Wrapped or Fixed64Wrapped):
+    when flatType(T) is (VarIntWrapped or FixedWrapped):
       check output.readValue(Option[T]).get().unwrap() == some(value).get().unwrap()
     else:
       check output.readValue(Option[T]) == some(value)
@@ -57,18 +57,18 @@ suite "Test Encoding/Decoding of Options":
       testNone(type(T))
       testSome(value)
 
-    fixedTest(SFixed(5'i64))
-    fixedTest(SFixed(-5'i64))
-    fixedTest(SFixed(5'i32))
-    fixedTest(SFixed(-5'i32))
+    fixedTest(Fixed(5'i64))
+    fixedTest(Fixed(-5'i64))
+    fixedTest(Fixed(5'i32))
+    fixedTest(Fixed(-5'i32))
 
     fixedTest(Fixed(5'u64))
     fixedTest(Fixed(5'u32))
 
-    fixedTest(SFixed(5.5'f64))
-    fixedTest(SFixed(-5.5'f64))
-    fixedTest(SFixed(5.5'f32))
-    fixedTest(SFixed(-5.5'f32))
+    fixedTest(Fixed(5.5'f64))
+    fixedTest(Fixed(-5.5'f64))
+    fixedTest(Fixed(5.5'f32))
+    fixedTest(Fixed(-5.5'f32))
 
   test "Option length-delimited":
     testNone(string)

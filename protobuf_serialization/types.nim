@@ -36,7 +36,7 @@ macro generateWrapperConstructors(
   quote do:
     template `name`*(value: untyped): untyped =
       when value is not `supported`:
-        {.fatal: `err` & $type(value).}
+        {.fatal: `err`.}
 
       when value is type:
         when sizeof(value) == 8:
@@ -52,21 +52,47 @@ macro generateWrapperConstructors(
 generateWrapperConstructors(PInt, SIntegerTypes, PIntWrapped32, PIntWrapped64, "PInt should only be used with a signed integer type.")
 generateWrapperConstructors(UInt, UIntegerTypes, UIntWrapped32, UIntWrapped64, "UInt should only be used with an unsigned integer type.")
 generateWrapperConstructors(SInt, SIntegerTypes, SIntWrapped32, SIntWrapped64, "SInt should only be used with a signed integer type.")
-generateWrapperConstructors(Fixed, UIntegerTypes, FixedWrapped32, FixedWrapped64, "Fixed should only be used with an unsigned integer type.")
-generateWrapperConstructors(SFixed, SFixedTypes, SFixedWrapped32, SFixedWrapped64, "SFixed should only be used with a signed integer or float type.")
+
+#Manually generate the Fixed template.
+#This allows us to offer a single template for signed and unsigned fixed values.
+template Fixed*(value: untyped): untyped =
+  when value is not FixedTypes:
+    {.fatal: "Fixed should only be used with a number.".}
+
+  when value is type:
+    when value is UIntegerTypes:
+      when sizeof(value) == 8:
+        FixedWrapped64
+      else:
+        FixedWrapped32
+    else:
+      when sizeof(value) == 8:
+        SFixedWrapped64
+      else:
+        SFixedWrapped32
+  else:
+    when value is UIntegerTypes:
+      when sizeof(value) == 8:
+        FixedWrapped64(value)
+      else:
+        FixedWrapped32(value)
+    else:
+      when sizeof(value) == 8:
+        cast[SFixedWrapped64](value)
+      else:
+        cast[SFixedWrapped32](value)
 
 #Used to specify how to encode/decode fields in an object.
 template pint*() {.pragma.}
 template puint*() {.pragma.}
 template sint*() {.pragma.}
 template fixed*() {.pragma.}
-template sfixed*() {.pragma.}
 
 #We don't cast this back to a ProtobufWireType so it can prepended to a seq[bytes].
 template wireType*(value: untyped): byte =
-  when value is WrappedVarIntTypes:
+  when value is VarIntWrapped:
     byte(VarInt) + (1 shl 3)
-  elif value is FixedTypes:
+  elif value is FixedWrapped:
     when sizeof(value) == 8:
       byte(Fixed64) + (1 shl 3)
     elif sizeof(value) == 4:

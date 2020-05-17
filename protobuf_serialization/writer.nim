@@ -35,15 +35,13 @@ proc verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
     enumInstanceSerializedFields(T(), fieldName, fieldVar):
       when fieldVar is PlatformDependentTypes:
         {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
-
-      when fieldVar is (VarIntTypes or SFixedTypes):
+      elif fieldVar is (VarIntTypes or FixedTypes):
         const
           hasPInt = ty.hasCustomPragmaFixed(fieldName, pint)
           hasSInt = ty.hasCustomPragmaFixed(fieldName, sint)
           hasUInt = (ty.hasCustomPragmaFixed(fieldName, puint) or (flatType(fieldVar) is bool))
           hasFixed = ty.hasCustomPragmaFixed(fieldName, fixed)
-          hasSFixed = ty.hasCustomPragmaFixed(fieldName, sfixed)
-        when uint(hasPInt) + uint(hasSInt) + uint(hasUInt) + uint(hasFixed) + uint(hasSFixed) != 1:
+        when uint(hasPInt) + uint(hasSInt) + uint(hasUInt) + uint(hasFixed) != 1:
           {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
 
     if totalSerializedFields(T) > 32:
@@ -52,7 +50,7 @@ proc verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
 proc writeVarInt(
   stream: OutputStream,
   fieldNum: uint,
-  value: WrappedVarIntTypes
+  value: VarIntWrapped
 ) {.raises: [Defect, IOError].} =
   when sizeof(value) == 8:
     type U = uint64
@@ -103,7 +101,7 @@ proc writeVarInt(
 proc writeFixed(
   stream: OutputStream,
   fieldNum: uint,
-  value: Fixed32Wrapped or Fixed64Wrapped
+  value: FixedWrapped
 ) {.raises: [Defect, IOError].} =
   when sizeof(value) == 8:
     var raw = cast[uint64](value)
@@ -213,9 +211,9 @@ proc writeFieldInternal[T](
 
   when flattened is bool:
     stream.writeVarInt(fieldNum, UInt(flattened))
-  elif flattened is WrappedVarIntTypes:
+  elif flattened is VarIntWrapped:
     stream.writeVarInt(fieldNum, flattened)
-  elif flattened is (Fixed32Wrapped or Fixed64Wrapped):
+  elif flattened is FixedWrapped:
     stream.writeFixed(fieldNum, flattened)
   else:
     writeLengthDelimited(stream, fieldNum, T, flattened, sub, existingLength)
@@ -257,13 +255,13 @@ proc writeValueInternal[T](
             const
               hasPInt = flatType(value).hasCustomPragmaFixed(fieldName, pint)
               hasSInt = flatType(value).hasCustomPragmaFixed(fieldName, sint)
-              hasSFixed = flatType(value).hasCustomPragmaFixed(fieldName, sfixed)
+              hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
             when hasPInt:
               stream.writeFieldInternal(counter, PInt(flattenedField), sub, existingLength)
             elif hasSInt:
               stream.writeFieldInternal(counter, SInt(flattenedField), sub, existingLength)
-            elif hasSFixed:
-              stream.writeFieldInternal(counter, SFixed(flattenedField), sub, existingLength)
+            elif hasFixed:
+              stream.writeFieldInternal(counter, Fixed(flattenedField), sub, existingLength)
             else:
               {.fatal: "Signed pragma attached to non-signed field.".}
 
@@ -278,14 +276,13 @@ proc writeValueInternal[T](
             else:
               {.fatal: "Unsigned pragma attached to non-signed field.".}
 
-          elif flattenedField is SFixedTypes:
-            const hasSFixed = flatType(value).hasCustomPragmaFixed(fieldName, sfixed)
-            when hasSFixed:
-              stream.writeFieldInternal(counter, SFixed(flattenedField), sub, existingLength)
-            else:
-              {.fatal: "Pragma other than SFixed attached to float.".}
+          elif flattenedField is FixedTypes:
+            const hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
+            when not hasFixed:
+              {.fatal: "Pragma other than fixed attached to float.".}
+            stream.writeFieldInternal(counter, Fixed(flattenedField), sub, existingLength)
           else:
-            {.fatal: "Attempting to handle unknown number type. This should never happen.".}
+            {.fatal: "Attempting to handle an unknown number type. This should never happen.".}
         else:
           stream.writeFieldInternal(counter, flattenedField, sub, existingLength)
   else:

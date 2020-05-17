@@ -34,14 +34,14 @@ proc eofSafeRead(stream: InputStream): byte =
 #Ideally, these would be in a table.
 #That said, due to the context specific return type, which goes beyond the wire type, you need generics.
 #As Generic types aren't concrete, they can't be used in a table.
-proc readVarInt[B; E: WrappedVarIntTypes](
+proc readVarInt[B; E: VarIntWrapped](
   stream: InputStream,
   fieldVar: var B,
   encoding: E,
   key: byte
 ) {.raises: [Defect, IOError, ProtobufEOFError, ProtobufMessageError].} =
   type T = flatType(B)
-  when E is not WrappedVarIntTypes:
+  when E is not VarIntWrapped:
     {.fatal: "Tried to read a VarInt without a specified encoding. This should never happen.".}
   when sizeof(T) == 8:
     type
@@ -170,11 +170,11 @@ proc setField[T](
   elif T is not object:
     when T is bool:
       stream.readVarInt(value, UInt(value), key)
-    elif T is WrappedVarIntTypes:
+    elif T is VarIntWrapped:
       stream.readVarInt(value, value, key)
-    elif T is WrappedFixedTypes:
+    elif T is FixedWrapped:
       stream.readFixed(value, key)
-    elif T is (PlatformDependentTypes or VarIntTypes or SFixedTypes):
+    elif T is (PlatformDependentTypes or VarIntTypes or FixedTypes):
       {.fatal: "Reading into a number requires specifying both the amount of bits via the type, as well as the encoding format.".}
     else:
       stream.readLengthDelimited(value, key)
@@ -197,7 +197,7 @@ proc setField[T](
         #Only calculate the encoding VarInt.
         #In every other case, the type is enough.
         #We don't need to track the boolean type as literally every encoding will parse to the same true/false.
-        when fieldVar is (WrappedVarIntTypes or WrappedFixedTypes):
+        when fieldVar is (VarIntWrapped or FixedWrapped):
           {.fatal: "Don't specify an encoding for a field via its type; use a pragma.".}
 
         var flattened: flatType(fieldVar)
@@ -207,14 +207,14 @@ proc setField[T](
           const
             hasPInt = T.hasCustomPragmaFixed(fieldName, pint)
             hasSInt = T.hasCustomPragmaFixed(fieldName, sint)
-            hasSFixed = T.hasCustomPragmaFixed(fieldName, sfixed)
-          when uint(hasPInt) + uint(hasSInt) + uint(hasSFixed) != 1:
+            hasFixed = T.hasCustomPragmaFixed(fieldName, fixed)
+          when uint(hasPInt) + uint(hasSInt) + uint(hasFixed) != 1:
             {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
           elif hasPInt:
             stream.readVarInt(flattened, PInt(flattened), key)
           elif hasSInt:
             stream.readVarInt(flattened, SInt(flattened), key)
-          elif hasSFixed:
+          elif hasFixed:
             stream.readFixed(flattened, key)
           else:
             {.fatal: "Encoding pragma specified yet no enoding matched. This should never happen.".}
@@ -230,9 +230,9 @@ proc setField[T](
           elif hasFixed:
             stream.readFixed(flattened, key)
 
-        elif flattened is SFixedTypes:
-          const hasSFixed = T.hasCustomPramgaFixed(fieldName, sfixed)
-          when not hasSFixed:
+        elif flattened is FixedTypes:
+          const hasFixed = T.hasCustomPramgaFixed(fieldName, fixed)
+          when not hasFixed:
             {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
           stream.readFixed(flattened, key)
 

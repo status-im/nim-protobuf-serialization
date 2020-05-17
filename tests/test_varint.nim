@@ -86,9 +86,9 @@ template getUVarint[T](buffer: seq[byte], length: int, value: var T): VarintStat
 template getVarint(buffer: seq[byte], length: int, value: untyped): VarintStatus =
   when value is SomeUnsignedInt:
     value = type(value)(readValue(VarIntKey & buffer, UInt(type(value))))
-  elif value is SFixed(int64):
+  elif value is Fixed(int64):
     value = readValue(Fixed64Key & buffer, type(value))
-  elif value is SFixed(int32):
+  elif value is Fixed(int32):
     value = readValue(Fixed32Key & buffer, type(value))
   else:
     value = readValue(VarIntKey & buffer, type(value))
@@ -522,9 +522,9 @@ suite "Variable integer test suite":
       value == 0]#
 
   test "getVarint/putVarint tests":
-    proc `==`(a, b: SFixed(int32) or PInt(int32) or SInt(int32)): bool =
+    proc `==`(a, b: Fixed(int32) or PInt(int32) or SInt(int32)): bool =
       int32(a) == int32(b)
-    proc `==`(a, b: SFixed(int64) or PInt(int64) or SInt(int64)): bool =
+    proc `==`(a, b: Fixed(int64) or PInt(int64) or SInt(int64)): bool =
       int64(a) == int64(b)
 
     template pbTest(vtype, value, expect: untyped) =
@@ -544,10 +544,10 @@ suite "Variable integer test suite":
     pbTest(SInt(int32), zint32(high(int32)), "FEFFFFFF0F")
     pbTest(SInt(int64), zint64(low(int64)), "FFFFFFFFFFFFFFFFFF01")
     pbTest(SInt(int32), zint32(low(int32)), "FFFFFFFF0F")
-    #[pbTest(SFixed(int64), hint64(high(int64)), "FFFFFFFFFFFFFFFF7F")
-    pbTest(SFixed(int32), hint32(high(int32)), "FFFFFFFF07")
-    pbTest(SFixed(int64), hint64(low(int64)), "80808080808080808001")
-    pbTest(SFixed(int32), hint32(low(int32)), "8080808008")
+    #[pbTest(Fixed(int64), hint64(high(int64)), "FFFFFFFFFFFFFFFF7F")
+    pbTest(Fixed(int32), hint32(high(int32)), "FFFFFFFF07")
+    pbTest(Fixed(int64), hint64(low(int64)), "80808080808080808001")
+    pbTest(Fixed(int32), hint32(low(int32)), "8080808008")
     varintTest(LP, uint64, uint64(high(int64)), "FFFFFFFFFFFFFFFF7F")
     varintTest(LP, uint32, uint32(high(uint32)), "FFFFFFFF0F")
     varintTest(LP, uint16, uint16(high(uint16)), "FFFF03")

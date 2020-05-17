@@ -21,14 +21,15 @@ type
   SIntWrapped64* = distinct int64
   FixedWrapped32* = distinct uint32
   FixedWrapped64* = distinct uint64
-  SFixedWrapped32* = distinct uint32
-  SFixedWrapped64* = distinct uint64
+  SFixedWrapped32* = distinct int32
+  SFixedWrapped64* = distinct int64
 
   PIntWrapped* = PIntWrapped32 or PIntWrapped64
   UIntWrapped* = UIntWrapped32 or UIntWrapped64
   SIntWrapped* = SIntWrapped32 or SIntWrapped64
-  Fixed32Wrapped* = FixedWrapped32 or SFixedWrapped32
-  Fixed64Wrapped* = FixedWrapped64 or SFixedWrapped64
+  VarIntWrapped* = PIntWrapped or UIntWrapped or SIntWrapped
+  FixedWrapped* = FixedWrapped32 or FixedWrapped64 or
+                  SFixedWrapped32 or SFixedWrapped64
 
   #Number types which are platform-dependent and therefore unsafe.
   PlatformDependentTypes* = int or uint or float
@@ -48,18 +49,12 @@ type
                    FixedWrapped32 or FixedWrapped64 or
                    PureUIntegerTypes
 
-  #Every wrapped type that can be used with the VarInt wire type.
-  WrappedVarIntTypes* = PIntWrapped32 or PIntWrapped64 or
-                        UIntWrapped32 or UIntWrapped64 or
-                        SIntWrapped32 or SIntWrapped64
   #Every type valid for the VarInt wire type.
   VarIntTypes* = SIntegerTypes or UIntegerTypes
-
-  #Fixed types.
-  WrappedFixedTypes* = FixedWrapped32 or FixedWrapped64 or
-                       SFixedWrapped32 or SFixedWrapped64
-  FixedTypes* = SFixedTypes or PureUIntegerTypes
-  SFixedTypes* = PureSIntegerTypes or float32 or float64
+  #Every type valid for the Fixed (32 or 64) wire type.
+  FixedTypes* = FixedWrapped or
+                PureUIntegerTypes or PureSIntegerTypes or
+                float32 or float64
 
   #Castable length delimited types.
   #These can be directly casted from a seq[byte] and do not require a custom converter.
@@ -103,8 +98,8 @@ proc getTypeChain(impure: NimNode): seq[NimNode] {.compileTime.} =
 macro isPotentiallyNull*(impure: typed): bool =
   for ty in getTypeChain(impure):
     if (ty.kind == nnkRefTy) or (ty.kind == nnkBracketExpr):
-      return quote do: true
-  return quote do: false
+      return newLit(true)
+  result = newLit(false)
 
 macro flatType*(impure: typed): untyped =
   getTypeChain(impure)[^1]
