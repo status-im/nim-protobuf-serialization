@@ -223,19 +223,11 @@ proc writeValueInternal[T](
       if flattenedFieldOption.isSome():
         let flattenedField = flattenedFieldOption.get()
         when flattenedField is VarIntTypes:
-          let
-            hasPInt = flatType(value).hasCustomPragmaFixed(fieldName, pint)
-            hasSInt = flatType(value).hasCustomPragmaFixed(fieldName, sint)
-            hasUInt = (flatType(value).hasCustomPragmaFixed(fieldName, puint) or (flattenedField is bool))
-            hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
-            hasSFixed = flatType(value).hasCustomPragmaFixed(fieldName, sfixed)
-          discard hasPInt
-          discard hasSInt
-          discard hasUInt
-          discard hasFixed
-          discard hasSFixed
-
           when flattenedField is SIntegerTypes:
+            let
+              hasPInt = flatType(value).hasCustomPragmaFixed(fieldName, pint)
+              hasSInt = flatType(value).hasCustomPragmaFixed(fieldName, sint)
+              hasSFixed = flatType(value).hasCustomPragmaFixed(fieldName, sfixed)
             if hasPInt:
               stream.writeFieldInternal(counter, PInt(flattenedField))
             elif hasSInt:
@@ -244,14 +236,20 @@ proc writeValueInternal[T](
               stream.writeFieldInternal(counter, SFixed(flattenedField))
             else:
               raise newException(Defect, "Signed pragma attached to non-signed field.")
+
           elif flattenedField is UIntegerTypes:
+            let
+              hasUInt = (flatType(value).hasCustomPragmaFixed(fieldName, puint) or (flattenedField is bool))
+              hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
             if hasUInt:
               stream.writeFieldInternal(counter, UInt(flattenedField))
             elif hasFixed:
               stream.writeFieldInternal(counter, Fixed(flattenedField))
             else:
               raise newException(Defect, "Unsigned pragma attached to non-signed field.")
+
           elif flattenedField is (float32 or float64):
+            let hasSFixed = flatType(value).hasCustomPragmaFixed(fieldName, sfixed)
             if hasSFixed:
               stream.writeFieldInternal(counter, SFixed(flattenedField))
             else:
