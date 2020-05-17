@@ -18,8 +18,13 @@ func newProtobufWriter*(): ProtobufWriter {.inline, raises: [].} =
     stream: memoryOutput()
   )
 
-func buffer*(writer: ProtobufWriter): seq[byte] {.raises: [].} =
-  writer.stream.getOutput()
+#This was originally called buffer, and retuned just the output.
+#That said, getting the output purges the stream, and doesn't close it.
+#Now it's called finish, as there's no reason to keep the stream open at that point.
+#A singly function reduces API complexity/expectations on the user.
+proc finish*(writer: ProtobufWriter): seq[byte] {.raises: [Defect, IOError].} =
+  result = writer.stream.getOutput()
+  writer.stream.close()
 
 macro generateWrapperConstructors(
   name: untyped,

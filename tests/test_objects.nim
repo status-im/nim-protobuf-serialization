@@ -114,7 +114,7 @@ suite "Test Object Encoding/Decoding":
     writer.writeField(4, obj.g)
     writer.writeField(6, obj.i)
 
-    let result = writer.buffer().readValue(Wrapped)
+    let result = writer.finish().readValue(Wrapped)
     check result.d == obj.d
     check result.f == obj.f
     check result.g == obj.g
@@ -141,7 +141,7 @@ suite "Test Object Encoding/Decoding":
     writer.writeField(5, obj.h)
     writer.writeField(4, obj.g)
 
-    check writer.buffer().readValue(Wrapped) == obj
+    check writer.finish().readValue(Wrapped) == obj
 
   test "Doesn't write too-big nested objects":
     expect ProtobufWriteError:
@@ -201,4 +201,4 @@ suite "Test Object Encoding/Decoding":
     writer.writeField(2, obj.b)
 
     expect ProtobufMessageError:
-      discard writer.buffer().readValue(Wrapped)
+      discard writer.finish().readValue(Wrapped)

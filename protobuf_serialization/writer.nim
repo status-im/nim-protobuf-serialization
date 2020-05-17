@@ -267,5 +267,4 @@ proc writeValue*[T](
   static: verifyWritable(type(flatType(T)))
   var writer = newProtobufWriter()
   writer.stream.writeValueInternal(value)
-  result = writer.buffer()
-  writer.stream.close()
+  result = writer.finish()
