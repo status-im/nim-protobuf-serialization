@@ -79,7 +79,7 @@ proc readVarInt[B; E: WrappedVarIntTypes](
       #Said lowest value will be negative, multiplied by -1, and wrap again.
       #This behavior requires boundChecks to be turned off in order to not raise though.
       {.push boundChecks: off.}
-      preResult = T(-S(value))
+      preResult = T(-S(value + 1))
       {.pop.}
     #Not zig-zagged, yet positive.
     else:

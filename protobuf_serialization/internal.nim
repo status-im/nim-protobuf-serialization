@@ -25,7 +25,7 @@ type
   SFixedWrapped64* = distinct uint64
 
   PIntWrapped* = PIntWrapped32 or PIntWrapped64
-  UIntWrapped* = PIntWrapped32 or PIntWrapped64
+  UIntWrapped* = UIntWrapped32 or UIntWrapped64
   SIntWrapped* = SIntWrapped32 or SIntWrapped64
   Fixed32Wrapped* = FixedWrapped32 or SFixedWrapped32
   Fixed64Wrapped* = FixedWrapped64 or SFixedWrapped64
