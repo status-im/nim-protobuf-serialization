@@ -159,13 +159,13 @@ proc writeLengthDelimited[T](
   elif rootType.isPotentiallyNull():
     var substream = memoryOutput()
     writeValueInternal(substream, flatValue)
-    bytes = stream.getOutput()
+    bytes = substream.getOutput()
 
   #Object which should only be encoded if it has data.
   elif flatValue is object:
     var substream = memoryOutput()
     writeValueInternal(substream, flatValue)
-    bytes = stream.getOutput()
+    bytes = substream.getOutput()
     if bytes.len == 0:
       return
 
