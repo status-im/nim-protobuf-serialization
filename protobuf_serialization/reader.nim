@@ -251,18 +251,14 @@ proc readValueInternal*[T](
   ProtobufEOFError,
   ProtobufMessageError
 ].} =
-  if bytes.len == 0:
-    return
-
   var stream = memoryInput(bytes)
   while stream.readable():
     result.setField(stream, stream.read())
   stream.close()
 
-template readValue*[B](
+proc readValue*[B](
   bytes: seq[byte],
   ty: typedesc[B]
 ): B =
-  var tResult: B
-  box(tResult, bytes.readValueInternal(flatType(B)))
-  tResult
+  if bytes.len != 0:
+    box(result, bytes.readValueInternal(flatType(B)))
