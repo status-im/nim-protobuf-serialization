@@ -3,7 +3,7 @@
 import options
 
 import stew/shims/macros
-import faststreams/input_stream
+import faststreams/inputs
 import serialization
 
 import internal
@@ -52,7 +52,7 @@ macro getActualType(option: typed): untyped =
 #That said, due to the context specific return type, which goes beyond the wire type, you need generics.
 #As Generic types aren't concrete, they can't be used in a table.
 proc readVarInt[T](
-  stream: InputStreamHandle,
+  stream: InputStream,
   subtype: VarIntSubType
 ): T {.raises: [Defect, IOError, ProtobufEOFError].} =
   when sizeof(result) == 8:
@@ -69,12 +69,10 @@ proc readVarInt[T](
     offset = 0'i8
     next = VAR_INT_CONTINUATION_MASK
   while (next and VAR_INT_CONTINUATION_MASK) != 0:
-    let option = stream.s.next()
-
-    if option.isNone():
+    if not stream.readable():
       raise newException(ProtobufEOFError, "Couldn't read a VarInt from this stream.")
 
-    next = option.get()
+    next = stream.read()
     value += (next and U(VAR_INT_VALUE_MASK)) shl offset
     offset += 7
 
@@ -98,44 +96,39 @@ proc readVarInt[T](
     result = T(value)
 
 proc readFixed64[T](
-  stream: InputStreamHandle
+  stream: InputStream
 ): T {.raises: [Defect, IOError, ProtobufEOFError].} =
   type U = uint64
-  var
-    value = U(0)
-    next: Option[byte]
+  var value = U(0)
   for offset in countup(0, 56, 8):
-    next = stream.s.next()
-    if next.isNone():
+    if not stream.readable():
       raise newException(ProtobufEOFError, "Couldn't read a fixed 64-bit number from this stream.")
-    value += U(next.get()) shl U(offset)
+    value += U(stream.read()) shl U(offset)
   result = cast[T](value)
 
 proc readFixed32[T](
-  stream: InputStreamHandle
+  stream: InputStream
 ): T {.raises: [Defect, IOError, ProtobufEOFError].} =
   type U = uint64
   var
     value = U(0)
-    next: Option[byte]
   for offset in countup(0, 24, 8):
-    next = stream.s.next()
-    if next.isNone():
+    if not stream.readable():
       raise newException(ProtobufEOFError, "Couldn't read a fixed 32-bit number from this stream.")
-    value += U(next.get()) shl U(offset)
+    value += U(stream.read()) shl U(offset)
   result = cast[T](value)
 
 proc readLengthDelimited(
-  stream: InputStreamHandle
+  stream: InputStream
 ): seq[byte] {.raises: [Defect, IOError, ProtobufEOFError].} =
-  if not stream.s.readable():
+  if not stream.readable():
     raise newException(ProtobufEOFError, "Couldn't read a length delimited sequence from this stream.")
 
-  result = newSeq[byte](stream.s.next().get())
+  result = newSeq[byte](stream.read())
   for b in 0 ..< result.len:
-    if not stream.s.readable():
+    if not stream.readable():
       raise newException(ProtobufEOFError, "Couldn't read a length delimited sequence from this stream.")
-    result[b] = stream.s.next().get()
+    result[b] = stream.read()
 
 #readValue requires this function which requires readValue.
 #It should be noted this is recursive, and therefore can theoretically risk a stack overflow.
@@ -153,7 +146,7 @@ proc readValue*[T](
 proc setLengthDelimitedField[S](
   sourceValue: S,
   fieldKey: byte,
-  stream: InputStreamHandle
+  stream: InputStream
 ): S {.raises: [
   Defect,
   IOError,
@@ -184,7 +177,7 @@ proc setLengthDelimitedField[S](
 
 proc setIndividualField[T](
   fieldKey: byte,
-  stream: InputStreamHandle,
+  stream: InputStream,
   subtype: Option[VarIntSubType]
 ): T =
   when T is (object or ref):
@@ -211,7 +204,7 @@ proc setIndividualField[T](
 proc setFields[T](
   value: var T,
   fieldKey: byte,
-  stream: InputStreamHandle,
+  stream: InputStream,
   subtypeArg: Option[VarIntSubType]
 ) {.raises: [
   Defect,
@@ -381,9 +374,14 @@ proc readValue*[T](
   when (AT is (PureSIntegerTypes or PureUIntegerTypes)) and (AT is not bool):
     {.fatal: "Reading into a number requires specifying the encoding via a SInt/PIntUInt/Fixed/SFixed wrapping call.".}
 
+  if bytes.len == 0:
+    when T is ref:
+      return T()
+    else:
+      return
+
   var
     stream = memoryInput(bytes)
-    next = stream.s.next()
     subtype: Option[VarIntSubType]
   when AT is (PIntWrapped32 or PIntWrapped64):
     subtype = some(PIntSubType)
@@ -392,7 +390,6 @@ proc readValue*[T](
   elif AT is (UIntWrapped32 or UIntWrapped64 or bool):
     subtype = some(UIntSubType)
 
-  while next.isSome():
-    setFields(result, next.get(), stream, subtype)
-    next = stream.s.next()
-  stream.s.close()
+  while stream.readable():
+    setFields(result, stream.read(), stream, subtype)
+  stream.close()

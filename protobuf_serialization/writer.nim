@@ -3,7 +3,7 @@
 import options
 
 import stew/shims/macros
-import faststreams/output_stream
+import faststreams/outputs
 import serialization
 
 import internal
@@ -50,7 +50,7 @@ proc verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
       raise newException(Defect, "Object has too many fields; Protobuf has a maximum of 32.")
 
 proc writeVarInt(
-  stream: OutputStreamHandle,
+  stream: OutputStream,
   fieldNum: uint,
   value: WrappedVarIntTypes
 ) {.raises: [Defect, IOError].} =
@@ -65,7 +65,7 @@ proc writeVarInt(
   if cast[U](value) == 0:
     return
 
-  stream.s.cursor.append(key(fieldNum, VarInt))
+  stream.write(key(fieldNum, VarInt))
 
   var
     #Get the unsigned value which is what will be encoded.
@@ -84,24 +84,24 @@ proc writeVarInt(
   #Write the VarInt.
   while raw > type(raw)(VAR_INT_VALUE_MASK):
     #We could convert raw to a byte, but that'll trigger a bounds check.
-    stream.s.cursor.append(byte(raw and U(VAR_INT_VALUE_MASK)) or VAR_INT_CONTINUATION_MASK)
+    stream.write(byte(raw and U(VAR_INT_VALUE_MASK)) or VAR_INT_CONTINUATION_MASK)
     raw = raw shr 7
     inc(bytesWritten)
 
   #If this was a positive number, or zig-zagged, we only need to write this last byte.
   if (value.unwrap() >= 0) or (value is SIntWrapped):
-    stream.s.cursor.append(byte(raw))
+    stream.write(byte(raw))
   #We need to write blank bytes until the length is 10.
   else:
-    stream.s.cursor.append(byte(raw) or VAR_INT_CONTINUATION_MASK)
+    stream.write(byte(raw) or VAR_INT_CONTINUATION_MASK)
     inc(bytesWritten)
     while bytesWritten < 9:
-      stream.s.cursor.append(VAR_INT_CONTINUATION_MASK)
+      stream.write(VAR_INT_CONTINUATION_MASK)
       inc(bytesWritten)
-    stream.s.cursor.append(byte(0))
+    stream.write(byte(0))
 
 proc writeFixed(
-  stream: OutputStreamHandle,
+  stream: OutputStream,
   fieldNum: uint,
   value: Fixed32Wrapped or Fixed64Wrapped
 ) {.raises: [Defect, IOError].} =
@@ -111,7 +111,7 @@ proc writeFixed(
     var raw = cast[uint32](value)
   if raw == 0:
     return
-  stream.s.cursor.append(key(
+  stream.write(key(
     fieldNum,
     when sizeof(value) == 8:
       Fixed64
@@ -119,16 +119,16 @@ proc writeFixed(
       Fixed32
   ))
   for _ in 0 ..< sizeof(value):
-    stream.s.cursor.append(byte(raw and LAST_BYTE))
+    stream.write(byte(raw and LAST_BYTE))
     raw = raw shr 8
 
 proc writeValueInternal[T](
-  stream: OutputStreamHandle,
+  stream: OutputStream,
   value: T
 ) {.raises: [Defect, IOError, ProtobufWriteError].}
 
 proc writeLengthDelimited[T](
-  stream: OutputStreamHandle,
+  stream: OutputStream,
   fieldNum: uint,
   rootType: typedesc[T],
   flatValue: LengthDelimitedTypes
@@ -159,13 +159,13 @@ proc writeLengthDelimited[T](
   elif rootType.isPotentiallyNull():
     var substream = memoryOutput()
     writeValueInternal(substream, flatValue)
-    bytes = stream.s.getOutput()
+    bytes = stream.getOutput()
 
   #Object which should only be encoded if it has data.
   elif flatValue is object:
     var substream = memoryOutput()
     writeValueInternal(substream, flatValue)
-    bytes = stream.s.getOutput()
+    bytes = stream.getOutput()
     if bytes.len == 0:
       return
 
@@ -175,13 +175,12 @@ proc writeLengthDelimited[T](
     if bytes.len == 0:
       return
 
-  stream.s.cursor.append(key(fieldNum, LengthDelimited))
-  stream.s.cursor.append(byte(bytes.len))
-  for b in bytes:
-    stream.s.cursor.append(b)
+  stream.write(key(fieldNum, LengthDelimited))
+  stream.write(byte(bytes.len))
+  stream.write(bytes)
 
 proc writeFieldInternal[T](
-  stream: OutputStreamHandle,
+  stream: OutputStream,
   fieldNum: uint,
   value: T
 ) {.raises: [Defect, IOError, ProtobufWriteError].} =
@@ -208,7 +207,7 @@ proc writeField*[T](
   writer.stream.writeFieldInternal(fieldNum, value)
 
 proc writeValueInternal[T](
-  stream: OutputStreamHandle,
+  stream: OutputStream,
   value: T
 ) {.raises: [Defect, IOError, ProtobufWriteError].} =
   let flattenedOption = value.flatMap()
@@ -271,3 +270,4 @@ proc writeValue*[T](
   var writer = newProtobufWriter()
   writer.stream.writeValueInternal(value)
   result = writer.buffer()
+  writer.stream.close()

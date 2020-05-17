@@ -11,15 +11,15 @@ type
   ProtobufError* = object of SerializationError
 
   ProtobufWriter* = object
-    stream*: OutputStreamHandle
+    stream*: OutputStream
 
 func newProtobufWriter*(): ProtobufWriter {.inline, raises: [].} =
   ProtobufWriter(
     stream: memoryOutput()
   )
 
-func buffer*(writer: ProtobufWriter): seq[byte] {.inline, raises: [].} =
-  writer.stream.s.getOutput()
+func buffer*(writer: ProtobufWriter): seq[byte] {.raises: [].} =
+  writer.stream.getOutput()
 
 macro generateWrapperConstructors(
   name: untyped,
