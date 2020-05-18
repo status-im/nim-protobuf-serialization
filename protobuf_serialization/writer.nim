@@ -120,6 +120,9 @@ proc writeFixed(
     stream.write(byte(raw and LAST_BYTE))
     raw = raw shr 8
 
+#stdlib types toProtobuf's. inlined as it needs access to the writeValue function.
+include stdlib_writers
+
 proc writeValueInternal[T](
   stream: OutputStream,
   value: T,
@@ -135,12 +138,13 @@ proc writeLengthDelimited[T](
   sub: bool,
   existingLength: var int
 ) {.raises: [Defect, IOError, ProtobufWriteError].} =
-  var bytes: seq[byte]
-
   if existingLength > 255:
     raise newException(ProtobufWriteError, "Buffer length exceeded 255 when writing a new nested object.")
   if sub:
     existingLength += 2
+
+  type flatValueType = flatType(flatValue)
+  var bytes: seq[byte]
 
   #String/byte seqs.
   when flatValue is CastableLengthDelimitedTypes:
@@ -149,19 +153,10 @@ proc writeLengthDelimited[T](
       return
     bytes = cast[seq[byte]](flatValue)
 
-  #[
-  Why do generic types get their own section?
-  For the standard lib.
-  The standard lib objects are almost always generic.
-
-  By forcing toProtobuf to be called on them, and shipping toProtobufs for stdlib objects,
-  we can cleanly add support for stdlib types
-  without messy code or worries a new type will break another.
-  ]#
-  #elif rootType.isGeneric():
-  #  bytes = flatValue.toProtobuf()
-  #  if bytes.len == 0:
-  #    return
+  elif flatValueType.isStdlib():
+    bytes = flatValue.stdlibToProtobuf()
+    if bytes.len == 0:
+      return
 
   #Nested object which even if the sub-value is empty, should be encoded as long as it exists.
   elif rootType.isPotentiallyNull():

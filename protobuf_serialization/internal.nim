@@ -1,6 +1,7 @@
 #Variables needed by the Reader and Writer which should NOT be exported outside of this library.
 
 import options
+import sets
 import macros
 
 const
@@ -152,12 +153,22 @@ macro box*(variable: typed, value: typed): untyped =
   quote do:
     `variable` = `wrap`
 
+macro isStdlib*(ty: untyped): untyped =
+  var underlying = ty.getTypeImpl()[1].getTypeImpl()
+  if underlying.kind != nnkBracketExpr:
+    return newLit(false)
+  result = newLit(underlying[0].strVal in [
+    "seq"
+  ].toHashSet())
+
 #[
 This function exists because the optimal writer/reader calls toProtobuf/fromProtobuf whenever it's defined.
 This file successfully returns a boolean of if the overload is defined.
 That said, unfortunately, while the overload can be called from writer, it can't be passed.
 I haven't found a way around this scoping issue, which is why all generics require a to/from Protobuf.
 Hopefully, a workaround can be implemented which enables this macro to be used.
+
+Concepts would also theoretically work, yet I couldn't get those working either.
 
 macro has*(typeToCheckArg: untyped, overloadsArg: typed): untyped =
   var typeToCheck = getTypeImpl(typeToCheckArg)[1]

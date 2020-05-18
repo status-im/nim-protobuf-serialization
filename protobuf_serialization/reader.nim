@@ -108,6 +108,8 @@ proc readFixed[B](
     value += U(stream.eofSafeRead()) shl U(offset)
   box(fieldVar, cast[T](value))
 
+include stdlib_readers
+
 #readValue requires readLengthDelimited function which requires readValue.
 #This would risk infinite recursion, except nested sub-buffers have a limit of 255 bytes.
 #Every sub-sub-buffer contributes to the length of the original buffer.
@@ -134,16 +136,19 @@ proc readLengthDelimited[B](
   if key.wireType != byte(LengthDelimited):
     raise newException(ProtobufMessageError, "Invalid wire type for a length delimited sequence/object.")
 
+  type flatValueType = flatType(B)
   var
     bytes = newSeq[byte](stream.eofSafeRead())
-    preResult: flatType(B)
+    preResult: flatValueType
   for b in 0 ..< bytes.len:
     bytes[b] = stream.eofSafeRead()
 
   when preResult is not LengthDelimitedTypes:
     {.fatal: "Tried to read a Length Delimited value which we didn't recognize. This should never happen.".}
-  elif preResult is CastableLengthDelimitedTypes:
+  elif type(preResult) is CastableLengthDelimitedTypes:
     preResult = cast[type(preResult)](bytes)
+  elif flatValueType.isStdlib():
+    bytes.stdlibFromProtobuf(preResult)
   elif preResult is object:
     preResult = bytes.readValueInternal(type(preResult))
   else:

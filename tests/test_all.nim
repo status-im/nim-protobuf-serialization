@@ -10,6 +10,7 @@ import
   test_objects,
   test_empty,
   test_options,
+  test_stdlib,
   test_different_types,
   test_thirty_three_fields_dont_serialize
 
