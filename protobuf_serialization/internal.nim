@@ -158,7 +158,8 @@ macro isStdlib*(ty: untyped): untyped =
   if underlying.kind != nnkBracketExpr:
     return newLit(false)
   result = newLit(underlying[0].strVal in [
-    "seq"
+    "seq",
+    "array"
   ].toHashSet())
 
 #[
