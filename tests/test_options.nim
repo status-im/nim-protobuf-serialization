@@ -14,7 +14,7 @@ type
     y {.sint.}: Option[int32]
 
   Nested = ref object
-    #child: Option[Nested]
+    child: Option[Nested]
     z: Option[Wrapped]
 
 proc `==`*(lhs: Nested, rhs: Nested): bool =
@@ -82,37 +82,53 @@ suite "Test Encoding/Decoding of Options":
     testNone(Wrapped)
 
     testSome(Basic(x: 5'i32))
-
-    #The following test isn't possible.
-    #y won't be encoded because it's none.
-    #Since it's not encoded, nothing in the object will be.
-    #This means the object itself won't be.
-    #var noneWrapped = Wrapped(y: none(int32))
-    #testSome(noneWrapped)
-
-    var someWrapped = Wrapped(y: some(5'i32))
-    testSome(someWrapped)
+    #Not possible thanks to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/16.
+    #testSome(Wrapped(y: none(int32)))
+    testSome(Wrapped(y: some(5'i32)))
 
   test "Option ref":
-    testNone(Nested)
+    #This is in a block, manually expanded, with a pointless initial value.
+    #Why?
+    #https://github.com/nim-lang/Nim/issues/14387
+    block one4387:
+      var option = some(Nested())
+      option = none(Nested)
+
+      let output = writeValue(option)
+      check output.len == 0
+      check output.readValue(Option[Nested]).isNone()
+
+    #Also not possible thanks to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/16.
+    #[testSome(Nested(
+      child: none(Nested),
+      z: none(Wrapped)
+    ))
 
     testSome(Nested(
-      #child: none(Nested),
+      child: some(Nested(
+        child: none(Nested),
+        z: none(Wrapped)
+      )),
+      z: none(Wrapped)
+    ))]#
+
+    testSome(Nested(
+      child: none(Nested),
       z: some(Wrapped(y: some(5'i32)))
     ))
 
     testSome(Nested(
-      #child: some(Nested(
-        #child: none(Nested),
-      #  z: some(Wrapped(y: some(5'i32)))
-      #)),
+      child: some(Nested(
+        child: none(Nested),
+        z: some(Wrapped(y: some(5'i32)))
+      )),
       z: some(Wrapped(y: some(5'i32)))
     ))
 
     testSome(Nested(
-      #child: some(Nested(
-      #  z: some(Wrapped(y: some(5'i32)))
-      #)),
+      child: some(Nested(
+        z: some(Wrapped(y: some(5'i32)))
+      )),
       z: some(Wrapped(y: some(5'i32)))
     ))
 
