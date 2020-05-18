@@ -152,6 +152,26 @@ macro box*(variable: typed, value: typed): untyped =
   quote do:
     `variable` = `wrap`
 
+#[
+This function exists because the optimal writer/reader calls toProtobuf/fromProtobuf whenever it's defined.
+This file successfully returns a boolean of if the overload is defined.
+That said, unfortunately, while the overload can be called from writer, it can't be passed.
+I haven't found a way around this scoping issue, which is why all generics require a to/from Protobuf.
+Hopefully, a workaround can be implemented which enables this macro to be used.
+
+macro has*(typeToCheckArg: untyped, overloadsArg: typed): untyped =
+  var typeToCheck = getTypeImpl(typeToCheckArg)[1]
+  var overloads = overloadsArg
+  if overloads.len == 0:
+    overloads = newNimNode(nnkClosedSymChoice).add(overloads)
+  for overloadSym in overloads:
+    var overload = getImpl(overloadSym)
+    for argument in 1 ..< overload[3].len:
+      if typeToCheck == overload[3][argument][1]:
+        return newLit(true)
+  result = newLit(false)
+]#
+
 template unwrap*[T](value: T): untyped =
   when T is (PIntWrapped32 or SIntWrapped32 or SFixedWrapped32):
     int32(value)
