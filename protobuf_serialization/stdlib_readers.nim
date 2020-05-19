@@ -1,5 +1,7 @@
 #Included by reader.
 
+import sets
+
 proc readValue*[B](
   bytes: seq[byte],
   ty: typedesc[B]
@@ -48,6 +50,15 @@ proc stdlibFromProtobuf*[C, T](
 proc stdlibFromProtobuf*[T](
   bytes: seq[byte],
   setInstance: var set[T]
+) =
+  var seqInstance: seq[T]
+  bytes.stdlibFromProtobuf(seqInstance)
+  for value in seqInstance:
+    setInstance.incl(value)
+
+proc stdlibFromProtobuf*[T](
+  bytes: seq[byte],
+  setInstance: var HashSet[T]
 ) =
   var seqInstance: seq[T]
   bytes.stdlibFromProtobuf(seqInstance)

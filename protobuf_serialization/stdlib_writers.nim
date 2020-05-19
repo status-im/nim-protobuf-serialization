@@ -1,5 +1,8 @@
 #Included by writer.
 
+import sets
+import sequtils
+
 proc writeValue*[T](
   value: T
 ): seq[byte]
@@ -25,3 +28,8 @@ proc stdlibToProtobuf*[T](
   for value in setInstance:
     seqInstance.add(value)
   result = seqInstance.stdLibToProtobuf()
+
+proc stdlibToProtobuf*[T](
+  setInstance: HashSet[T]
+): seq[byte] {.inline.} =
+  setInstance.toSeq().stdLibToProtobuf()

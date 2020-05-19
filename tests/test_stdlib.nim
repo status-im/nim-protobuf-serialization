@@ -1,3 +1,4 @@
+import sets
 import unittest
 
 import ../protobuf_serialization
@@ -6,7 +7,7 @@ from ../protobuf_serialization/internal import unwrap
 suite "Test Standard Lib Objects Encoding/Decoding":
   test "Can encode/decode cstrings":
     let str: cstring = "Testing string."
-    check(str.writeValue().readValue(cstring) == str)
+    check str.writeValue().readValue(cstring) == str
 
   test "Can encode/decode seqs":
     let
@@ -32,3 +33,7 @@ suite "Test Standard Lib Objects Encoding/Decoding":
     check trueSet.writeValue().readValue(set[bool]) == trueSet
     check falseSet.writeValue().readValue(set[bool]) == falseSet
     check trueFalseSet.writeValue().readValue(set[bool]) == trueFalseSet
+
+  test "Can encode/decode HashSets":
+    let setInstance = ["abc", "def", "ghi"].toHashSet()
+    check setInstance.writeValue().readValue(HashSet[string]) == setInstance

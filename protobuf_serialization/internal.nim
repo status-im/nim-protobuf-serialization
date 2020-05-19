@@ -154,7 +154,16 @@ macro box*(variable: typed, value: typed): untyped =
     `variable` = `wrap`
 
 macro isStdlib*(ty: untyped): untyped =
-  var underlying = ty.getTypeImpl()[1].getTypeImpl()
+  var underlying = ty.getTypeImpl()[1]
+  if underlying.kind == nnkBracketExpr:
+    discard
+  elif underlying.kind == nnkSym:
+    if (underlying.getTypeImpl().kind == nnkSym) or (underlying.getTypeImpl().kind == nnkBracketExpr):
+      underlying = underlying.getTypeImpl()
+  elif underlying.kind == nnkDistinctTy:
+    underlying = underlying.getTypeImpl()[0]
+  else:
+    underlying = underlying.getTypeImpl()
   if underlying.kind != nnkBracketExpr:
     return newLit(underlying.strVal in [
       "cstring"
@@ -164,6 +173,7 @@ macro isStdlib*(ty: untyped): untyped =
     "seq",
     "array",
     "set",
+    "HashSet"
   ].toHashSet())
 
 #[

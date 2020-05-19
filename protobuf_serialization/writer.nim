@@ -145,7 +145,6 @@ proc writeLengthDelimited[T](
   if sub:
     existingLength += 2
 
-  type flatValueType = flatType(flatValue)
   var bytes: seq[byte]
 
   #String/byte seqs.
@@ -155,7 +154,8 @@ proc writeLengthDelimited[T](
       return
     bytes = cast[seq[byte]](flatValue)
 
-  elif flatValueType.isStdlib():
+  #Standard lib types which use custom converters, instead of encoding the literal Nim representation.
+  elif flatType(flatValue).isStdlib():
     bytes = flatValue.stdlibToProtobuf()
     if bytes.len == 0:
       return
@@ -240,7 +240,9 @@ proc writeValueInternal[T](
     return
   let flattened = flattenedOption.get()
 
-  when flattened is object:
+  when flatType(value).isStdlib():
+    stream.writeFieldInternal(1'u, flattened, sub, existingLength)
+  elif flattened is object:
     var counter = 0'u
     enumInstanceSerializedFields(flattened, fieldName, fieldVal):
       inc(counter)

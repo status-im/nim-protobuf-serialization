@@ -136,10 +136,9 @@ proc readLengthDelimited[B](
   if key.wireType != byte(LengthDelimited):
     raise newException(ProtobufMessageError, "Invalid wire type for a length delimited sequence/object.")
 
-  type flatValueType = flatType(B)
   var
     bytes = newSeq[byte](stream.eofSafeRead())
-    preResult: flatValueType
+    preResult: B
   for b in 0 ..< bytes.len:
     bytes[b] = stream.eofSafeRead()
 
@@ -147,7 +146,7 @@ proc readLengthDelimited[B](
     {.fatal: "Tried to read a Length Delimited value which we didn't recognize. This should never happen.".}
   elif type(preResult) is CastableLengthDelimitedTypes:
     preResult = cast[type(preResult)](bytes)
-  elif flatValueType.isStdlib():
+  elif B.isStdlib():
     bytes.stdlibFromProtobuf(preResult)
   elif preResult is object:
     preResult = bytes.readValueInternal(type(preResult))
@@ -183,6 +182,9 @@ proc setField[T](
       {.fatal: "Reading into a number requires specifying both the amount of bits via the type, as well as the encoding format.".}
     else:
       stream.readLengthDelimited(value, key)
+
+  elif T.isStdlib():
+    stream.readLengthDelimited(value, key)
 
   else:
     #This iterative approach is extemely poor.
