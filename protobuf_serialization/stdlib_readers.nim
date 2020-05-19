@@ -5,6 +5,12 @@ proc readValue*[B](
   ty: typedesc[B]
 ): B
 
+proc stdlibFromProtobuf*(
+  bytes: seq[byte],
+  value: var cstring
+) {.inline, raises: [].} =
+  value = cast[string](bytes)
+
 proc stdlibFromProtobuf*[T](
   bytes: seq[byte],
   seqInstance: var seq[T]

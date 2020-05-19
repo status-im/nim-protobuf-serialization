@@ -156,10 +156,13 @@ macro box*(variable: typed, value: typed): untyped =
 macro isStdlib*(ty: untyped): untyped =
   var underlying = ty.getTypeImpl()[1].getTypeImpl()
   if underlying.kind != nnkBracketExpr:
-    return newLit(false)
+    return newLit(underlying.strVal in [
+      "cstring"
+    ].toHashSet())
+
   result = newLit(underlying[0].strVal in [
     "seq",
-    "array"
+    "array",
   ].toHashSet())
 
 #[

@@ -4,6 +4,11 @@ proc writeValue*[T](
   value: T
 ): seq[byte]
 
+proc stdLibToProtobuf*(
+  value: cstring
+): seq[byte] {.inline, raises: [].}=
+  cast[seq[byte]]($value)
+
 proc stdlibToProtobuf*[T](
   arrInstance: openArray[T]
 ): seq[byte] =
