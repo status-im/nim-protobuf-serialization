@@ -49,16 +49,7 @@ proc stdlibFromProtobuf*[C, T](
 
 proc stdlibFromProtobuf*[T](
   bytes: seq[byte],
-  setInstance: var set[T]
-) =
-  var seqInstance: seq[T]
-  bytes.stdlibFromProtobuf(seqInstance)
-  for value in seqInstance:
-    setInstance.incl(value)
-
-proc stdlibFromProtobuf*[T](
-  bytes: seq[byte],
-  setInstance: var HashSet[T]
+  setInstance: var (set[T] or HashSet[T])
 ) =
   var seqInstance: seq[T]
   bytes.stdlibFromProtobuf(seqInstance)
