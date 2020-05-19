@@ -44,3 +44,12 @@ proc stdlibFromProtobuf*[C, T](
     arr.add(bytes[index ..< index + len].readValue(T))
     index += len
     inc(count)
+
+proc stdlibFromProtobuf*[T](
+  bytes: seq[byte],
+  setInstance: var set[T]
+) =
+  var seqInstance: seq[T]
+  bytes.stdlibFromProtobuf(seqInstance)
+  for value in seqInstance:
+    setInstance.incl(value)

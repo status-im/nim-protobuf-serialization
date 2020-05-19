@@ -163,6 +163,7 @@ macro isStdlib*(ty: untyped): untyped =
   result = newLit(underlying[0].strVal in [
     "seq",
     "array",
+    "set",
   ].toHashSet())
 
 #[

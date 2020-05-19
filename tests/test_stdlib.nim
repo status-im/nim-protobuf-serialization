@@ -23,3 +23,12 @@ suite "Test Standard Lib Objects Encoding/Decoding":
     check int64Arr.len == read.len
     for i in 0 ..< int64Arr.len:
       check int64Arr[i].unwrap() == read[i].unwrap()
+
+  test "Can encode/decode sets":
+    let
+      trueSet = {true}
+      falseSet = {true}
+      trueFalseSet = {true}
+    check trueSet.writeValue().readValue(set[bool]) == trueSet
+    check falseSet.writeValue().readValue(set[bool]) == falseSet
+    check trueFalseSet.writeValue().readValue(set[bool]) == trueFalseSet

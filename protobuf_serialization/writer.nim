@@ -31,6 +31,8 @@ proc verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
     {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
   elif T is ((PureSIntegerTypes or PureUIntegerTypes) and (not bool)):
     {.fatal: "Writing a number requires specifying the encoding to use.".}
+  elif T.isStdlib():
+    discard
   elif T is (object or ref):
     enumInstanceSerializedFields(T(), fieldName, fieldVar):
       when fieldVar is PlatformDependentTypes:

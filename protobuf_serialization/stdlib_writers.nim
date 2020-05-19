@@ -17,3 +17,11 @@ proc stdlibToProtobuf*[T](
     if valueBytes.len > 255:
       raise newException(IOError, "Length delimited buffer had too much data.")
     result &= byte(valueBytes.len) & valueBytes
+
+proc stdlibToProtobuf*[T](
+  setInstance: set[T]
+): seq[byte] =
+  var seqInstance: seq[T]
+  for value in setInstance:
+    seqInstance.add(value)
+  result = seqInstance.stdLibToProtobuf()
