@@ -17,9 +17,14 @@ proc stdlibToProtobuf*[T](
 ): seq[byte] =
   for value in arrInstance:
     var valueBytes = writeValue(value)
-    if valueBytes.len > 255:
+    if valueBytes.len == 0:
+      result &= byte(0)
+      continue
+    elif valueBytes.len > 255:
       raise newException(IOError, "Length delimited buffer had too much data.")
-    result &= byte(valueBytes.len) & valueBytes
+
+    #Strip out the wire type header.
+    result &= byte(valueBytes.len - 1) & valueBytes[1 ..< valueBytes.len]
 
 proc stdlibToProtobuf*[T](
   setInstance: set[T]

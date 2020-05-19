@@ -2,6 +2,8 @@
 
 import sets
 
+import types
+
 proc readValue*[B](
   bytes: seq[byte],
   ty: typedesc[B]
@@ -17,14 +19,22 @@ proc stdlibFromProtobuf*[T](
   bytes: seq[byte],
   seqInstance: var seq[T]
 ) =
-  var index = 0
+  var
+    index = 0
+    blank: T
+  let wireByte = T.wireType
+
   while index < bytes.len:
-    var len = int(bytes[index])
+    let len = int(bytes[index])
     inc(index)
-    if index + len > bytes.len:
+
+    if len == 0:
+      seqInstance.add(blank)
+      continue
+    elif index + len > bytes.len:
       raise newException(IOError, "Length delimited buffer doesn't have enough data to read the next object.")
 
-    seqInstance.add(bytes[index ..< index + len].readValue(T))
+    seqInstance.add((wireByte & bytes[index ..< index + len]).readValue(T))
     index += len
 
 proc stdlibFromProtobuf*[C, T](
@@ -32,20 +42,28 @@ proc stdlibFromProtobuf*[C, T](
   arr: var array[C, T]
 ) =
   var
-    count = 0
+    count = -1
     index = 0
+  let wireByte = T.wireType
+
   while index < bytes.len:
     if count >= C:
-      raise newException(IOError, "Length delimited buffer representing an array exceed the array's length.")
+      raise newException(IOError, "Length delimited buffer represents an array exceeding this array's length.")
 
-    var len = int(bytes[index])
+    let len = int(bytes[index])
     inc(index)
+    inc(count)
+
+    if len == 0:
+      continue
     if index + len > bytes.len:
       raise newException(IOError, "Length delimited buffer doesn't have enough data to read the next object.")
 
-    arr.add(bytes[index ..< index + len].readValue(T))
+    arr[count] = (wireByte & bytes[index ..< index + len]).readValue(T)
     index += len
-    inc(count)
+
+  if count != C - 1:
+    raise newException(IOError, "Length delimited buffer was missing elements for this array.")
 
 proc stdlibFromProtobuf*[T](
   bytes: seq[byte],

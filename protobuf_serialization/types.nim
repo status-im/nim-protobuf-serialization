@@ -90,9 +90,9 @@ template fixed*() {.pragma.}
 
 #We don't cast this back to a ProtobufWireType so it can prepended to a seq[bytes].
 template wireType*(value: untyped): byte =
-  when value is VarIntWrapped:
+  when flatType(value) is (bool or VarIntWrapped):
     byte(VarInt) + (1 shl 3)
-  elif value is FixedWrapped:
+  elif flatType(value) is FixedWrapped:
     when sizeof(value) == 8:
       byte(Fixed64) + (1 shl 3)
     elif sizeof(value) == 4:
