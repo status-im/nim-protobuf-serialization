@@ -33,10 +33,6 @@ proc handleReadException*(
   field: auto,
   err: ref CatchableError
 ) =
-  discard reader
-  discard Record
-  discard fieldName
-  discard field
   raise err
 
 proc eofSafeRead(stream: InputStream): byte =
