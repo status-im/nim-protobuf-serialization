@@ -258,7 +258,7 @@ proc readValueInternal*[T](
   ProtobufEOFError,
   ProtobufMessageError
 ].} =
-  var stream = memoryInput(bytes)
+  var stream = unsafeMemoryInput(bytes)
   while stream.readable():
     result.setField(stream, stream.read())
   stream.close()
