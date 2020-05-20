@@ -27,12 +27,16 @@ template fieldNumber(key: byte): byte =
   (key and FIELD_NUMBER_MASK) shr 3
 
 proc handleReadException*(
-  r: ProtobufReader,
+  reader: ProtobufReader,
   Record: type,
   fieldName: string,
   field: auto,
   err: ref CatchableError
 ) =
+  discard reader
+  discard Record
+  discard fieldName
+  discard field
   raise err
 
 proc eofSafeRead(stream: InputStream): byte =
@@ -217,6 +221,8 @@ proc setField[T](
       raise newException(ProtobufMessageError, "Unknown field number specified: " & $fieldNumber)
 
     enumInstanceSerializedFields(value, fieldName, fieldVar):
+      discard fieldName
+
       when fieldVar is PlatformDependentTypes:
         {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
 
@@ -288,4 +294,6 @@ proc readValue*(
   reader: ProtobufReader,
   value: var auto
 ) =
+  if not reader.stream.readable():
+    return
   box(value, reader.stream.readValueInternal(flatType(type(value))))

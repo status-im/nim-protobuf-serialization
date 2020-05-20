@@ -4,6 +4,12 @@ import unittest
 import ../protobuf_serialization
 from ../protobuf_serialization/internal import unwrap
 
+proc readValue[T](
+  bytes: seq[byte],
+  ty: typedesc[T]
+): T {.inline.} =
+  ProtobufReader.init(unsafeMemoryInput(bytes)).readValue(result)
+
 suite "Test Standard Lib Objects Encoding/Decoding":
   test "Can encode/decode cstrings":
     let str: cstring = "Testing string."

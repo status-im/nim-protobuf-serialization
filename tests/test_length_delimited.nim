@@ -10,6 +10,12 @@ type
   TwoStringsWrapped = object
     strings: TwoStrings
 
+proc readValue[T](
+  bytes: seq[byte],
+  ty: typedesc[T]
+): T {.inline.} =
+  ProtobufReader.init(unsafeMemoryInput(bytes)).readValue(result)
+
 suite "Test Length Delimited Encoding/Decoding":
   test "Can encode/decode string":
     let

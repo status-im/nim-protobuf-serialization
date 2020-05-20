@@ -27,6 +27,7 @@ proc verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
     discard
   elif T is (object or ref):
     enumInstanceSerializedFields(T(), fieldName, fieldVar):
+      discard fieldName
       when fieldVar is PlatformDependentTypes:
         {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
       elif fieldVar is (VarIntTypes or FixedTypes):
@@ -196,7 +197,9 @@ proc writeValueInternal[T](
     stream.writeFieldInternal(1'u, flattened, sub, existingLength)
   elif flattened is object:
     var counter = 0'u
+    discard counter
     enumInstanceSerializedFields(flattened, fieldName, fieldVal):
+      discard fieldName
       inc(counter)
       let flattenedFieldOption = fieldVal.flatMap()
       if flattenedFieldOption.isSome():

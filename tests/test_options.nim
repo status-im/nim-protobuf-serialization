@@ -20,6 +20,12 @@ type
 proc `==`*(lhs: Nested, rhs: Nested): bool =
   lhs.z == rhs.z
 
+proc readValue[T](
+  bytes: seq[byte],
+  ty: typedesc[T]
+): T {.inline.} =
+  ProtobufReader.init(unsafeMemoryInput(bytes)).readValue(result)
+
 template testNone[T](ty: typedesc[T]) =
   let output = writeValue(none(ty))
   check output.len == 0

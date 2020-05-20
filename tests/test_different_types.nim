@@ -2,28 +2,31 @@ import unittest
 
 import ../protobuf_serialization
 
+proc writeRead[W, R](toWrite: W, readAs: typedesc[R]) =
+  var res: readAs
+  expect ProtobufMessageError:
+    ProtobufReader.init(unsafeMemoryInput(writeValue(toWrite))).readValue(res)
+
 suite "Test Encoding X and decoding into Y":
   test "* into VarInt":
-    expect ProtobufMessageError:
-      discard Fixed(5'u32).writeValue().readValue(SInt(int32))
-    expect ProtobufMessageError:
-      discard Fixed(5'u64).writeValue().readValue(SInt(int32))
+    #Test the Fixed32 and Fixed64 wire types.
+    writeRead(Fixed(5'u32), SInt(int32))
+    writeRead(Fixed(5'u64), SInt(int32))
 
-    expect ProtobufMessageError:
-      discard "Test string.".writeValue().readValue(SInt(int32))
+    #LengthDelimited.
+    writeRead("Test string.", SInt(int32))
 
   test "* into Fixed":
-    expect ProtobufMessageError:
-      discard PInt(5'i32).writeValue().readValue(Fixed(uint32))
+    #VarInt.
+    writeRead(SInt(5'i32), Fixed(uint32))
 
-    expect ProtobufMessageError:
-      discard "Test string.".writeValue().readValue(Fixed(uint32))
+    #LengthDelimited.
+    writeRead("Test string.", Fixed(uint32))
 
   test "* into LengthDelimited":
-    expect ProtobufMessageError:
-      discard PInt(5'i32).writeValue().readValue(string)
+    #VarInt.
+    writeRead(SInt(5'i32), string)
 
-    expect ProtobufMessageError:
-      discard Fixed(5'u32).writeValue().readValue(string)
-    expect ProtobufMessageError:
-      discard Fixed(5'u64).writeValue().readValue(string)
+    #Fixed.
+    writeRead(Fixed(5'u32), string)
+    writeRead(Fixed(5'u64), string)

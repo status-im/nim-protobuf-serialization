@@ -35,9 +35,8 @@ proc stdlibFromProtobuf*[T](
       raise newException(IOError, "Length delimited buffer doesn't have enough data to read the next object.")
 
     var
-      reader: ProtobufReader
+      reader = ProtobufReader.init(unsafeMemoryInput(wireByte & bytes[index ..< index + len]))
       next: T
-    reader.init(unsafeMemoryInput(wireByte & bytes[index ..< index + len]))
     reader.readValue(next)
     seqInstance.add(next)
     index += len
@@ -64,8 +63,7 @@ proc stdlibFromProtobuf*[C, T](
     if index + len > bytes.len:
       raise newException(IOError, "Length delimited buffer doesn't have enough data to read the next object.")
 
-    var reader: ProtobufReader
-    reader.init(unsafeMemoryInput(wireByte & bytes[index ..< index + len]))
+    var reader = ProtobufReader.init(unsafeMemoryInput(wireByte & bytes[index ..< index + len]))
     reader.readValue(arr[count])
     index += len
 

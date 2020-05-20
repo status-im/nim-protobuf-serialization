@@ -2,6 +2,7 @@
 #https://github.com/status-im/nim-libp2p/blob/master/tests/testvarint.nim
 
 import unittest
+
 import ../protobuf_serialization
 
 #Stub types/functions which maps over the API this test expects.
@@ -29,11 +30,6 @@ template zint64(value: untyped): untyped =
     SInt(value)
 template zint32(value: untyped): untyped = zint64(value)
 
-const
-  VarIntKey = byte(1 shl 3)
-  Fixed64Key = byte(1 shl 3) + byte(1)
-  Fixed32Key = byte(1 shl 3) + byte(5)
-
 template putSVarint(buffer: var seq[byte], length: var int, value: untyped): VarintStatus =
   mixin writeValue
   buffer = writeValue(value)
@@ -49,7 +45,7 @@ template putSVarint(buffer: var seq[byte], length: var int, value: untyped): Var
   VarintStatus.Success
 
 template getSVarint[T](buffer: seq[byte], length: int, value: var T): VarintStatus =
-  value = readValue(VarIntKey & buffer, type(T))
+  value = readValue(wireType(PInt(int32)) & buffer, type(T))
   #Discard it to get rid of the unused hint.
   discard length
   VarintStatus.Success
@@ -77,7 +73,9 @@ template putVarint(buffer: var seq[byte], length: var int, value: untyped): Vari
 
 template getUVarint[T](buffer: seq[byte], length: int, value: var T): VarintStatus =
   try:
-    value = T(readValue(VarIntKey & buffer, UInt(T)))
+    #PInt(int32) used to generate a VarInt key as it's the most basic VarInt type.
+    #A PInt, UInt, or SInt of any bit size will work to generate this key.
+    value = T(readValue(wireType(PInt(int32)) & buffer, UInt(T)))
     discard length
     VarintStatus.Success
   except ProtobufEOFError:
@@ -85,13 +83,11 @@ template getUVarint[T](buffer: seq[byte], length: int, value: var T): VarintStat
 
 template getVarint(buffer: seq[byte], length: int, value: untyped): VarintStatus =
   when value is SomeUnsignedInt:
-    value = type(value)(readValue(VarIntKey & buffer, UInt(type(value))))
+    value = type(value)(readValue(wireType(PInt(int32)) & buffer, UInt(type(value))))
   elif value is Fixed(int64):
-    value = readValue(Fixed64Key & buffer, type(value))
-  elif value is Fixed(int32):
-    value = readValue(Fixed32Key & buffer, type(value))
+    value = readValue(wireType(value) & buffer, type(value))
   else:
-    value = readValue(VarIntKey & buffer, type(value))
+    value = readValue(wireType(PInt(int32)) & buffer, type(value))
   VarintStatus.Success
 
 template encodeVarint[T](value: T): seq[byte] =

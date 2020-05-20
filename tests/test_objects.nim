@@ -41,9 +41,17 @@ proc toProtobuf*(x: DistinctInt): seq[byte] =
 proc fromProtobuf*(bytes: seq[byte], value: var DistinctInt) =
   if bytes.len == 0:
     return
-  value = DistinctInt((@[wireType(SInt(int32))] & bytes).readValue(SInt(int32)))
+  var temp: SInt(int32)
+  ProtobufReader.init(memoryInput(@[wireType(SInt(int32))] & bytes)).readValue(temp)
+  value = DistinctInt(temp)
 
 proc `==`*(lhs: DistinctInt, rhs: DistinctInt): bool {.borrow.}
+
+proc readValue[T](
+  bytes: seq[byte],
+  ty: typedesc[T]
+): T {.inline.} =
+  ProtobufReader.init(unsafeMemoryInput(bytes)).readValue(result)
 
 proc `==`*(lhs: Nested, rhs: Nested): bool =
   var
@@ -107,7 +115,7 @@ suite "Test Object Encoding/Decoding":
         h: true,
         i: 124521.DistinctInt
       )
-      writer = newProtobufWriter()
+      writer = ProtobufWriter.init()
 
     writer.writeField(1, SInt(obj.d))
     writer.writeField(3, obj.f)
@@ -132,7 +140,7 @@ suite "Test Object Encoding/Decoding":
         h: true,
         i: 124521.DistinctInt
       )
-      writer = newProtobufWriter()
+      writer = ProtobufWriter.init()
 
     writer.writeField(3, obj.f)
     writer.writeField(6, obj.i)
@@ -195,7 +203,7 @@ suite "Test Object Encoding/Decoding":
   test "Doesn't allow duplicate fields":
     let
       obj = Basic(a: 100, b: "Test string.", c: 'C')
-      writer = newProtobufWriter()
+      writer = ProtobufWriter.init()
 
     writer.writeField(2, obj.b)
     writer.writeField(2, obj.b)

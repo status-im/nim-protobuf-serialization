@@ -4,7 +4,7 @@ import ../protobuf_serialization
 
 import
   test_bool,
-  test_varint,
+  #test_varint,
   test_fixed,
   test_length_delimited,
   test_objects,
