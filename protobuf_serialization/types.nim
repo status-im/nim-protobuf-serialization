@@ -6,6 +6,7 @@ import faststreams
 import serialization/errors
 
 import internal
+export PInt, UInt, SInt, Fixed, pint, puint, sint, fixed
 
 type
   ProtobufError* = object of SerializationError
@@ -25,68 +26,6 @@ func newProtobufWriter*(): ProtobufWriter {.inline, raises: [].} =
 proc finish*(writer: ProtobufWriter): seq[byte] {.raises: [Defect, IOError].} =
   result = writer.stream.getOutput()
   writer.stream.close()
-
-macro generateWrapperConstructors(
-  name: untyped,
-  supported: typed,
-  smaller: typed,
-  larger: typed,
-  err: string
-) =
-  quote do:
-    template `name`*(value: untyped): untyped =
-      when value is not `supported`:
-        {.fatal: `err`.}
-
-      when value is type:
-        when sizeof(value) == 8:
-          `larger`
-        else:
-          `smaller`
-      else:
-        when sizeof(value) == 8:
-          cast[`larger`](value)
-        else:
-          cast[`smaller`](value)
-
-generateWrapperConstructors(PInt, SIntegerTypes, PIntWrapped32, PIntWrapped64, "PInt should only be used with a signed integer type.")
-generateWrapperConstructors(UInt, UIntegerTypes, UIntWrapped32, UIntWrapped64, "UInt should only be used with an unsigned integer type.")
-generateWrapperConstructors(SInt, SIntegerTypes, SIntWrapped32, SIntWrapped64, "SInt should only be used with a signed integer type.")
-
-#Manually generate the Fixed template.
-#This allows us to offer a single template for signed and unsigned fixed values.
-template Fixed*(value: untyped): untyped =
-  when value is not FixedTypes:
-    {.fatal: "Fixed should only be used with a number.".}
-
-  when value is type:
-    when value is UIntegerTypes:
-      when sizeof(value) == 8:
-        FixedWrapped64
-      else:
-        FixedWrapped32
-    else:
-      when sizeof(value) == 8:
-        SFixedWrapped64
-      else:
-        SFixedWrapped32
-  else:
-    when value is UIntegerTypes:
-      when sizeof(value) == 8:
-        FixedWrapped64(value)
-      else:
-        FixedWrapped32(value)
-    else:
-      when sizeof(value) == 8:
-        cast[SFixedWrapped64](value)
-      else:
-        cast[SFixedWrapped32](value)
-
-#Used to specify how to encode/decode fields in an object.
-template pint*() {.pragma.}
-template puint*() {.pragma.}
-template sint*() {.pragma.}
-template fixed*() {.pragma.}
 
 #We don't cast this back to a ProtobufWireType so it can prepended to a seq[bytes].
 template wireType*(value: untyped): byte =

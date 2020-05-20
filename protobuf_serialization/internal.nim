@@ -4,58 +4,15 @@ import options
 import sets
 import macros
 
-const
-  VAR_INT_CONTINUATION_MASK*: byte = 0b1000_0000
-  VAR_INT_VALUE_MASK*: byte = 0b0111_1111
+import varint
+export varint
 
 type
   ProtobufWireType* = enum
     VarInt, Fixed64, LengthDelimited, StartGroup, EndGroup, Fixed32
 
-  #Used to specify how to encode/decode primitives.
-  #Despite being used outside of this library, all access is via templates.
-  PIntWrapped32* = distinct int32
-  PIntWrapped64* = distinct int64
-  UIntWrapped32* = distinct uint32
-  UIntWrapped64* = distinct uint64
-  SIntWrapped32* = distinct int32
-  SIntWrapped64* = distinct int64
-  FixedWrapped32* = distinct uint32
-  FixedWrapped64* = distinct uint64
-  SFixedWrapped32* = distinct int32
-  SFixedWrapped64* = distinct int64
-
-  PIntWrapped* = PIntWrapped32 or PIntWrapped64
-  UIntWrapped* = UIntWrapped32 or UIntWrapped64
-  SIntWrapped* = SIntWrapped32 or SIntWrapped64
-  VarIntWrapped* = PIntWrapped or UIntWrapped or SIntWrapped
-  FixedWrapped* = FixedWrapped32 or FixedWrapped64 or
-                  SFixedWrapped32 or SFixedWrapped64
-
   #Number types which are platform-dependent and therefore unsafe.
   PlatformDependentTypes* = int or uint or float
-  #Signed native types utilizing the VarInt/Fixed wire types.
-  PureSIntegerTypes* = SomeSignedInt or enum
-
-  #Every Signed Integer Type.
-  SIntegerTypes* = PIntWrapped32 or PIntWrapped64 or
-                   SIntWrapped32 or SIntWrapped64 or
-                   SFixedWrapped32 or SFixedWrapped64 or
-                   PureSIntegerTypes
-
-  #Unsigned native types utilizing the VarInt/Fixed wire types.
-  PureUIntegerTypes* = SomeUnsignedInt or char or bool
-  #Every Unsigned Integer Type.
-  UIntegerTypes* = UIntWrapped32 or UIntWrapped64 or
-                   FixedWrapped32 or FixedWrapped64 or
-                   PureUIntegerTypes
-
-  #Every type valid for the VarInt wire type.
-  VarIntTypes* = SIntegerTypes or UIntegerTypes
-  #Every type valid for the Fixed (32 or 64) wire type.
-  FixedTypes* = FixedWrapped or
-                PureUIntegerTypes or PureSIntegerTypes or
-                float32 or float64
 
   #Castable length delimited types.
   #These can be directly casted from a seq[byte] and do not require a custom converter.
@@ -197,15 +154,3 @@ macro has*(typeToCheckArg: untyped, overloadsArg: typed): untyped =
         return newLit(true)
   result = newLit(false)
 ]#
-
-template unwrap*[T](value: T): untyped =
-  when T is (PIntWrapped32 or SIntWrapped32 or SFixedWrapped32):
-    int32(value)
-  elif T is (PIntWrapped64 or SIntWrapped64 or SFixedWrapped64):
-    int64(value)
-  elif T is (UIntWrapped32 or FixedWrapped32):
-    uint32(value)
-  elif T is (UIntWrapped64 or FixedWrapped64):
-    uint64(value)
-  else:
-    {.fatal: "Tried to get the unwrapped value of a non-wrapped type. This should never happen.".}
