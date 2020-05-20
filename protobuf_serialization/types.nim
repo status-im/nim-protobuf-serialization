@@ -14,10 +14,14 @@ type
   ProtobufWriter* = object
     stream*: OutputStream
 
-func newProtobufWriter*(): ProtobufWriter {.inline, raises: [].} =
-  ProtobufWriter(
-    stream: memoryOutput()
-  )
+  ProtobufReader* = object
+    stream*: InputStream
+
+func init*(T: type ProtobufWriter): T {.inline, raises: [].} =
+  T(stream: memoryOutput())
+
+func init*(T: type ProtobufReader, stream: InputStream): T {.inline, raises: [].} =
+  T(stream: stream)
 
 #This was originally called buffer, and retuned just the output.
 #That said, getting the output purges the stream, and doesn't close it.

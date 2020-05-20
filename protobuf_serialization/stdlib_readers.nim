@@ -4,10 +4,10 @@ import sets
 
 import types
 
-proc readValue*[B](
-  bytes: seq[byte],
-  ty: typedesc[B]
-): B
+proc readValue*(
+  reader: ProtobufReader,
+  value: var auto
+)
 
 proc stdlibFromProtobuf*(
   bytes: seq[byte],
@@ -34,7 +34,12 @@ proc stdlibFromProtobuf*[T](
     elif index + len > bytes.len:
       raise newException(IOError, "Length delimited buffer doesn't have enough data to read the next object.")
 
-    seqInstance.add((wireByte & bytes[index ..< index + len]).readValue(T))
+    var
+      reader: ProtobufReader
+      next: T
+    reader.init(unsafeMemoryInput(wireByte & bytes[index ..< index + len]))
+    reader.readValue(next)
+    seqInstance.add(next)
     index += len
 
 proc stdlibFromProtobuf*[C, T](
@@ -59,7 +64,9 @@ proc stdlibFromProtobuf*[C, T](
     if index + len > bytes.len:
       raise newException(IOError, "Length delimited buffer doesn't have enough data to read the next object.")
 
-    arr[count] = (wireByte & bytes[index ..< index + len]).readValue(T)
+    var reader: ProtobufReader
+    reader.init(unsafeMemoryInput(wireByte & bytes[index ..< index + len]))
+    reader.readValue(arr[count])
     index += len
 
   if count != C - 1:

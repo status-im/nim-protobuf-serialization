@@ -244,7 +244,7 @@ proc writeValue*[T](
 ): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].} =
   static: verifyWritable(type(flatType(T)))
   var
-    writer = newProtobufWriter()
+    writer = ProtobufWriter.init()
     existingLength = 0
   writer.stream.writeValueInternal(value, false, existingLength)
   result = writer.finish()

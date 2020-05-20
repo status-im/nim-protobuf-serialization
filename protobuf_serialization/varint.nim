@@ -135,6 +135,7 @@ template uabs[U](number: VarIntTypes): U =
 #This could write to a seq, yet we need to prepend a key and omit the VarInt in certain circumstances.
 #That's why it doesn't.
 #It may be valuable to write an encodeVarIntStream which this wraps.
+#This could be used for arrays/seqs where a VarInt is never omitted or keyed.
 proc encodeVarInt*(
   value: VarIntWrapped
 ): seq[byte] {.raises: [].} =

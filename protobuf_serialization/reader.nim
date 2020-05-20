@@ -26,6 +26,15 @@ template wireType(key: byte): byte =
 template fieldNumber(key: byte): byte =
   (key and FIELD_NUMBER_MASK) shr 3
 
+proc handleReadException*(
+  r: ProtobufReader,
+  Record: type,
+  fieldName: string,
+  field: auto,
+  err: ref CatchableError
+) =
+  raise err
+
 proc eofSafeRead(stream: InputStream): byte =
   if not stream.readable():
     raise newException(ProtobufEOFError, "Couldn't read the next byte from this stream despite expecting one.")
@@ -113,8 +122,8 @@ include stdlib_readers
 #readValue requires readLengthDelimited function which requires readValue.
 #This would risk infinite recursion, except nested sub-buffers have a limit of 255 bytes.
 #Every sub-sub-buffer contributes to the length of the original buffer.
-proc readValueInternal*[T](
-  bytes: seq[byte],
+proc readValueInternal[T](
+  stream: InputStream,
   ty: typedesc[T]
 ): T {.raises: [
   Defect,
@@ -149,7 +158,7 @@ proc readLengthDelimited[B](
   elif B.isStdlib():
     bytes.stdlibFromProtobuf(preResult)
   elif preResult is object:
-    preResult = bytes.readValueInternal(type(preResult))
+    preResult = unsafeMemoryInput(bytes).readValueInternal(type(preResult))
   else:
     bytes.fromProtobuf(preResult)
 
@@ -187,6 +196,19 @@ proc setField[T](
     stream.readLengthDelimited(value, key)
 
   else:
+    discard """
+    #Verify the field number.
+    var fieldNumber = key.fieldNumber
+    if (fieldNumber == 0) or (fieldNumber > T.totalSerializedFields):
+      raise newException(ProtobufMessageError, "Unknown field number specified: " & $fieldNumber)
+
+    when T.totalSerializedFields > 0:
+      #Generally, once we generate this table, we'd need to verify the reader exists.
+      #That said, the readers are indexed by string name, and we have an absolute list of field names.
+      #Since Protobuf doesn't specify field names, just field index, and we verify said index above...
+      T.fieldReadersTable(ProtobufReader).findFieldReader(fieldName, 0)(value, reader)
+    discard """
+
     #This iterative approach is extemely poor.
     var
       counter = 1'u8
@@ -249,8 +271,8 @@ proc setField[T](
         box(fieldVar, flattened)
         break
 
-proc readValueInternal*[T](
-  bytes: seq[byte],
+proc readValueInternal[T](
+  stream: InputStream,
   ty: typedesc[T]
 ): T {.raises: [
   Defect,
@@ -258,14 +280,12 @@ proc readValueInternal*[T](
   ProtobufEOFError,
   ProtobufMessageError
 ].} =
-  var stream = unsafeMemoryInput(bytes)
   while stream.readable():
     result.setField(stream, stream.read())
   stream.close()
 
-proc readValue*[B](
-  bytes: seq[byte],
-  ty: typedesc[B]
-): B =
-  if bytes.len != 0:
-    box(result, bytes.readValueInternal(flatType(B)))
+proc readValue*(
+  reader: ProtobufReader,
+  value: var auto
+) =
+  box(value, reader.stream.readValueInternal(flatType(type(value))))
