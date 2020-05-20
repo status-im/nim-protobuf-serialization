@@ -17,14 +17,6 @@ type ProtobufWriteError* = object of ProtobufError
 template key(fieldNum: uint, wire: ProtobufWireType): byte =
   ((byte(fieldNum shl 3)) or wire.byte).byte
 
-#Get the unsigned absolute value of a number.
-#Used when encoding numbers.
-template uabs[U](number: VarIntTypes): U =
-  if number < type(number)(0):
-    not cast[U](number)
-  else:
-    U(number)
-
 #Created in response to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/5.
 proc verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
   when T is PlatformDependentTypes:
@@ -54,51 +46,11 @@ proc writeVarInt(
   fieldNum: uint,
   value: VarIntWrapped
 ) {.raises: [Defect, IOError].} =
-  when sizeof(value) == 8:
-    type U = uint64
-  else:
-    type U = uint32
-
-  #If the value is 0, don't bother encoding it.
-  #This can cause a negative overflow, which will wrap to 0.
-  #That's why we use an explicit cast which requires the binary be 0'd.
-  if cast[U](value) == 0:
+  let bytes = encodeVarInt(value)
+  if (bytes.len == 1) and (bytes[0] == 0):
     return
-
   stream.write(key(fieldNum, VarInt))
-
-  var
-    #Get the unsigned value which is what will be encoded.
-    raw: U = uabs[U](value.unwrap())
-    #Written bytes.
-    #This can be replaced with a countLeadingZeroBits solution so it's O(1), not O(n).
-    #That said, while it'd have better complexity, it may not be faster.
-    bytesWritten: uint = 0
-
-  #If we're using SInt, we need to transform the value to its zig-zagged equivalent.
-  if value is SIntWrapped:
-    raw = (raw shl 1) xor (raw shr ((sizeof(raw) * 8) - 1))
-    if value.unwrap() < 0:
-      inc(raw)
-
-  #Write the VarInt.
-  while raw > type(raw)(VAR_INT_VALUE_MASK):
-    #We could convert raw to a byte, but that'll trigger a bounds check.
-    stream.write(byte(raw and U(VAR_INT_VALUE_MASK)) or VAR_INT_CONTINUATION_MASK)
-    raw = raw shr 7
-    inc(bytesWritten)
-
-  #If this was a positive number, or zig-zagged, we only need to write this last byte.
-  if (value.unwrap() >= 0) or (value is SIntWrapped):
-    stream.write(byte(raw))
-  #We need to write blank bytes until the length is 10.
-  else:
-    stream.write(byte(raw) or VAR_INT_CONTINUATION_MASK)
-    inc(bytesWritten)
-    while bytesWritten < 9:
-      stream.write(VAR_INT_CONTINUATION_MASK)
-      inc(bytesWritten)
-    stream.write(byte(0))
+  stream.write(bytes)
 
 proc writeFixed(
   stream: OutputStream,
