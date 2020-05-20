@@ -4,21 +4,15 @@ import unittest
 import ../protobuf_serialization
 from ../protobuf_serialization/internal import unwrap
 
-proc readValue[T](
-  bytes: seq[byte],
-  ty: typedesc[T]
-): T {.inline.} =
-  ProtobufReader.init(unsafeMemoryInput(bytes)).readValue(result)
-
 suite "Test Standard Lib Objects Encoding/Decoding":
   test "Can encode/decode cstrings":
     let str: cstring = "Testing string."
-    check str.writeValue().readValue(cstring) == str
+    check Protobuf.decode(Protobuf.encode(str), type(cstring)) == str
 
   test "Can encode/decode seqs":
     let
       int64Seq = @[SInt(0'i64), SInt(-1'i64), SInt(1'i64), SInt(-1'i64)]
-      read = int64Seq.writeValue().readValue(seq[SInt(int64)])
+      read = Protobuf.decode(Protobuf.encode(int64Seq), type(seq[SInt(int64)]))
     check int64Seq.len == read.len
     for i in 0 ..< int64Seq.len:
       check int64Seq[i].unwrap() == read[i].unwrap()
@@ -26,7 +20,7 @@ suite "Test Standard Lib Objects Encoding/Decoding":
   test "Can encode/decode arrays":
     let
       int64Arr = [SInt(0'i64), SInt(-1'i64), SInt(1'i64), SInt(-1'i64)]
-      read = int64Arr.writeValue().readValue(seq[SInt(int64)])
+      read = Protobuf.decode(Protobuf.encode(int64Arr), type(seq[SInt(int64)]))
     check int64Arr.len == read.len
     for i in 0 ..< int64Arr.len:
       check int64Arr[i].unwrap() == read[i].unwrap()
@@ -36,10 +30,10 @@ suite "Test Standard Lib Objects Encoding/Decoding":
       trueSet = {true}
       falseSet = {true}
       trueFalseSet = {true}
-    check trueSet.writeValue().readValue(set[bool]) == trueSet
-    check falseSet.writeValue().readValue(set[bool]) == falseSet
-    check trueFalseSet.writeValue().readValue(set[bool]) == trueFalseSet
+    check Protobuf.decode(Protobuf.encode(trueSet), type(set[bool])) == trueSet
+    check Protobuf.decode(Protobuf.encode(falseSet), type(set[bool])) == falseSet
+    check Protobuf.decode(Protobuf.encode(trueFalseSet), type(set[bool])) == trueFalseSet
 
   test "Can encode/decode HashSets":
     let setInstance = ["abc", "def", "ghi"].toHashSet()
-    check setInstance.writeValue().readValue(HashSet[string]) == setInstance
+    check Protobuf.decode(Protobuf.encode(setInstance), type(HashSet[string])) == setInstance

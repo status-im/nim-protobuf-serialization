@@ -28,12 +28,12 @@ type
   Circular = ref object
     child: Circular
 
-#Instead of relying on writeValue, you could instead write your own implementations.
+#Instead of relying on encode, you could instead write your own implementations.
 #Any byte sequence returned by this will be passed directly to the matching fromProtobuf.
-#This means doing this this way requires knowing what wire type to prepend.
+#Doing thibgs this way requires knowing what wire type to prepend.
 #That said, as this is for distinct objects, that shouldn't be too problematic.
 proc toProtobuf*(x: DistinctInt): seq[byte] =
-  result = writeValue(SInt(x.int32))
+  result = Protobuf.encode(SInt(x.int32))
   if result.len == 0:
     return
   result = result[1 ..< result.len]
@@ -41,17 +41,9 @@ proc toProtobuf*(x: DistinctInt): seq[byte] =
 proc fromProtobuf*(bytes: seq[byte], value: var DistinctInt) =
   if bytes.len == 0:
     return
-  var temp: SInt(int32)
-  ProtobufReader.init(memoryInput(@[wireType(SInt(int32))] & bytes)).readValue(temp)
-  value = DistinctInt(temp)
+  value = DistinctInt(Protobuf.decode(@[wireType(SInt(int32))] & bytes, type(SInt(int32))))
 
 proc `==`*(lhs: DistinctInt, rhs: DistinctInt): bool {.borrow.}
-
-proc readValue[T](
-  bytes: seq[byte],
-  ty: typedesc[T]
-): T {.inline.} =
-  ProtobufReader.init(unsafeMemoryInput(bytes)).readValue(result)
 
 proc `==`*(lhs: Nested, rhs: Nested): bool =
   var
@@ -73,12 +65,12 @@ suite "Test Object Encoding/Decoding":
   #One should be automatically resolved. One can't be resolved.
   test "Can encode/decode enums":
     template enumTest(value: TestEnum, integer: int): untyped =
-      let output = writeValue(SInt(value))
+      let output = Protobuf.encode(SInt(value))
       if integer == 0:
         check output.len == 0
       else:
         check output == @[byte(8), byte(integer)]
-      check TestEnum(readValue(output, SInt(TestEnum))) == value
+      check TestEnum(Protobuf.decode(output, type(SInt(TestEnum)))) == value
 
     enumTest(NegTwo, 3)
     enumTest(NegOne, 1)
@@ -87,12 +79,12 @@ suite "Test Object Encoding/Decoding":
     enumTest(Two, 4)
 
   test "Can encode/decode distinct types":
-    var x: DistinctInt = 5.DistinctInt
-    check writeValue(x).readValue(DistinctInt) == x
+    let x: DistinctInt = 5.DistinctInt
+    check Protobuf.decode(Protobuf.encode(x), type(DistinctInt)) == x
 
   test "Can encode/decode a basic object":
     let obj = Basic(a: 100, b: "Test string.", c: 'C')
-    check writeValue(obj).readValue(Basic) == obj
+    check Protobuf.decode(Protobuf.encode(obj), type(Basic)) == obj
 
   test "Can encode/decode a wrapper object":
     let obj = Wrapped(
@@ -103,7 +95,7 @@ suite "Test Object Encoding/Decoding":
       h: true,
       i: 124521.DistinctInt
     )
-    check writeValue(obj).readValue(Wrapped) == obj
+    check Protobuf.decode(Protobuf.encode(obj), type(Wrapped)) == obj
 
   test "Can encode/decode partial object":
     let
@@ -115,14 +107,14 @@ suite "Test Object Encoding/Decoding":
         h: true,
         i: 124521.DistinctInt
       )
-      writer = ProtobufWriter.init()
+      writer = ProtobufWriter.init(memoryOutput())
 
     writer.writeField(1, SInt(obj.d))
     writer.writeField(3, obj.f)
     writer.writeField(4, obj.g)
     writer.writeField(6, obj.i)
 
-    let result = writer.finish().readValue(Wrapped)
+    let result = Protobuf.decode(writer.finish(), type(Wrapped))
     check result.d == obj.d
     check result.f == obj.f
     check result.g == obj.g
@@ -140,7 +132,7 @@ suite "Test Object Encoding/Decoding":
         h: true,
         i: 124521.DistinctInt
       )
-      writer = ProtobufWriter.init()
+      writer = ProtobufWriter.init(memoryOutput())
 
     writer.writeField(3, obj.f)
     writer.writeField(6, obj.i)
@@ -149,11 +141,11 @@ suite "Test Object Encoding/Decoding":
     writer.writeField(5, obj.h)
     writer.writeField(4, obj.g)
 
-    check writer.finish().readValue(Wrapped) == obj
+    check Protobuf.decode(writer.finish(), type(Wrapped)) == obj
 
   test "Doesn't write too-big nested objects":
     expect ProtobufWriteError:
-      discard writeValue(Nested(
+      discard Protobuf.encode(Nested(
         child: Nested(
           data: cast[string](newSeq[char](150))
         ),
@@ -164,7 +156,7 @@ suite "Test Object Encoding/Decoding":
     let root = Circular()
     root.child = root
     expect ProtobufWriteError:
-      discard writeValue(root)
+      discard Protobuf.encode(root)
 
   test "Doesn't fully recurse over nested objects which are too-big":
     #Created in a non-recursive format to not trigger the call depth.
@@ -179,7 +171,7 @@ suite "Test Object Encoding/Decoding":
       last = last.child
     #This should raise without crashing.
     expect ProtobufWriteError:
-      discard writeValue(root)
+      discard Protobuf.encode(root)
 
   test "Can read nested objects":
     var obj: Nested = Nested(
@@ -188,25 +180,25 @@ suite "Test Object Encoding/Decoding":
       ),
       data: "Parent data."
     )
-    check writeValue(obj).readValue(Nested) == obj
+    check Protobuf.decode(Protobuf.encode(obj), type(Nested)) == obj
 
   test "Doesn't allow remaining data in the buffer":
     expect ProtobufReadError:
-      discard (SInt(5).writeValue() & @[byte(1)]).readValue(SInt(int32))
+      discard Protobuf.decode(Protobuf.encode(SInt(5)) & @[byte(1)], type(SInt(int32)))
     expect ProtobufReadError:
-      discard (Basic(a: 100, b: "Test string.", c: 'C').writeValue() & @[byte(1)]).readValue(Basic)
+      discard Protobuf.decode(Protobuf.encode(Basic(a: 100, b: "Test string.", c: 'C')) & @[byte(1)], type(Basic))
 
   test "Doesn't allow unknown fields":
     expect ProtobufMessageError:
-      discard (writeValue(Basic(a: 100, b: "Test string.", c: 'C')) & @[byte(4 shl 3)]).readValue(Basic)
+      discard Protobuf.decode((Protobuf.encode(Basic(a: 100, b: "Test string.", c: 'C')) & @[byte(4 shl 3)]), type(Basic))
 
   test "Doesn't allow duplicate fields":
     let
       obj = Basic(a: 100, b: "Test string.", c: 'C')
-      writer = ProtobufWriter.init()
+      writer = ProtobufWriter.init(memoryOutput())
 
     writer.writeField(2, obj.b)
     writer.writeField(2, obj.b)
 
     expect ProtobufMessageError:
-      discard writer.finish().readValue(Wrapped)
+      discard Protobuf.decode(writer.finish(), type(Wrapped))

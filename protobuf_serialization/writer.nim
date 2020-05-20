@@ -243,11 +243,9 @@ proc writeValueInternal[T](
     stream.writeFieldInternal(1'u, flattened, sub, existingLength)
 
 proc writeValue*[T](
+  writer: ProtobufWriter,
   value: T
-): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].} =
+) {.raises: [Defect, IOError, ProtobufWriteError].} =
   static: verifyWritable(type(flatType(T)))
-  var
-    writer = ProtobufWriter.init()
-    existingLength = 0
+  var existingLength = 0
   writer.stream.writeValueInternal(value, false, existingLength)
-  result = writer.finish()

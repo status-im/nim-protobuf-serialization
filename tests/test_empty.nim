@@ -12,7 +12,7 @@ type
     b {.dontSerialize.}: string
 
 proc writeEmpty[T](value: T) =
-  check writeValue(value).len == 0
+  check Protobuf.encode(value).len == 0
 
 suite "Test Encoding of Empty Objects/Values":
   test "Empty boolean":

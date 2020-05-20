@@ -4,8 +4,9 @@ import sets
 import sequtils
 
 proc writeValue*[T](
+  writer: ProtobufWriter,
   value: T
-): seq[byte]
+)
 
 proc stdLibToProtobuf*(
   value: cstring
@@ -16,7 +17,9 @@ proc stdlibToProtobuf*[T](
   arrInstance: openArray[T]
 ): seq[byte] =
   for value in arrInstance:
-    var valueBytes = writeValue(value)
+    var writer = ProtobufWriter.init(memoryOutput())
+    writer.writeValue(value)
+    let valueBytes = writer.finish()
     if valueBytes.len == 0:
       result &= byte(0)
       continue

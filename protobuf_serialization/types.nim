@@ -17,8 +17,8 @@ type
   ProtobufReader* = object
     stream*: InputStream
 
-func init*(T: type ProtobufWriter): T {.inline, raises: [].} =
-  T(stream: memoryOutput())
+func init*(T: type ProtobufWriter, stream: OutputStream): T {.inline, raises: [].} =
+  T(stream: stream)
 
 func init*(T: type ProtobufReader, stream: InputStream): T {.inline, raises: [].} =
   T(stream: stream)

@@ -20,24 +20,18 @@ type
 proc `==`*(lhs: Nested, rhs: Nested): bool =
   lhs.z == rhs.z
 
-proc readValue[T](
-  bytes: seq[byte],
-  ty: typedesc[T]
-): T {.inline.} =
-  ProtobufReader.init(unsafeMemoryInput(bytes)).readValue(result)
-
 template testNone[T](ty: typedesc[T]) =
-  let output = writeValue(none(ty))
+  let output = Protobuf.encode(none(ty))
   check output.len == 0
-  check output.readValue(Option[T]).isNone()
+  check Protobuf.decode(output, type(Option[T])).isNone()
 
 template testSome[T](value: T) =
-    let output = writeValue(some(value))
-    check output == writeValue(flatMap(value))
+    let output = Protobuf.encode(some(value))
+    check output == Protobuf.encode(flatMap(value))
     when flatType(T) is (VarIntWrapped or FixedWrapped):
-      check output.readValue(Option[T]).get().unwrap() == some(value).get().unwrap()
+      check Protobuf.decode(output, type(Option[T])).get().unwrap() == some(value).get().unwrap()
     else:
-      check output.readValue(Option[T]) == some(value)
+      check Protobuf.decode(output, type(Option[T])) == some(value)
 
 suite "Test Encoding/Decoding of Options":
   test "Option boolean":
@@ -100,9 +94,9 @@ suite "Test Encoding/Decoding of Options":
       var option = some(Nested())
       option = none(Nested)
 
-      let output = writeValue(option)
+      let output = Protobuf.encode(option)
       check output.len == 0
-      check output.readValue(Option[Nested]).isNone()
+      check Protobuf.decode(output, type(Option[Nested])).isNone()
 
     #Also not possible thanks to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/16.
     #[testSome(Nested(

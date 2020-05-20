@@ -3,9 +3,8 @@ import unittest
 import ../protobuf_serialization
 
 proc writeRead[W, R](toWrite: W, readAs: typedesc[R]) =
-  var res: readAs
   expect ProtobufMessageError:
-    ProtobufReader.init(unsafeMemoryInput(writeValue(toWrite))).readValue(res)
+    discard Protobuf.decode(Protobuf.encode(toWrite), R)
 
 suite "Test Encoding X and decoding into Y":
   test "* into VarInt":

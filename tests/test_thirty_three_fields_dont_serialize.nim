@@ -35,4 +35,4 @@ type X = object
   x1F: bool
   x20 {.dontSerialize.}: bool
 
-discard writeValue(X())
+discard Protobuf.encode(X())
