@@ -1,5 +1,7 @@
 import macros
 
+import faststreams
+
 import libp2p_varint
 
 const
@@ -179,3 +181,48 @@ proc encodeVarInt*(
       result.add(VAR_INT_CONTINUATION_MASK)
       inc(bytesWritten)
     result.add(byte(0))
+
+proc decodeVarInt*[R, E](
+  stream: InputStream,
+  returnType: typedesc[R],
+  encoding: typedesc[E]
+): R {.raises: [Defect, IOError].} =
+  when sizeof(E) == 8:
+    type
+      S = int64
+      U = uint64
+  else:
+    type
+      S = int32
+      U = uint32
+
+  var
+    value = U(0)
+    offset = 0'i8
+    next = VAR_INT_CONTINUATION_MASK
+  while (next and VAR_INT_CONTINUATION_MASK) != 0:
+    if not stream.readable():
+      raise newException(IOError, "Couldn't read the next byte from this stream despite expecting one.")
+    next = stream.read()
+    value += (next and U(VAR_INT_VALUE_MASK)) shl offset
+    offset += 7
+
+  #Unsigned, requiring no further work.
+  when E is UIntWrapped:
+    result = R(value)
+  #Zig-zagged.
+  elif E is SIntWrapped:
+    result = R(S(value shr 1) xor -S(value and U(0b0000_0001)))
+  else:
+    #Not zig-zagged, yet negative.
+    if offset == 70:
+      #This should handle the lowest possible negative value.
+      #The cast to a signed value causes it to error/wrap to the lowest value.
+      #Said lowest value will be negative, multiplied by -1, and wrap again.
+      #This behavior requires boundChecks to be turned off in order to not raise though.
+      {.push boundChecks: off.}
+      result = R(-S(value + 1))
+      {.pop.}
+    #Not zig-zagged, yet positive.
+    else:
+      result = R(value)

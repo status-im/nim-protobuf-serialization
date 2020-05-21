@@ -43,59 +43,20 @@ proc eofSafeRead(stream: InputStream): byte =
 #Ideally, these would be in a table.
 #That said, due to the context specific return type, which goes beyond the wire type, you need generics.
 #As Generic types aren't concrete, they can't be used in a table.
-proc readVarInt[B; E: VarIntWrapped](
+proc readVarInt[B; E](
   stream: InputStream,
   fieldVar: var B,
   encoding: E,
   key: byte
 ) {.raises: [Defect, IOError, ProtobufEOFError, ProtobufMessageError].} =
-  type T = flatType(B)
   when E is not VarIntWrapped:
     {.fatal: "Tried to read a VarInt without a specified encoding. This should never happen.".}
-  when sizeof(T) == 8:
-    type
-      S = int64
-      U = uint64
-  else:
-    type
-      S = int32
-      U = uint32
 
   if key.wireType != byte(VarInt):
     raise newException(ProtobufMessageError, "Invalid wire type for a VarInt.")
 
-  var
-    value = U(0)
-    offset = 0'i8
-    next = VAR_INT_CONTINUATION_MASK
-    preResult: T
-  while (next and VAR_INT_CONTINUATION_MASK) != 0:
-    next = stream.eofSafeRead()
-    value += (next and U(VAR_INT_VALUE_MASK)) shl offset
-    offset += 7
-
-  #Unsigned, requiring no further work.
-  when E is UIntWrapped:
-    preResult = T(value)
-  #Zig-zagged.
-  elif E is SIntWrapped:
-    preResult = T(S(value shr 1) xor -S(value and U(0b0000_0001)))
-  else:
-    #Not zig-zagged, yet negative.
-    if offset == 70:
-      #This should handle the lowest possible negative value.
-      #The cast to a signed value causes it to error/wrap to the lowest value.
-      #Said lowest value will be negative, multiplied by -1, and wrap again.
-      #This behavior requires boundChecks to be turned off in order to not raise though.
-      {.push boundChecks: off.}
-      preResult = T(-S(value + 1))
-      {.pop.}
-    #Not zig-zagged, yet positive.
-    else:
-      preResult = T(value)
-
   #Box the result back up.
-  box(fieldVar, preResult)
+  box(fieldVar, stream.decodeVarInt(flatType(B), type(E)))
 
 proc readFixed[B](
   stream: InputStream,
