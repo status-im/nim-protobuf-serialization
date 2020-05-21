@@ -146,21 +146,31 @@ proc readLengthDelimited[B](
     raise newException(ProtobufMessageError, "Invalid wire type for a length delimited sequence/object.")
 
   var
-    bytes = newSeq[byte](stream.eofSafeRead())
+    len = int(stream.eofSafeRead())
     preResult: B
-  for b in 0 ..< bytes.len:
-    bytes[b] = stream.eofSafeRead()
+  if not stream.readable(len):
+    raise newException(ProtobufEOFError, "Couldn't read the length delimited buffer from this stream despite expecting one.")
 
-  when preResult is not LengthDelimitedTypes:
-    {.fatal: "Tried to read a Length Delimited value which we didn't recognize. This should never happen.".}
-  elif type(preResult) is CastableLengthDelimitedTypes:
-    preResult = cast[type(preResult)](bytes)
-  elif B.isStdlib():
-    bytes.stdlibFromProtobuf(preResult)
-  elif preResult is object:
-    preResult = unsafeMemoryInput(bytes).readValueInternal(type(preResult))
-  else:
-    bytes.fromProtobuf(preResult)
+  stream.withReadableRange(len, substream):
+    when preResult is not LengthDelimitedTypes:
+      {.fatal: "Tried to read a Length Delimited value which we didn't recognize. This should never happen.".}
+    elif type(preResult) is string:
+      preResult = newString(len)
+      for c in 0 ..< len:
+        preResult[c] = char(stream.read())
+    elif type(preResult) is CastableLengthDelimitedTypes:
+      var byteResult: seq[byte] = newSeq[byte](len)
+      if not substream.readInto(byteResult):
+        raise newException(ProtobufEOFError, "Couldn't read the length delimited buffer from this stream despite verifying it's readable.")
+      preResult = cast[type(preResult)](byteResult)
+    elif B.isStdlib():
+      substream.stdlibFromProtobuf(preResult)
+    elif preResult is object:
+      preResult = substream.readValueInternal(type(preResult))
+    else:
+      var bytes = newSeq[byte](len)
+      discard substream.readInto(bytes)
+      bytes.fromProtobuf(preResult)
 
   box(fieldVar, preResult)
 
@@ -284,7 +294,6 @@ proc readValueInternal[T](
 ].} =
   while stream.readable():
     result.setField(stream, stream.read())
-  stream.close()
 
 proc readValue*(
   reader: ProtobufReader,
@@ -292,4 +301,11 @@ proc readValue*(
 ) =
   if not reader.stream.readable():
     return
-  box(value, reader.stream.readValueInternal(flatType(type(value))))
+  elif reader.wireOverride.isNone():
+    box(value, reader.stream.readValueInternal(flatType(type(value))))
+    reader.stream.close()
+  else:
+    var preResult: flatType(type(value))
+    while reader.stream.readable():
+      preResult.setField(reader.stream, reader.wireOverride.get())
+    box(value, preResult)

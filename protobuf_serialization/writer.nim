@@ -101,11 +101,16 @@ proc writeLengthDelimited[T](
   var bytes: seq[byte]
 
   #String/byte seqs.
-  when flatValue is CastableLengthDelimitedTypes:
+  when flatValue is (string or CastableLengthDelimitedTypes):
     if flatValue.len == 0:
       existingLength -= 2
       return
-    bytes = cast[seq[byte]](flatValue)
+    when flatValue is string:
+      bytes = newSeq[byte](flatValue.len)
+      for c in 0 ..< flatValue.len:
+        bytes[c] = byte(flatValue[c])
+    else:
+      bytes = cast[seq[byte]](flatValue)
 
   #Standard lib types which use custom converters, instead of encoding the literal Nim representation.
   elif flatType(flatValue).isStdlib():

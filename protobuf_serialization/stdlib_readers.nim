@@ -2,6 +2,8 @@
 
 import sets
 
+import faststreams
+
 import types
 
 proc readValue*(
@@ -10,71 +12,61 @@ proc readValue*(
 )
 
 proc stdlibFromProtobuf*(
-  bytes: seq[byte],
+  stream: InputStream,
   value: var cstring
 ) {.inline, raises: [].} =
-  value = cast[string](bytes)
+  var preValue = newString(stream.totalUnconsumedBytes)
+  for c in 0 ..< preValue.len:
+    preValue[c] = char(stream.read())
+  value = preValue
 
 proc stdlibFromProtobuf*[T](
-  bytes: seq[byte],
+  stream: InputStream,
   seqInstance: var seq[T]
 ) =
-  var
-    index = 0
-    blank: T
+  var blank: T
   let wireByte = T.wireType
 
-  while index < bytes.len:
-    let len = int(bytes[index])
-    inc(index)
-
+  while stream.readable():
+    let len = int(stream.read())
+    seqInstance.add(blank)
     if len == 0:
-      seqInstance.add(blank)
       continue
-    elif index + len > bytes.len:
+    elif not stream.readable(len):
       raise newException(IOError, "Length delimited buffer doesn't have enough data to read the next object.")
 
-    var
-      reader = ProtobufReader.init(unsafeMemoryInput(wireByte & bytes[index ..< index + len]))
-      next: T
-    reader.readValue(next)
-    seqInstance.add(next)
-    index += len
+    stream.withReadableRange(len, substream):
+      ProtobufReader.initWithWire(wireByte, substream).readValue(seqInstance[^1])
 
 proc stdlibFromProtobuf*[C, T](
-  bytes: seq[byte],
+  stream: InputStream,
   arr: var array[C, T]
 ) =
-  var
-    count = -1
-    index = 0
+  var count = 0
   let wireByte = T.wireType
 
-  while index < bytes.len:
+  while stream.readable():
     if count >= C:
       raise newException(IOError, "Length delimited buffer represents an array exceeding this array's length.")
 
-    let len = int(bytes[index])
-    inc(index)
-    inc(count)
-
+    let len = int(stream.read())
     if len == 0:
       continue
-    if index + len > bytes.len:
+    elif not stream.readable(len):
       raise newException(IOError, "Length delimited buffer doesn't have enough data to read the next object.")
 
-    var reader = ProtobufReader.init(unsafeMemoryInput(wireByte & bytes[index ..< index + len]))
-    reader.readValue(arr[count])
-    index += len
+    stream.withReadableRange(len, substream):
+      ProtobufReader.initWithWire(wireByte, substream).readValue(arr[count])
+    inc(count)
 
-  if count != C - 1:
+  if count != C:
     raise newException(IOError, "Length delimited buffer was missing elements for this array.")
 
 proc stdlibFromProtobuf*[T](
-  bytes: seq[byte],
+  stream: InputStream,
   setInstance: var (set[T] or HashSet[T])
 ) =
   var seqInstance: seq[T]
-  bytes.stdlibFromProtobuf(seqInstance)
+  stream.stdlibFromProtobuf(seqInstance)
   for value in seqInstance:
     setInstance.incl(value)

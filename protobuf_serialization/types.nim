@@ -15,6 +15,7 @@ type
     stream*: OutputStream
 
   ProtobufReader* = object
+    wireOverride*: Option[byte]
     stream*: InputStream
 
 func init*(T: type ProtobufWriter, stream: OutputStream): T {.inline, raises: [].} =
@@ -22,6 +23,9 @@ func init*(T: type ProtobufWriter, stream: OutputStream): T {.inline, raises: []
 
 func init*(T: type ProtobufReader, stream: InputStream): T {.inline, raises: [].} =
   T(stream: stream)
+
+func initWithWire*(T: type ProtobufReader, wire: byte, stream: InputStream): T {.inline, raises: [].} =
+  T(wireOverride: some(wire), stream: stream)
 
 #This was originally called buffer, and retuned just the output.
 #That said, getting the output purges the stream, and doesn't close it.
