@@ -59,7 +59,44 @@ template flatMap*(value: auto): auto =
 template isStdlib*[B](ty: typedesc[B]): bool =
   flatType(ty) is (cstring or string or seq or array or set or HashSet or Table)
 
-#The below macros need to be purged.
+proc getSecondToLastType[C, P, L](
+  value: C,
+  prev: typedesc[P],
+  last: typedesc[L]
+): type =
+  when C is L:
+    type(P)
+  elif C is Option:
+    getSecondToLastType(value.get(), prev, last)
+  elif C is (ptr or ref):
+    getSecondToLastType(value[], prev, last)
+  else:
+    {.fatal: "Tried to box a type into an incompatible box.".}
+
+#[
+Prototype redo of box I couldn't get working.
+The uncommented box function below works, yet should be purged ASAP.
+
+proc boxInternal[C, B, L](value: C, into: typedesc[B], last: typedesc[L]): auto =
+  when value is B:
+    value
+  else:
+    type SecondToLast = getSecondToLastType(value, type(value), flatType(value))
+    when SecondToLast is Option:
+      boxInternal(some(value), into, SecondToLast)
+    elif SecondToLast is ref:
+      var refd = new(type(value))
+      refd[] = value
+      boxInternal(refd, into, SecondToLast)
+    elif SecondToLast is ptr:
+      var ptrd = cast[ptr type(value)](alloc0(sizeof(value)))
+      ptrd[] = value
+      boxInternal(ptrd, into, SecondToLast)
+
+proc box*[B](into: var B, value: auto) =
+  into = boxInternal(value, type(into), type(value))
+]#
+
 func getTypeChain(impure: NimNode): seq[NimNode] {.compileTime.} =
   var current = impure
   result = @[]
