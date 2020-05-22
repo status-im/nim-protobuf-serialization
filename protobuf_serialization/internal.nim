@@ -26,7 +26,7 @@ type
 template isPotentiallyNull*[T](ty: typedesc[T]): bool =
   T is (Option or ref or ptr)
 
-proc flatTypeInternal*(value: auto): auto {.compileTime.} =
+proc flatTypeInternal(value: auto): auto {.compileTime.} =
   when value is Option:
     flatTypeInternal(value.get)
   elif value is (ref or ptr):
@@ -41,7 +41,22 @@ template flatType*[B](ty: typedesc[B]): type =
   var blank: B
   type(flatType(blank))
 
-proc isStdlib*[B](ty: typedesc[B]): bool {.compileTime.} =
+proc flatMapInternal[B, T](value: B, ty: typedesc[T]): Option[T] =
+  when value is Option:
+    if value.isNone():
+      return
+    flatMapInternal(value.get(), ty)
+  elif value is (ref or ptr):
+    if value.isNil():
+      return
+    flatMapInternal(value[], ty)
+  else:
+    some(value)
+
+template flatMap*(value: auto): auto =
+  flatMapInternal(value, flatType(value))
+
+template isStdlib*[B](ty: typedesc[B]): bool =
   flatType(ty) is (cstring or string or seq or array or set or HashSet or Table)
 
 #The below macros need to be purged.
@@ -75,25 +90,6 @@ func getTypeChain(impure: NimNode): seq[NimNode] {.compileTime.} =
       break
     else:
       break
-
-func flatMapInternal[T, B](value: T, base: typedesc[B]): Option[B] =
-  when value is Option:
-    if value.isNone():
-      none(base)
-    else:
-      flatMapInternal(value.get(), base)
-  elif value is ref:
-    if value.isNil:
-      none(base)
-    else:
-      flatMapInternal(value[], base)
-  else:
-    some(value)
-
-macro flatMap*(value: typed): untyped =
-  let flattened = getTypeChain(value)[^1]
-  quote do:
-    flatMapInternal(`value`, type(`flattened`))
 
 macro box*(variable: typed, value: typed): untyped =
   let chain = getTypeChain(variable)
