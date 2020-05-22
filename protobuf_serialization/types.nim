@@ -1,7 +1,5 @@
 #Types/common data exported for use outside of this library.
 
-import macros
-
 import faststreams
 import serialization/errors
 

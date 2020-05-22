@@ -3,7 +3,6 @@
 import options
 import sets
 import tables
-import macros
 
 import varint
 export varint

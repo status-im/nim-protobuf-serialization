@@ -1,4 +1,4 @@
-import macros
+from macros import quote
 
 import faststreams
 
