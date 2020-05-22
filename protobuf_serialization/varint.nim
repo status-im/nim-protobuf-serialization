@@ -134,11 +134,7 @@ template uabs[U](number: VarIntTypes): U =
   else:
     U(number)
 
-#This could write to a seq, yet we need to prepend a key and omit the VarInt in certain circumstances.
-#That's why it doesn't.
-#It may be valuable to write an encodeVarIntStream which this wraps.
-#This could be used for arrays/seqs where a VarInt is never omitted or keyed.
-func encodeVarInt*(value: VarIntWrapped): seq[byte] =
+proc encodeVarInt*(value: VarIntWrapped): seq[byte] =
   #Declare an unsigned integer which can contain any possible value.
   when sizeof(value) == 8:
     type U = uint64
@@ -179,6 +175,9 @@ func encodeVarInt*(value: VarIntWrapped): seq[byte] =
       result.add(VAR_INT_CONTINUATION_MASK)
       inc(bytesWritten)
     result.add(byte(0))
+
+proc encodeVarInt*(stream: OutputStream, value: VarIntWrapped) {.inline.} =
+  stream.write(encodeVarInt(value))
 
 proc decodeVarInt*[R, E](
   stream: InputStream,

@@ -76,43 +76,35 @@ proc writeLengthDelimited[T](
   rootType: typedesc[T],
   flatValue: LengthDelimitedTypes
 ) =
-  var bytes: seq[byte]
+  var cursor = stream.delayVarSizeWrite(10)
+  let startPos = stream.pos
 
   #Byte seqs.
   when flatValue is CastableLengthDelimitedTypes:
     if flatValue.len == 0:
       return
-    bytes = cast[seq[byte]](flatValue)
+    stream.write(cast[seq[byte]](flatValue))
 
   #Standard lib types which use custom converters, instead of encoding the literal Nim representation.
   elif flatType(flatValue).isStdlib():
-    bytes = flatValue.stdlibToProtobuf()
-    if bytes.len == 0:
-      return
+    stream.stdlibToProtobuf(flatValue)
 
   #Nested object which even if the sub-value is empty, should be encoded as long as it exists.
   elif rootType.isPotentiallyNull():
-    var substream = memoryOutput()
-    writeValueInternal(substream, flatValue)
-    bytes = substream.getOutput()
+    writeValueInternal(stream, flatValue)
 
   #Object which should only be encoded if it has data.
   elif flatValue is object:
-    var substream = memoryOutput()
-    writeValueInternal(substream, flatValue)
-    bytes = substream.getOutput()
-    if bytes.len == 0:
-      return
+    writeValueInternal(stream, flatValue)
 
   #Distinct types.
   else:
-    bytes = flatValue.toProtobuf()
-    if bytes.len == 0:
-      return
+    stream.write(flatValue.toProtobuf())
 
-  stream.write(key(fieldNum, LengthDelimited))
-  stream.write(encodeVarInt(PInt(bytes.len)))
-  stream.write(bytes)
+  if stream.pos != startPos:
+    cursor.finalWrite(key(fieldNum, LengthDelimited) & encodeVarInt(UInt(uint32(stream.pos - startPos))))
+  else:
+    cursor.finalWrite([])
 
 proc writeFieldInternal[T](stream: OutputStream, fieldNum: uint, value: T) =
   let flattenedOption = value.flatMap()
