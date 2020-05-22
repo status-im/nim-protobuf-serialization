@@ -4,6 +4,10 @@ import unittest
 import ../protobuf_serialization
 from ../protobuf_serialization/internal import unwrap
 
+type Basic = object
+  x {.pint.}: int32
+  y: seq[string]
+
 suite "Test Standard Lib Objects Encoding/Decoding":
   test "Can encode/decode cstrings":
     let str: cstring = "Testing string."
@@ -16,6 +20,26 @@ suite "Test Standard Lib Objects Encoding/Decoding":
     check int64Seq.len == read.len
     for i in 0 ..< int64Seq.len:
       check int64Seq[i].unwrap() == read[i].unwrap()
+
+    let basicSeq = @[
+      Basic(
+        x: 0,
+        y: @[]
+      ),
+      Basic(
+        x: 1,
+        y: @["abc", "defg"]
+      ),
+      Basic(
+        x: 2,
+        y: @["hi", "jkl", "mnopq"]
+      ),
+      Basic(
+        x: -2,
+        y: @["xyz"]
+      )
+    ]
+    check basicSeq == Protobuf.decode(Protobuf.encode(basicSeq), seq[Basic])
 
   test "Can encode/decode arrays":
     let

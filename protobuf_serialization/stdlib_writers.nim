@@ -27,7 +27,10 @@ proc stdlibToProtobuf*[T](
       raise newException(ProtobufWriteError, "Length delimited buffer had too much data.")
 
     #Strip out the wire type header.
-    result &= byte(valueBytes.len - 1) & valueBytes[1 ..< valueBytes.len]
+    when flatType(T) is object:
+      result &= byte(valueBytes.len) & valueBytes
+    else:
+      result &= byte(valueBytes.len - 1) & valueBytes[1 ..< valueBytes.len]
 
 proc stdlibToProtobuf*[T](
   setInstance: set[T]

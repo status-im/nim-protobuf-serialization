@@ -46,7 +46,10 @@ proc stdlibFromProtobuf*[T](
       raise newException(ProtobufEOFError, "Length delimited buffer doesn't have enough data to read the next object.")
 
     stream.withReadableRange(len, substream):
-      ProtobufReader.initWithWire(wireByte, substream).readValue(seqInstance[^1])
+      when flatType(T) is object:
+        ProtobufReader.init(substream, false).readValue(seqInstance[^1])
+      else:
+        ProtobufReader.initWithWire(wireByte, substream).readValue(seqInstance[^1])
 
 proc stdlibFromProtobuf*[C, T](
   stream: InputStream,
@@ -71,7 +74,10 @@ proc stdlibFromProtobuf*[C, T](
       raise newException(ProtobufEOFError, "Length delimited buffer doesn't have enough data to read the next object.")
 
     stream.withReadableRange(len, substream):
-      ProtobufReader.initWithWire(wireByte, substream).readValue(arr[count])
+      when flatType(T) is object:
+        ProtobufReader.init(substream).readValue(arr[count])
+      else:
+        ProtobufReader.initWithWire(wireByte, substream).readValue(arr[count])
     inc(count)
 
   if count != C:

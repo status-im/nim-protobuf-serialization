@@ -261,9 +261,11 @@ proc readValue*(
     return
   elif reader.wireOverride.isNone():
     box(value, reader.stream.readValueInternal(flatType(type(value))))
-    reader.stream.close()
   else:
     var preResult: flatType(type(value))
     while reader.stream.readable():
       preResult.setField(reader.stream, reader.wireOverride.get())
     box(value, preResult)
+
+  if reader.closeAfter:
+    reader.stream.close()
