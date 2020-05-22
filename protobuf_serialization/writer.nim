@@ -16,7 +16,7 @@ template key(fieldNum: uint, wire: ProtobufWireType): byte =
   ((byte(fieldNum shl 3)) or wire.byte).byte
 
 #Created in response to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/5.
-proc verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
+func verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
   when T is PlatformDependentTypes:
     {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
   elif T is ((PureSIntegerTypes or PureUIntegerTypes) and (not bool)):
@@ -40,22 +40,14 @@ proc verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
     if totalSerializedFields(T) > 32:
       raise newException(Defect, "Object has too many fields; Protobuf has a maximum of 32.")
 
-proc writeVarInt(
-  stream: OutputStream,
-  fieldNum: uint,
-  value: VarIntWrapped
-) {.raises: [Defect, IOError].} =
+proc writeVarInt(stream: OutputStream, fieldNum: uint, value: VarIntWrapped) =
   let bytes = encodeVarInt(value)
   if (bytes.len == 1) and (bytes[0] == 0):
     return
   stream.write(key(fieldNum, VarInt))
   stream.write(bytes)
 
-proc writeFixed(
-  stream: OutputStream,
-  fieldNum: uint,
-  value: FixedWrapped
-) {.raises: [Defect, IOError].} =
+proc writeFixed(stream: OutputStream, fieldNum: uint, value: FixedWrapped) =
   when sizeof(value) == 8:
     var raw = cast[uint64](value)
   else:
@@ -76,17 +68,14 @@ proc writeFixed(
 #stdlib types toProtobuf's. inlined as it needs access to the writeValue function.
 include stdlib_writers
 
-proc writeValueInternal[T](
-  stream: OutputStream,
-  value: T
-) {.raises: [Defect, IOError, ProtobufWriteError].}
+proc writeValueInternal[T](stream: OutputStream, value: T)
 
 proc writeLengthDelimited[T](
   stream: OutputStream,
   fieldNum: uint,
   rootType: typedesc[T],
   flatValue: LengthDelimitedTypes
-) {.raises: [Defect, IOError, ProtobufWriteError].} =
+) =
   var bytes: seq[byte]
 
   #Byte seqs.
@@ -125,14 +114,7 @@ proc writeLengthDelimited[T](
   stream.write(encodeVarInt(PInt(bytes.len)))
   stream.write(bytes)
 
-proc writeFieldInternal[T](
-  stream: OutputStream,
-  fieldNum: uint,
-  value: T
-) {.raises: [Defect, IOError, ProtobufWriteError].} =
-  if false:
-    raise newException(ProtobufWriteError, "")
-
+proc writeFieldInternal[T](stream: OutputStream, fieldNum: uint, value: T) =
   let flattenedOption = value.flatMap()
   if flattenedOption.isNone():
     return
@@ -151,19 +133,11 @@ proc writeField*[T](
   writer: ProtobufWriter,
   fieldNum: uint,
   value: T
-) {.raises: [Defect, IOError, ProtobufWriteError].} =
+) {.inline.} =
   static: verifyWritable(flatType(T))
   writer.stream.writeFieldInternal(fieldNum, value)
 
-proc writeValueInternal[T](
-  stream: OutputStream,
-  value: T
-) {.raises: [Defect, IOError, ProtobufWriteError].} =
-  if false:
-    raise newException(ProtobufWriteError, "")
-  if false:
-    raise newException(IOError, "")
-
+proc writeValueInternal[T](stream: OutputStream, value: T) =
   let flattenedOption = value.flatMap()
   if flattenedOption.isNone():
     return
@@ -218,9 +192,6 @@ proc writeValueInternal[T](
   else:
     stream.writeFieldInternal(1'u, flattened)
 
-proc writeValue*[T](
-  writer: ProtobufWriter,
-  value: T
-) {.raises: [Defect, IOError, ProtobufWriteError].} =
+proc writeValue*[T](writer: ProtobufWriter, value: T) {.inline.} =
   static: verifyWritable(type(flatType(T)))
   writer.stream.writeValueInternal(value)

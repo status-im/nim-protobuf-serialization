@@ -138,9 +138,7 @@ template uabs[U](number: VarIntTypes): U =
 #That's why it doesn't.
 #It may be valuable to write an encodeVarIntStream which this wraps.
 #This could be used for arrays/seqs where a VarInt is never omitted or keyed.
-proc encodeVarInt*(
-  value: VarIntWrapped
-): seq[byte] {.raises: [].} =
+func encodeVarInt*(value: VarIntWrapped): seq[byte] =
   #Declare an unsigned integer which can contain any possible value.
   when sizeof(value) == 8:
     type U = uint64
@@ -186,7 +184,7 @@ proc decodeVarInt*[R, E](
   stream: InputStream,
   returnType: typedesc[R],
   encoding: typedesc[E]
-): R {.raises: [Defect, IOError].} =
+): R =
   when sizeof(E) == 8:
     type
       S = int64

@@ -21,13 +21,13 @@ template wireType(key: byte): byte =
 template fieldNumber(key: byte): byte =
   (key and FIELD_NUMBER_MASK) shr 3
 
-proc handleReadException*(
+func handleReadException*(
   reader: ProtobufReader,
   Record: type,
   fieldName: string,
   field: auto,
   err: ref CatchableError
-) =
+) {.inline.} =
   raise err
 
 proc eofSafeRead(stream: InputStream): byte =
@@ -43,7 +43,7 @@ proc readVarInt[B; E](
   fieldVar: var B,
   encoding: E,
   key: byte
-) {.raises: [Defect, IOError, ProtobufMessageError].} =
+) =
   when E is not VarIntWrapped:
     {.fatal: "Tried to read a VarInt without a specified encoding. This should never happen.".}
 
@@ -53,11 +53,7 @@ proc readVarInt[B; E](
   #Box the result back up.
   box(fieldVar, stream.decodeVarInt(flatType(B), type(E)))
 
-proc readFixed[B](
-  stream: InputStream,
-  fieldVar: var B,
-  key: byte
-) {.raises: [Defect, IOError, ProtobufEOFError, ProtobufMessageError].} =
+proc readFixed[B](stream: InputStream, fieldVar: var B, key: byte) =
   type T = flatType(B)
   when sizeof(T) == 8:
     type U = uint64
@@ -75,26 +71,9 @@ proc readFixed[B](
 
 include stdlib_readers
 
-proc readValueInternal[T](
-  stream: InputStream,
-  ty: typedesc[T]
-): T {.raises: [
-  Defect,
-  IOError,
-  ProtobufEOFError,
-  ProtobufMessageError
-].}
+proc readValueInternal[T](stream: InputStream, ty: typedesc[T]): T
 
-proc readLengthDelimited[B](
-  stream: InputStream,
-  fieldVar: var B,
-  key: byte
-) {.raises: [
-  Defect,
-  IOError,
-  ProtobufEOFError,
-  ProtobufMessageError
-].} =
+proc readLengthDelimited[B](stream: InputStream, fieldVar: var B, key: byte) =
   if key.wireType != byte(LengthDelimited):
     raise newException(ProtobufMessageError, "Invalid wire type for a length delimited sequence/object.")
 
@@ -133,21 +112,7 @@ proc readLengthDelimited[B](
 
   box(fieldVar, preResult)
 
-proc setField[T](
-  value: var T,
-  stream: InputStream,
-  key: byte
-) {.raises: [
-  Defect,
-  IOError,
-  ProtobufEOFError,
-  ProtobufMessageError
-].} =
-  if false:
-    raise newException(ProtobufEOFError, "")
-  if false:
-    raise newException(ProtobufMessageError, "")
-
+proc setField[T](value: var T, stream: InputStream, key: byte) =
   when T is (ref or Option):
     {.fatal: "Ref or Option made it to setField. This should never happen.".}
 
@@ -244,22 +209,11 @@ proc setField[T](
         box(fieldVar, flattened)
         break
 
-proc readValueInternal[T](
-  stream: InputStream,
-  ty: typedesc[T]
-): T {.raises: [
-  Defect,
-  IOError,
-  ProtobufEOFError,
-  ProtobufMessageError
-].} =
+proc readValueInternal[T](stream: InputStream, ty: typedesc[T]): T =
   while stream.readable():
     result.setField(stream, stream.read())
 
-proc readValue*(
-  reader: ProtobufReader,
-  value: var auto
-) =
+proc readValue*(reader: ProtobufReader, value: var auto) =
   if not reader.stream.readable():
     return
   elif reader.wireOverride.isNone():

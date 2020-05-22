@@ -22,7 +22,7 @@ type
   #While cstring/array are built-ins, and therefore should have converters provided, but they still need converters.
   LengthDelimitedTypes* = not (VarIntTypes or FixedTypes)
 
-proc getTypeChain(impure: NimNode): seq[NimNode] {.compileTime.} =
+func getTypeChain(impure: NimNode): seq[NimNode] {.compileTime.} =
   var current = impure
   result = @[]
   while true:
@@ -62,7 +62,7 @@ macro isPotentiallyNull*(impure: typed): bool =
 macro flatType*(impure: typed): untyped =
   getTypeChain(impure)[^1]
 
-proc flatMapInternal[T, B](value: T, base: typedesc[B]): Option[B] =
+func flatMapInternal[T, B](value: T, base: typedesc[B]): Option[B] =
   when value is Option:
     if value.isNone():
       none(base)

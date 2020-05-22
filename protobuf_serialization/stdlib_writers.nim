@@ -3,9 +3,7 @@
 import sets
 import sequtils
 
-proc encodeNumber[T](
-  value: T
-): seq[byte] {.raises: [].} =
+func encodeNumber[T](value: T): seq[byte] =
   when value is bool:
     result = encodeVarInt(UInt(1'u32))
     if result.len == 0:
@@ -22,19 +20,14 @@ proc encodeNumber[T](
   else:
     {.fatal: "Trying to encode a number which isn't wrapped. This should never happen.".}
 
-proc writeValue*[T](
-  writer: ProtobufWriter,
-  value: T
-) {.raises: [Defect, IOError, ProtobufWriteError].}
+proc writeValue*[T](writer: ProtobufWriter, value: T) {.inline.}
 
-proc stdLibToProtobuf*(
+func stdLibToProtobuf*(
   value: cstring or string
-): seq[byte] {.inline, raises: [].} =
+): seq[byte] {.inline.} =
   cast[seq[byte]]($value)
 
-proc stdlibToProtobuf*[T](
-  arrInstance: openArray[T]
-): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].} =
+proc stdlibToProtobuf*[T](arrInstance: openArray[T]): seq[byte] =
   for value in arrInstance:
     when flatType(T) is (bool or VarIntWrapped or FixedWrapped):
       let possibleNumber = flatMap(value)
@@ -58,15 +51,11 @@ proc stdlibToProtobuf*[T](
     else:
       {.fatal: "Tried to encode an unrecognized object used in a stdlib type.".}
 
-proc stdlibToProtobuf*[T](
-  setInstance: set[T]
-): seq[byte] {.raises: [Defect, IOError, ProtobufWriteError].} =
+proc stdlibToProtobuf*[T](setInstance: set[T]): seq[byte] =
   var seqInstance: seq[T]
   for value in setInstance:
     seqInstance.add(value)
   result = seqInstance.stdLibToProtobuf()
 
-proc stdlibToProtobuf*[T](
-  setInstance: HashSet[T]
-): seq[byte] {.inline, raises: [Defect, IOError, ProtobufWriteError].} =
+proc stdlibToProtobuf*[T](setInstance: HashSet[T]): seq[byte] {.inline.} =
   setInstance.toSeq().stdLibToProtobuf()
