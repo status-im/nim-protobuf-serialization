@@ -28,7 +28,7 @@ template isPotentiallyNull*[T](ty: typedesc[T]): bool =
 
 proc flatTypeInternal(value: auto): auto {.compileTime.} =
   when value is Option:
-    flatTypeInternal(value.get)
+    flatTypeInternal(value.get())
   elif value is (ref or ptr):
     flatTypeInternal(value[])
   else:
@@ -59,103 +59,34 @@ template flatMap*(value: auto): auto =
 template isStdlib*[B](ty: typedesc[B]): bool =
   flatType(ty) is (cstring or string or seq or array or set or HashSet or Table)
 
-proc getSecondToLastType[C, P, L](
-  value: C,
-  prev: typedesc[P],
-  last: typedesc[L]
-): type =
-  when C is L:
-    type(P)
-  elif C is Option:
-    getSecondToLastType(value.get(), prev, last)
-  elif C is (ptr or ref):
-    getSecondToLastType(value[], prev, last)
+template nextType[B](box: B): auto =
+  when B is Option:
+    box.get()
+  elif B is (ref or ptr):
+    box[]
   else:
-    {.fatal: "Tried to box a type into an incompatible box.".}
+    box
 
-#[
-Prototype redo of box I couldn't get working.
-The uncommented box function below works, yet should be purged ASAP.
-
-proc boxInternal[C, B, L](value: C, into: typedesc[B], last: typedesc[L]): auto =
+proc boxInternal[C, B](value: C, into: B): B =
   when value is B:
     value
-  else:
-    type SecondToLast = getSecondToLastType(value, type(value), flatType(value))
-    when SecondToLast is Option:
-      boxInternal(some(value), into, SecondToLast)
-    elif SecondToLast is ref:
-      var refd = new(type(value))
-      refd[] = value
-      boxInternal(refd, into, SecondToLast)
-    elif SecondToLast is ptr:
-      var ptrd = cast[ptr type(value)](alloc0(sizeof(value)))
-      ptrd[] = value
-      boxInternal(ptrd, into, SecondToLast)
+  elif into is Option:
+    var blank: type(nextType(into))
+    #We never access this pointer.
+    #Ever.
+    #That said, in order for this Option to resolve as some, it can't be nil.
+    when blank is ref:
+      blank = cast[type(blank)](1)
+    elif blank is ptr:
+      blank = cast[type(blank)](1)
+    let temp = some(blank)
+    some(boxInternal(value, nextType(temp)))
+  elif into is ref:
+    new(result)
+    result[] = boxInternal(value, nextType(result))
 
 proc box*[B](into: var B, value: auto) =
-  into = boxInternal(value, type(into), type(value))
-]#
-
-func getTypeChain(impure: NimNode): seq[NimNode] {.compileTime.} =
-  var current = impure
-  result = @[]
-  while true:
-    let
-      impl = getTypeImpl(current)
-      inst = getTypeInst(current)
-    if (impl.kind == nnkBracketExpr) and (impl[0].strVal == "typeDesc"):
-      current = impl[1]
-    elif impl.kind == nnkRefTy:
-      result.add(newNimNode(nnkRefTy))
-      result[^1].add(inst)
-      current = impl[0]
-    elif inst.kind == nnkSym:
-      if (result.len == 0) or (
-        not (
-          (result[^1].kind == nnkSym) and
-          (result[^1].strVal == inst.strVal)
-        )
-      ):
-        result.add(inst)
-      break
-    elif (inst.kind == nnkBracketExpr) and (inst[0].kind == nnkSym) and (inst[0].strVal == "Option"):
-      current = inst[1]
-      result.add(newNimNode(nnkBracketExpr))
-    elif inst.kind == nnkBracketExpr:
-      result.add(inst)
-      break
-    else:
-      break
-
-macro box*(variable: typed, value: typed): untyped =
-  let chain = getTypeChain(variable)
-  var wrap = value
-  for l in countdown(high(chain) - 1, 0):
-    if chain[l].kind == nnkRefTy:
-      wrap = newBlockStmt(
-        newStmtList(
-          newNimNode(nnkVarSection).add(
-            newNimNode(nnkIdentDefs).add(
-              ident("newRef"),
-              newNimNode(nnkEmpty),
-              newNimNode(nnkCall).add(chain[l][0])
-            )
-          ),
-          newNimNode(nnkAsgn).add(
-            newNimNode(nnkBracketExpr).add(
-              ident("newRef")
-            ),
-            wrap
-          ),
-          ident("newRef")
-        )
-      )
-    elif chain[l].kind == nnkBracketExpr:
-      wrap = newNimNode(nnkCall).add(ident("some"), wrap)
-
-  quote do:
-    `variable` = `wrap`
+  into = boxInternal(value, into)
 
 #[
 This function exists because the optimal writer/reader calls toProtobuf/fromProtobuf whenever it's defined.
