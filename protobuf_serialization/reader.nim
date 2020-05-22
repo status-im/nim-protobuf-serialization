@@ -75,9 +75,6 @@ proc readFixed[B](
 
 include stdlib_readers
 
-#readValue requires readLengthDelimited function which requires readValue.
-#This would risk infinite recursion, except nested sub-buffers have a limit of 255 bytes.
-#Every sub-sub-buffer contributes to the length of the original buffer.
 proc readValueInternal[T](
   stream: InputStream,
   ty: typedesc[T]
@@ -102,18 +99,24 @@ proc readLengthDelimited[B](
     raise newException(ProtobufMessageError, "Invalid wire type for a length delimited sequence/object.")
 
   var
-    len = int(stream.eofSafeRead())
+    #We need to specify a bit quantity for decode to be satisfied.
+    #int64 won't work on int32 systems, as this eventually needs to be casted to int.
+    #We could just use the proper int size for the system.
+    #That said, a 2 GB buffer limit isn't a horrible idea from a security perspective.
+    #If anyone has a valid reason for one, let me know.
+
+    #Uses PInt to ensure 31-bits are used, not 32-bits.
+    len = stream.decodeVarInt(int, PInt(int32))
     preResult: B
+  if len < 0:
+    raise newException(ProtobufMessageError, "Length delimited buffer contained more than 2 GB of data.")
+
   if not stream.readable(len):
     raise newException(ProtobufEOFError, "Couldn't read the length delimited buffer from this stream despite expecting one.")
 
   stream.withReadableRange(len, substream):
     when preResult is not LengthDelimitedTypes:
       {.fatal: "Tried to read a Length Delimited value which we didn't recognize. This should never happen.".}
-    elif type(preResult) is string:
-      preResult = newString(len)
-      for c in 0 ..< len:
-        preResult[c] = char(stream.read())
     elif type(preResult) is CastableLengthDelimitedTypes:
       var byteResult: seq[byte] = newSeq[byte](len)
       if not substream.readInto(byteResult):

@@ -78,37 +78,22 @@ include stdlib_writers
 
 proc writeValueInternal[T](
   stream: OutputStream,
-  value: T,
-  sub: bool,
-  existingLength: var int
+  value: T
 ) {.raises: [Defect, IOError, ProtobufWriteError].}
 
 proc writeLengthDelimited[T](
   stream: OutputStream,
   fieldNum: uint,
   rootType: typedesc[T],
-  flatValue: LengthDelimitedTypes,
-  sub: bool,
-  existingLength: var int
+  flatValue: LengthDelimitedTypes
 ) {.raises: [Defect, IOError, ProtobufWriteError].} =
-  if existingLength > 255:
-    raise newException(ProtobufWriteError, "Buffer length exceeded 255 when writing a new nested object.")
-  if sub:
-    existingLength += 2
-
   var bytes: seq[byte]
 
-  #String/byte seqs.
-  when flatValue is (string or CastableLengthDelimitedTypes):
+  #Byte seqs.
+  when flatValue is CastableLengthDelimitedTypes:
     if flatValue.len == 0:
-      existingLength -= 2
       return
-    when flatValue is string:
-      bytes = newSeq[byte](flatValue.len)
-      for c in 0 ..< flatValue.len:
-        bytes[c] = byte(flatValue[c])
-    else:
-      bytes = cast[seq[byte]](flatValue)
+    bytes = cast[seq[byte]](flatValue)
 
   #Standard lib types which use custom converters, instead of encoding the literal Nim representation.
   elif flatType(flatValue).isStdlib():
@@ -119,15 +104,14 @@ proc writeLengthDelimited[T](
   #Nested object which even if the sub-value is empty, should be encoded as long as it exists.
   elif rootType.isPotentiallyNull():
     var substream = memoryOutput()
-    writeValueInternal(substream, flatValue, true, existingLength)
+    writeValueInternal(substream, flatValue)
     bytes = substream.getOutput()
 
   #Object which should only be encoded if it has data.
   elif flatValue is object:
     var substream = memoryOutput()
-    writeValueInternal(substream, flatValue, true, existingLength)
+    writeValueInternal(substream, flatValue)
     bytes = substream.getOutput()
-    existingLength -= 2
     if bytes.len == 0:
       return
 
@@ -135,24 +119,16 @@ proc writeLengthDelimited[T](
   else:
     bytes = flatValue.toProtobuf()
     if bytes.len == 0:
-      existingLength -= 2
       return
 
-  if not sub:
-    existingLength += bytes.len
-  if existingLength > 255:
-    raise newException(ProtobufWriteError, "Buffer length exceeded 255 when appending data.")
-
   stream.write(key(fieldNum, LengthDelimited))
-  stream.write(byte(bytes.len))
+  stream.write(encodeVarInt(PInt(bytes.len)))
   stream.write(bytes)
 
 proc writeFieldInternal[T](
   stream: OutputStream,
   fieldNum: uint,
-  value: T,
-  sub: bool,
-  existingLength: var int
+  value: T
 ) {.raises: [Defect, IOError, ProtobufWriteError].} =
   if false:
     raise newException(ProtobufWriteError, "")
@@ -169,7 +145,7 @@ proc writeFieldInternal[T](
   elif flattened is FixedWrapped:
     stream.writeFixed(fieldNum, flattened)
   else:
-    writeLengthDelimited(stream, fieldNum, T, flattened, sub, existingLength)
+    writeLengthDelimited(stream, fieldNum, T, flattened)
 
 proc writeField*[T](
   writer: ProtobufWriter,
@@ -177,14 +153,11 @@ proc writeField*[T](
   value: T
 ) {.raises: [Defect, IOError, ProtobufWriteError].} =
   static: verifyWritable(flatType(T))
-  var existingLength = 0
-  writer.stream.writeFieldInternal(fieldNum, value, false, existingLength)
+  writer.stream.writeFieldInternal(fieldNum, value)
 
 proc writeValueInternal[T](
   stream: OutputStream,
-  value: T,
-  sub: bool,
-  existingLength: var int
+  value: T
 ) {.raises: [Defect, IOError, ProtobufWriteError].} =
   if false:
     raise newException(ProtobufWriteError, "")
@@ -197,7 +170,7 @@ proc writeValueInternal[T](
   let flattened = flattenedOption.get()
 
   when flatType(value).isStdlib():
-    stream.writeFieldInternal(1'u, flattened, sub, existingLength)
+    stream.writeFieldInternal(1'u, flattened)
   elif flattened is object:
     var counter = 0'u
     discard counter
@@ -214,11 +187,11 @@ proc writeValueInternal[T](
               hasSInt = flatType(value).hasCustomPragmaFixed(fieldName, sint)
               hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
             when hasPInt:
-              stream.writeFieldInternal(counter, PInt(flattenedField), sub, existingLength)
+              stream.writeFieldInternal(counter, PInt(flattenedField))
             elif hasSInt:
-              stream.writeFieldInternal(counter, SInt(flattenedField), sub, existingLength)
+              stream.writeFieldInternal(counter, SInt(flattenedField))
             elif hasFixed:
-              stream.writeFieldInternal(counter, Fixed(flattenedField), sub, existingLength)
+              stream.writeFieldInternal(counter, Fixed(flattenedField))
             else:
               {.fatal: "Signed pragma attached to non-signed field.".}
 
@@ -227,9 +200,9 @@ proc writeValueInternal[T](
               hasUInt = (flatType(value).hasCustomPragmaFixed(fieldName, puint) or (flattenedField is bool))
               hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
             when hasUInt:
-              stream.writeFieldInternal(counter, UInt(flattenedField), sub, existingLength)
+              stream.writeFieldInternal(counter, UInt(flattenedField))
             elif hasFixed:
-              stream.writeFieldInternal(counter, Fixed(flattenedField), sub, existingLength)
+              stream.writeFieldInternal(counter, Fixed(flattenedField))
             else:
               {.fatal: "Unsigned pragma attached to non-signed field.".}
 
@@ -237,18 +210,17 @@ proc writeValueInternal[T](
             const hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
             when not hasFixed:
               {.fatal: "Pragma other than fixed attached to float.".}
-            stream.writeFieldInternal(counter, Fixed(flattenedField), sub, existingLength)
+            stream.writeFieldInternal(counter, Fixed(flattenedField))
           else:
             {.fatal: "Attempting to handle an unknown number type. This should never happen.".}
         else:
-          stream.writeFieldInternal(counter, flattenedField, sub, existingLength)
+          stream.writeFieldInternal(counter, flattenedField)
   else:
-    stream.writeFieldInternal(1'u, flattened, sub, existingLength)
+    stream.writeFieldInternal(1'u, flattened)
 
 proc writeValue*[T](
   writer: ProtobufWriter,
   value: T
 ) {.raises: [Defect, IOError, ProtobufWriteError].} =
   static: verifyWritable(type(flatType(T)))
-  var existingLength = 0
-  writer.stream.writeValueInternal(value, false, existingLength)
+  writer.stream.writeValueInternal(value)

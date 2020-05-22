@@ -123,6 +123,7 @@ macro isStdlib*(ty: untyped): untyped =
     underlying = underlying.getTypeImpl()
   if underlying.kind != nnkBracketExpr:
     return newLit(underlying.strVal in [
+      "string",
       "cstring"
     ].toHashSet())
 
