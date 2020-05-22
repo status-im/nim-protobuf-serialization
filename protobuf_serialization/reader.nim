@@ -13,11 +13,6 @@ const
   FIELD_NUMBER_MASK: byte = 0b1111_1000
   WIRE_TYPE_MASK: byte = 0b0000_0111
 
-type
-  ProtobufReadError* = object of ProtobufError
-  ProtobufEOFError* = object of ProtobufReadError
-  ProtobufMessageError* = object of ProtobufReadError
-
 #We don't cast this back to a ProtobufWireType despite exclusively comparing it against ProtobufWireTypes.
 #This is so an invalid wire type doesn't trigger boundChecks.
 template wireType(key: byte): byte =
@@ -48,7 +43,7 @@ proc readVarInt[B; E](
   fieldVar: var B,
   encoding: E,
   key: byte
-) {.raises: [Defect, IOError, ProtobufEOFError, ProtobufMessageError].} =
+) {.raises: [Defect, IOError, ProtobufMessageError].} =
   when E is not VarIntWrapped:
     {.fatal: "Tried to read a VarInt without a specified encoding. This should never happen.".}
 
@@ -145,6 +140,8 @@ proc setField[T](
   ProtobufEOFError,
   ProtobufMessageError
 ].} =
+  if false:
+    raise newException(ProtobufEOFError, "")
   if false:
     raise newException(ProtobufMessageError, "")
 

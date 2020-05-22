@@ -11,6 +11,12 @@ export PInt, UInt, SInt, Fixed, pint, puint, sint, fixed
 type
   ProtobufError* = object of SerializationError
 
+  ProtobufWriteError* = object of ProtobufError
+
+  ProtobufReadError* = object of ProtobufError
+  ProtobufEOFError* = object of ProtobufReadError
+  ProtobufMessageError* = object of ProtobufReadError
+
   ProtobufWriter* = object
     stream*: OutputStream
 
