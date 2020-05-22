@@ -32,7 +32,7 @@ proc stdlibToProtobuf*[T](arrInstance: openArray[T]): seq[byte] =
     when flatType(T) is (bool or VarIntWrapped or FixedWrapped):
       let possibleNumber = flatMap(value)
       var blank: flatType(T)
-      result = encodeNumber(possibleNumber.get(blank))
+      result &= encodeNumber(possibleNumber.get(blank))
 
     elif flatType(T) is (cstring or string):
       let thisVal = flatMap(value).get("").stdlibToProtobuf()

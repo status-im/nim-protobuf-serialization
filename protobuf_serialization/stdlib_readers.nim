@@ -9,9 +9,9 @@ import types
 proc decodeNumber[T](stream: InputStream, next: var T) =
   var flattened: flatType(T)
   when flattened is bool:
-    next = stream.decodeVarInt(bool, UInt(uint8))
+    flattened = stream.decodeVarInt(bool, UInt(uint8))
   elif flattened is VarIntWrapped:
-    next = stream.decodeVarInt(type(next), type(next))
+    flattened = stream.decodeVarInt(type(flattened), type(flattened))
   elif flattened is FixedWrapped:
     when sizeof(flattened) == 8:
       var temp: uint64
