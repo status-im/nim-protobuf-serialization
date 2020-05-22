@@ -45,13 +45,13 @@ proc finish*(writer: ProtobufWriter): seq[byte] =
   writer.stream.close()
 
 #We don't cast this back to a ProtobufWireType so it can prepended to a seq[bytes].
-template wireType*(value: untyped): byte =
-  when flatType(value) is (bool or VarIntWrapped):
+template wireType*[T](ty: typedesc[T]): byte =
+  when flatType(ty) is (bool or VarIntWrapped):
     byte(VarInt) + (1 shl 3)
-  elif flatType(value) is FixedWrapped:
-    when sizeof(value) == 8:
+  elif flatType(ty) is FixedWrapped:
+    when sizeof(T) == 8:
       byte(Fixed64) + (1 shl 3)
-    elif sizeof(value) == 4:
+    elif sizeof(T) == 4:
       byte(Fixed32) + (1 shl 3)
   else:
     byte(LengthDelimited) + (1 shl 3)

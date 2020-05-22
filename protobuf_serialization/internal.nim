@@ -2,6 +2,7 @@
 
 import options
 import sets
+import tables
 import macros
 
 import varint
@@ -22,6 +23,28 @@ type
   #While cstring/array are built-ins, and therefore should have converters provided, but they still need converters.
   LengthDelimitedTypes* = not (VarIntTypes or FixedTypes)
 
+template isPotentiallyNull*[T](ty: typedesc[T]): bool =
+  T is (Option or ref or ptr)
+
+proc flatTypeInternal*(value: auto): auto {.compileTime.} =
+  when value is Option:
+    flatTypeInternal(value.get)
+  elif value is (ref or ptr):
+    flatTypeInternal(value[])
+  else:
+    value
+
+template flatType*(value: auto): type =
+  type(flatTypeInternal(value))
+
+template flatType*[B](ty: typedesc[B]): type =
+  var blank: B
+  type(flatType(blank))
+
+proc isStdlib*[B](ty: typedesc[B]): bool {.compileTime.} =
+  flatType(ty) is (cstring or string or seq or array or set or HashSet or Table)
+
+#The below macros need to be purged.
 func getTypeChain(impure: NimNode): seq[NimNode] {.compileTime.} =
   var current = impure
   result = @[]
@@ -52,15 +75,6 @@ func getTypeChain(impure: NimNode): seq[NimNode] {.compileTime.} =
       break
     else:
       break
-
-macro isPotentiallyNull*(impure: typed): bool =
-  for ty in getTypeChain(impure):
-    if (ty.kind == nnkRefTy) or (ty.kind == nnkBracketExpr):
-      return newLit(true)
-  result = newLit(false)
-
-macro flatType*(impure: typed): untyped =
-  getTypeChain(impure)[^1]
 
 func flatMapInternal[T, B](value: T, base: typedesc[B]): Option[B] =
   when value is Option:
@@ -109,30 +123,6 @@ macro box*(variable: typed, value: typed): untyped =
 
   quote do:
     `variable` = `wrap`
-
-macro isStdlib*(ty: untyped): untyped =
-  var underlying = ty.getTypeImpl()[1]
-  if underlying.kind == nnkBracketExpr:
-    discard
-  elif underlying.kind == nnkSym:
-    if (underlying.getTypeImpl().kind == nnkSym) or (underlying.getTypeImpl().kind == nnkBracketExpr):
-      underlying = underlying.getTypeImpl()
-  elif underlying.kind == nnkDistinctTy:
-    underlying = underlying.getTypeImpl()[0]
-  else:
-    underlying = underlying.getTypeImpl()
-  if underlying.kind != nnkBracketExpr:
-    return newLit(underlying.strVal in [
-      "string",
-      "cstring"
-    ].toHashSet())
-
-  result = newLit(underlying[0].strVal in [
-    "seq",
-    "array",
-    "set",
-    "HashSet"
-  ].toHashSet())
 
 #[
 This function exists because the optimal writer/reader calls toProtobuf/fromProtobuf whenever it's defined.
