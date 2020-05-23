@@ -105,12 +105,13 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
     {.fatal: "Serializing a number requires specifying the encoding to use.".}
   elif T.isStdlib():
     discard
-  elif T is object:
-    enumInstanceSerializedFields(T(), fieldName, fieldVar):
+  elif T is (object or tuple):
+    var inst: T
+    enumInstanceSerializedFields(inst, fieldName, fieldVar):
       discard fieldName
       when fieldVar is PlatformDependentTypes:
         {.fatal: "Serializing a number requires specifying the amount of bits via the type.".}
-      elif fieldVar is (VarIntTypes or FixedTypes):
+      elif fieldVar is ((not (VarIntWrapped or FixedWrapped)) and (VarIntTypes or FixedTypes)):
         const
           hasPInt = ty.hasCustomPragmaFixed(fieldName, pint)
           hasSInt = ty.hasCustomPragmaFixed(fieldName, sint)

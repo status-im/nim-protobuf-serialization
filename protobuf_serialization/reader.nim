@@ -93,7 +93,7 @@ proc readLengthDelimited[B](
       preResult = cast[type(preResult)](byteResult)
     elif B.isStdlib():
       substream.stdlibFromProtobuf(preResult)
-    elif preResult is object:
+    elif preResult is (object or tuple):
       preResult = substream.readValueInternal(type(preResult))
     else:
       {.fatal: "Tried to read a Length Delimited type which wasn't actually Length Delimited.".}
@@ -101,10 +101,10 @@ proc readLengthDelimited[B](
   box(fieldVar, preResult)
 
 proc setField[T](value: var T, stream: InputStream, key: ProtobufKey) =
-  when T is (ref or Option):
-    {.fatal: "Ref or Option made it to setField. This should never happen.".}
+  when T is (ref or ptr or Option):
+    {.fatal: "Ref or Ptr or Option made it to setField. This should never happen.".}
 
-  elif T is not object:
+  elif T is not (object or tuple):
     when T is bool:
       stream.readVarInt(value, UInt(value), key)
     elif T is VarIntWrapped:
@@ -139,12 +139,16 @@ proc setField[T](value: var T, stream: InputStream, key: ProtobufKey) =
         #Only calculate the encoding VarInt.
         #In every other case, the type is enough.
         #We don't need to track the boolean type as literally every encoding will parse to the same true/false.
-        when fieldVar is (VarIntWrapped or FixedWrapped):
-          {.fatal: "Don't specify an encoding for a field via its type; use a pragma.".}
-
         var flattened: flatType(fieldVar)
-        when flattened is bool:
+        when flattened is VarIntWrapped:
+          stream.readVarInt(flattened, flattened, key)
+
+        elif flattened is FixedWrapped:
+          stream.readFixed(flattened, key)
+
+        elif flattened is bool:
           stream.readVarInt(flattened, UInt(flattened), key)
+
         elif flattened is SIntegerTypes:
           const
             hasPInt = T.hasCustomPragmaFixed(fieldName, pint)

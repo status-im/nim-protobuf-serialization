@@ -75,7 +75,7 @@ proc writeLengthDelimited[T](
     bytes = substream.getOutput()
 
   #Object which should only be encoded if it has data.
-  elif flatValue is object:
+  elif flatValue is (object or tuple):
     var substream = memoryOutput()
     writeValueInternal(substream, flatValue)
     bytes = substream.getOutput()
@@ -128,7 +128,7 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
 
   when flatType(value).isStdlib():
     stream.writeFieldInternal(1'u32, flattened, type(value))
-  elif flattened is object:
+  elif flattened is (object or tuple):
     var counter = 0'u32
     discard counter
     enumInstanceSerializedFields(flattened, fieldName, fieldVal):
@@ -137,7 +137,7 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
       let flattenedFieldOption = fieldVal.flatMap()
       if flattenedFieldOption.isSome():
         let flattenedField = flattenedFieldOption.get()
-        when flattenedField is VarIntTypes:
+        when flattenedField is ((not (VarIntWrapped or FixedWrapped)) and VarIntTypes):
           when flattenedField is SIntegerTypes:
             const
               hasPInt = flatType(value).hasCustomPragmaFixed(fieldName, pint)
@@ -150,7 +150,7 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
             elif hasFixed:
               stream.writeFieldInternal(counter, Fixed(flattenedField), type(fieldVal))
             else:
-              {.fatal: "Signed pragma attached to non-signed field.".}
+              {.fatal: "Either no pragma or signed pragma attached to non-signed field.".}
 
           elif flattenedField is UIntegerTypes:
             const
@@ -161,12 +161,12 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
             elif hasFixed:
               stream.writeFieldInternal(counter, Fixed(flattenedField), type(fieldVal))
             else:
-              {.fatal: "Unsigned pragma attached to non-signed field.".}
+              {.fatal: "Either no pragma or unsigned pragma attached to non-signed field.".}
 
           elif flattenedField is FixedTypes:
             const hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
             when not hasFixed:
-              {.fatal: "Pragma other than fixed attached to float.".}
+              {.fatal: "Either no pragma or one other than fixed attached to float.".}
             stream.writeFieldInternal(counter, Fixed(flattenedField), type(fieldVal))
           else:
             {.fatal: "Attempting to handle an unknown number type. This should never happen.".}
