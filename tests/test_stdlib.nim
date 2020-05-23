@@ -72,7 +72,6 @@ suite "Test Standard Lib Objects Encoding/Decoding":
     let setInstance = ["abc", "def", "ghi"].toHashSet()
     check Protobuf.decode(Protobuf.encode(setInstance), type(HashSet[string])) == setInstance
 
-
   test "Can encode/decode stdlib fields where a pragma was used to specify encoding":
     let pragmad = PragmadStdLib(
       x: @[5'i32, -3'i32, 300'i32, -612'i32],

@@ -15,7 +15,7 @@ proc decodeNumber[T, E](
 ) =
   var flattened: flatType(T)
   when flattened is bool:
-    flattened = stream.decodeVarInt(bool, UInt(uint8))
+    flattened = stream.decodeVarInt(bool, UInt(uint32))
   elif E is VarIntWrapped:
     flattened = stream.decodeVarInt(type(flattened), encoding)
   elif E is FixedWrapped:
@@ -173,7 +173,6 @@ proc stdlibFromProtobuf[R, CRange, T](
 
       stream.withReadableRange(len, substream):
         ProtobufReader.init(substream, closeAfter = false).readValue(arr[i])
-
     else:
       {.fatal: "Tried to decode an unrecognized object used in a stdlib type.".}
     #---

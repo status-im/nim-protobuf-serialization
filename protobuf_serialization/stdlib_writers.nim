@@ -10,7 +10,7 @@ import types
 
 func encodeNumber[T](value: T): seq[byte] =
   when value is bool:
-    result = encodeVarInt(UInt(1'u32))
+    result = encodeVarInt(UInt(uint32(value)))
     if result.len == 0:
       result = @[byte(0)]
   elif value is VarIntWrapped:
