@@ -174,6 +174,8 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
             {.fatal: "Attempting to handle an unknown number type. This should never happen.".}
         else:
           stream.writeFieldInternal(counter, flattenedField, type(value), fieldName)
+  else:
+    stream.writeFieldInternal(1'u32, flattened, type(value), "")
 
 proc writeValue*[T](writer: ProtobufWriter, value: T) {.inline.} =
   writer.stream.writeValueInternal(value)
