@@ -26,18 +26,18 @@ proc decodeNumber[T](stream: InputStream, next: var T) =
 
 proc readValue*(reader: ProtobufReader, value: var auto)
 
-proc stdlibFromProtobuf(stream: InputStream, value: var string) =
+proc stdlibFromProtobuf[R](stream: InputStream, _: typedesc[R], value: var string) =
   value = newString(stream.totalUnconsumedBytes)
   for c in 0 ..< value.len:
     value[c] = char(stream.read())
 
-proc stdlibFromProtobuf(stream: InputStream, value: var cstring) =
+proc stdlibFromProtobuf[R](stream: InputStream, _: typedesc[R], value: var cstring) =
   var preValue = newString(stream.totalUnconsumedBytes)
   for c in 0 ..< preValue.len:
     preValue[c] = char(stream.read())
   value = preValue
 
-proc stdlibFromProtobuf[T](stream: InputStream, seqInstance: var seq[T]) =
+proc stdlibFromProtobuf[R, T](stream: InputStream, ty: typedesc[R], seqInstance: var seq[T]) =
   var blank: T
   while stream.readable():
     seqInstance.add(blank)
@@ -54,7 +54,7 @@ proc stdlibFromProtobuf[T](stream: InputStream, seqInstance: var seq[T]) =
         raise newException(ProtobufMessageError, "String longer than 2 GB specified.")
 
       stream.withReadableRange(len, substream):
-        substream.stdlibFromProtobuf(seqInstance[^1])
+        substream.stdlibFromProtobuf(ty, seqInstance[^1])
     elif flatType(T) is CastableLengthDelimitedTypes:
       ProtobufReader.init(substream, some(T.wireType), false).readValue(seqInstance[^1])
     elif (flatType(T) is object) or flatType(T).isStdlib():
@@ -72,7 +72,7 @@ proc stdlibFromProtobuf[T](stream: InputStream, seqInstance: var seq[T]) =
       {.fatal: "Tried to decode an unrecognized object used in a stdlib type.".}
     #---
 
-proc stdlibFromProtobuf[C, T](stream: InputStream, arr: var array[C, T]) =
+proc stdlibFromProtobuf[R, C, T](stream: InputStream, ty: typedesc[R], arr: var array[C, T]) =
   when C == 0:
     {.fatal: "Protobuf was told to decode an array of length 0.".}
 
@@ -85,7 +85,7 @@ proc stdlibFromProtobuf[C, T](stream: InputStream, arr: var array[C, T]) =
     when flatType(T) is (VarIntWrapped or FixedWrapped):
       stream.decodeNumber(arr[i])
     elif flatType(T) is (cstring or string):
-      stream.stdlibFromProtobuf(arr[i])
+      stream.stdlibFromProtobuf(ty, arr[i])
     elif flatType(T) is CastableLengthDelimitedTypes:
       ProtobufReader.init(substream, some(T.wireType), false).readValue(arr[i])
     elif (flatType(T) is object) or flatType(T).isStdlib():
@@ -108,11 +108,12 @@ proc stdlibFromProtobuf[C, T](stream: InputStream, arr: var array[C, T]) =
   if i != C:
     raise newException(ProtobufMessageError, "Length delimited buffer was missing elements for this array.")
 
-proc stdlibFromProtobuf[T](
+proc stdlibFromProtobuf[R, T](
   stream: InputStream,
+  ty: typedesc[R],
   setInstance: var (set[T] or HashSet[T])
 ) =
   var seqInstance: seq[T]
-  stream.stdlibFromProtobuf(seqInstance)
+  stream.stdlibFromProtobuf(ty, seqInstance)
   for value in seqInstance:
     setInstance.incl(value)

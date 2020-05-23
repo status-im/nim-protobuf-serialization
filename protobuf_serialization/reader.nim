@@ -59,8 +59,9 @@ include stdlib_readers
 
 proc readValueInternal[T](stream: InputStream, ty: typedesc[T]): T
 
-proc readLengthDelimited[B](
+proc readLengthDelimited[R, B](
   stream: InputStream,
+  rootType: typedesc[R],
   fieldVar: var B,
   key: ProtobufKey
 ) =
@@ -92,7 +93,7 @@ proc readLengthDelimited[B](
         raise newException(ProtobufEOFError, "Couldn't read the length delimited buffer from this stream despite verifying it's readable.")
       preResult = cast[type(preResult)](byteResult)
     elif B.isStdlib():
-      substream.stdlibFromProtobuf(preResult)
+      substream.stdlibFromProtobuf(rootType, preResult)
     elif preResult is (object or tuple):
       preResult = substream.readValueInternal(type(preResult))
     else:
@@ -100,7 +101,11 @@ proc readLengthDelimited[B](
 
   box(fieldVar, preResult)
 
-proc setField[T](value: var T, stream: InputStream, key: ProtobufKey) =
+proc setField[T](
+  value: var T,
+  stream: InputStream,
+  key: ProtobufKey
+) =
   when T is (ref or ptr or Option):
     {.fatal: "Ref or Ptr or Option made it to setField. This should never happen.".}
 
@@ -114,10 +119,10 @@ proc setField[T](value: var T, stream: InputStream, key: ProtobufKey) =
     elif T is (PlatformDependentTypes or VarIntTypes or FixedTypes):
       {.fatal: "Reading into a number requires specifying both the amount of bits via the type, as well as the encoding format.".}
     else:
-      stream.readLengthDelimited(value, key)
+      stream.readLengthDelimited(type(value), value, key)
 
   elif T.isStdlib():
-    stream.readLengthDelimited(value, key)
+    stream.readLengthDelimited(type(value), value, key)
 
   else:
     #This iterative approach is extemely poor.
@@ -183,7 +188,7 @@ proc setField[T](value: var T, stream: InputStream, key: ProtobufKey) =
           stream.readFixed(flattened, key)
 
         else:
-          stream.readLengthDelimited(flattened, key)
+          stream.readLengthDelimited(type(value), flattened, key)
 
         box(fieldVar, flattened)
         break

@@ -64,7 +64,7 @@ proc writeLengthDelimited[T](
 
   #Standard lib types which use custom converters, instead of encoding the literal Nim representation.
   elif type(flatValue).isStdlib():
-    bytes = flatValue.stdlibToProtobuf()
+    bytes = rootType.stdlibToProtobuf(flatValue)
     if bytes.len == 0:
       return
 

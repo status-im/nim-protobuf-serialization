@@ -22,12 +22,16 @@ func encodeNumber[T](value: T): seq[byte] =
 
 proc writeValue*[T](writer: ProtobufWriter, value: T) {.inline.}
 
-func stdLibToProtobuf(
+func stdLibToProtobuf[R](
+  _: typedesc[R],
   value: cstring or string
 ): seq[byte] {.inline.} =
   cast[seq[byte]]($value)
 
-proc stdlibToProtobuf[T](arrInstance: openArray[T]): seq[byte] =
+proc stdlibToProtobuf[R, T](
+  ty: typedesc[R],
+  arrInstance: openArray[T]
+): seq[byte] =
   for value in arrInstance:
     when flatType(T) is (bool or VarIntWrapped or FixedWrapped):
       let possibleNumber = flatMap(value)
@@ -35,7 +39,7 @@ proc stdlibToProtobuf[T](arrInstance: openArray[T]): seq[byte] =
       result &= encodeNumber(possibleNumber.get(blank))
 
     elif flatType(T) is (cstring or string):
-      let thisVal = flatMap(value).get("").stdlibToProtobuf()
+      let thisVal = ty.stdlibToProtobuf(flatMap(value).get(""))
       result &= byte(thisVal.len) & thisVal
 
     elif flatType(T) is CastableLengthDelimitedTypes:
@@ -51,11 +55,14 @@ proc stdlibToProtobuf[T](arrInstance: openArray[T]): seq[byte] =
     else:
       {.fatal: "Tried to encode an unrecognized object used in a stdlib type.".}
 
-proc stdlibToProtobuf[T](setInstance: set[T]): seq[byte] =
+proc stdlibToProtobuf[R, T](ty: typedesc[R], setInstance: set[T]): seq[byte] =
   var seqInstance: seq[T]
   for value in setInstance:
     seqInstance.add(value)
-  result = seqInstance.stdLibToProtobuf()
+  result = ty.stdLibToProtobuf(seqInstance)
 
-proc stdlibToProtobuf[T](setInstance: HashSet[T]): seq[byte] {.inline.} =
-  setInstance.toSeq().stdLibToProtobuf()
+proc stdlibToProtobuf[R, T](
+  ty: typedesc[R],
+  setInstance: HashSet[T]
+): seq[byte] {.inline.} =
+  ty.stdLibToProtobuf(setInstance.toSeq())
