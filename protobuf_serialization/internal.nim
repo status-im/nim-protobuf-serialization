@@ -101,7 +101,7 @@ proc box*[B](into: var B, value: auto) =
 func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
   when T is PlatformDependentTypes:
     {.fatal: "Serializing a number requires specifying the amount of bits via the type.".}
-  elif T is ((PureSIntegerTypes or PureUIntegerTypes) and (not bool)):
+  elif T is (PureTypes and (not bool)):
     {.fatal: "Serializing a number requires specifying the encoding to use.".}
   elif T.isStdlib():
     discard

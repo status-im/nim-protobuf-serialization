@@ -2,41 +2,50 @@ from macros import quote
 
 import faststreams
 
-import libp2p_varint
-
 const
   VAR_INT_CONTINUATION_MASK*: byte = 0b1000_0000
   VAR_INT_VALUE_MASK*: byte = 0b0111_1111
 
 type
+  VarintStatus* = enum
+    Success,
+    Overflow,
+    Incomplete
+
   #Used to specify how to encode/decode primitives.
   #Despite being used outside of this library, all access is via templates.
-  PIntWrapped32* = distinct int32
-  PIntWrapped64* = distinct int64
-  UIntWrapped32* = distinct uint32
-  UIntWrapped64* = distinct uint64
-  SIntWrapped32* = distinct int32
-  SIntWrapped64* = distinct int64
-  FixedWrapped32* = distinct uint32
-  FixedWrapped64* = distinct uint64
-  SFixedWrapped32* = distinct int32
-  SFixedWrapped64* = distinct int64
+  PIntWrapped32   = distinct int32
+  PIntWrapped64   = distinct int64
+  UIntWrapped32   = distinct uint32
+  UIntWrapped64   = distinct uint64
+  SIntWrapped32   = distinct int32
+  SIntWrapped64   = distinct int64
+  FixedWrapped32  = distinct uint32
+  FixedWrapped64  = distinct uint64
+  SFixedWrapped32 = distinct int32
+  SFixedWrapped64 = distinct int64
 
-  LIntWrapped32* = distinct int32
-  LIntWrapped64* = distinct int64
-  LUIntWrapped32* = distinct int32
-  LUIntWrapped64* = distinct int64
+  LIntWrapped32  = distinct int32
+  LIntWrapped64  = distinct int64
+  LUIntWrapped32 = distinct int32
+  LUIntWrapped64 = distinct int64
 
-  PIntWrapped*   = PIntWrapped32 or PIntWrapped64
-  UIntWrapped*   = UIntWrapped32 or UIntWrapped64
-  SIntWrapped*   = SIntWrapped32 or SIntWrapped64
-  VarIntWrapped* = PIntWrapped or UIntWrapped or SIntWrapped
+  SignedWrapped32Types   = PIntWrapped32 or SIntWrapped32 or SFixedWrapped32 or LIntWrapped32
+  SignedWrapped64Types   = PIntWrapped64 or SIntWrapped64 or SFixedWrapped64 or LIntWrapped64
+  UnsignedWrapped32Types = UIntWrapped32 or FixedWrapped32 or LUIntWrapped32
+  UnsignedWrapped64Types = UIntWrapped64 or FixedWrapped64 or LUIntWrapped64
+
+  SIntWrapped    = SIntWrapped32 or SIntWrapped64
+  UIntWrapped    = UIntWrapped32 or UIntWrapped64
+  VarIntWrapped* = PIntWrapped32 or PIntWrapped64 or
+                   SIntWrapped or UIntWrapped or
+                   LIntWrapped32 or LIntWrapped64 or
+                   LUIntWrapped32 or LUIntWrapped64
   FixedWrapped*  = FixedWrapped32 or FixedWrapped64 or
                    SFixedWrapped32 or SFixedWrapped64
 
   #Signed native types utilizing the VarInt/Fixed wire types.
-  PureSIntegerTypes* = SomeSignedInt or enum
-
+  PureSIntegerTypes = SomeSignedInt or enum
   #Every Signed Integer Type.
   SIntegerTypes* = PIntWrapped32 or PIntWrapped64 or
                    SIntWrapped32 or SIntWrapped64 or
@@ -44,11 +53,13 @@ type
                    PureSIntegerTypes
 
   #Unsigned native types utilizing the VarInt/Fixed wire types.
-  PureUIntegerTypes* = SomeUnsignedInt or char or bool
+  PureUIntegerTypes = SomeUnsignedInt or char or bool
   #Every Unsigned Integer Type.
   UIntegerTypes* = UIntWrapped32 or UIntWrapped64 or
                    FixedWrapped32 or FixedWrapped64 or
                    PureUIntegerTypes
+
+  PureTypes* = PureSIntegerTypes or PureUIntegerTypes
 
   #Every type valid for the VarInt wire type.
   VarIntTypes* = SIntegerTypes or UIntegerTypes
@@ -90,6 +101,8 @@ macro generateWrapper(
             `uSmaller`(value)
         else:
           when sizeof(value) == 8:
+            #Use a binary cast so we can convert floats.
+            #Required for Fixed; has no effect on any type.
             cast[`sLarger`](value)
           else:
             cast[`sSmaller`](value)
@@ -129,13 +142,13 @@ template fixed*() {.pragma.}
 template lint*() {.pragma.}
 
 template unwrap*[T](value: T): untyped =
-  when T is (PIntWrapped32 or SIntWrapped32 or SFixedWrapped32):
+  when T is SignedWrapped32Types:
     int32(value)
-  elif T is (PIntWrapped64 or SIntWrapped64 or SFixedWrapped64):
+  elif T is SignedWrapped64Types:
     int64(value)
-  elif T is (UIntWrapped32 or FixedWrapped32):
+  elif T is UnsignedWrapped32Types:
     uint32(value)
-  elif T is (UIntWrapped64 or FixedWrapped64):
+  elif T is UnsignedWrapped64Types:
     uint64(value)
   else:
     {.fatal: "Tried to get the unwrapped value of a non-wrapped type. This should never happen.".}
