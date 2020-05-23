@@ -85,7 +85,7 @@ proc writeLengthDelimited[T](
     bytes = cast[seq[byte]](flatValue)
 
   #Standard lib types which use custom converters, instead of encoding the literal Nim representation.
-  elif flatType(flatValue).isStdlib():
+  elif type(flatValue).isStdlib():
     bytes = flatValue.stdlibToProtobuf()
     if bytes.len == 0:
       return
@@ -114,7 +114,12 @@ proc writeLengthDelimited[T](
   stream.write(encodeVarInt(PInt(bytes.len)))
   stream.write(bytes)
 
-proc writeFieldInternal[T](stream: OutputStream, fieldNum: uint, value: T) =
+proc writeFieldInternal[T, R](
+  stream: OutputStream,
+  fieldNum: uint,
+  value: T,
+  rootType: typedesc[R]
+) =
   let flattenedOption = value.flatMap()
   if flattenedOption.isNone():
     return
@@ -127,7 +132,7 @@ proc writeFieldInternal[T](stream: OutputStream, fieldNum: uint, value: T) =
   elif flattened is FixedWrapped:
     stream.writeFixed(fieldNum, flattened)
   else:
-    writeLengthDelimited(stream, fieldNum, T, flattened)
+    writeLengthDelimited(stream, fieldNum, R, flattened)
 
 proc writeField*[T](
   writer: ProtobufWriter,
@@ -135,7 +140,7 @@ proc writeField*[T](
   value: T
 ) {.inline.} =
   static: verifyWritable(flatType(T))
-  writer.stream.writeFieldInternal(fieldNum, value)
+  writer.stream.writeFieldInternal(fieldNum, value, type(value))
 
 proc writeValueInternal[T](stream: OutputStream, value: T) =
   let flattenedOption = value.flatMap()
@@ -144,10 +149,9 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
   let flattened = flattenedOption.get()
 
   when flatType(value).isStdlib():
-    stream.writeFieldInternal(1'u, flattened)
+    stream.writeFieldInternal(1'u, flattened, type(value))
   elif flattened is object:
     var counter = 0'u
-    discard counter
     enumInstanceSerializedFields(flattened, fieldName, fieldVal):
       discard fieldName
       inc(counter)
@@ -161,11 +165,11 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
               hasSInt = flatType(value).hasCustomPragmaFixed(fieldName, sint)
               hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
             when hasPInt:
-              stream.writeFieldInternal(counter, PInt(flattenedField))
+              stream.writeFieldInternal(counter, PInt(flattenedField), type(fieldVal))
             elif hasSInt:
-              stream.writeFieldInternal(counter, SInt(flattenedField))
+              stream.writeFieldInternal(counter, SInt(flattenedField), type(fieldVal))
             elif hasFixed:
-              stream.writeFieldInternal(counter, Fixed(flattenedField))
+              stream.writeFieldInternal(counter, Fixed(flattenedField), type(fieldVal))
             else:
               {.fatal: "Signed pragma attached to non-signed field.".}
 
@@ -174,9 +178,9 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
               hasUInt = (flatType(value).hasCustomPragmaFixed(fieldName, puint) or (flattenedField is bool))
               hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
             when hasUInt:
-              stream.writeFieldInternal(counter, UInt(flattenedField))
+              stream.writeFieldInternal(counter, UInt(flattenedField), type(fieldVal))
             elif hasFixed:
-              stream.writeFieldInternal(counter, Fixed(flattenedField))
+              stream.writeFieldInternal(counter, Fixed(flattenedField), type(fieldVal))
             else:
               {.fatal: "Unsigned pragma attached to non-signed field.".}
 
@@ -184,13 +188,13 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
             const hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
             when not hasFixed:
               {.fatal: "Pragma other than fixed attached to float.".}
-            stream.writeFieldInternal(counter, Fixed(flattenedField))
+            stream.writeFieldInternal(counter, Fixed(flattenedField), type(fieldVal))
           else:
             {.fatal: "Attempting to handle an unknown number type. This should never happen.".}
         else:
-          stream.writeFieldInternal(counter, flattenedField)
+          stream.writeFieldInternal(counter, flattenedField, type(fieldVal))
   else:
-    stream.writeFieldInternal(1'u, flattened)
+    stream.writeFieldInternal(1'u, flattened, type(value))
 
 proc writeValue*[T](writer: ProtobufWriter, value: T) {.inline.} =
   static: verifyWritable(type(flatType(T)))
