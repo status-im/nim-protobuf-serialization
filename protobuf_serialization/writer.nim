@@ -104,11 +104,8 @@ proc writeLengthDelimited[T](
     if bytes.len == 0:
       return
 
-  #Distinct types.
   else:
-    bytes = flatValue.toProtobuf()
-    if bytes.len == 0:
-      return
+    {.fatal: "Tried to write a Length Delimited type which wasn't actually Length Delimited.".}
 
   stream.write(key(fieldNum, LengthDelimited))
   stream.write(encodeVarInt(PInt(bytes.len)))

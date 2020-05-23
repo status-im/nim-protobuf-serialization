@@ -4,7 +4,7 @@ import unittest
 import ../protobuf_serialization
 from ../protobuf_serialization/internal import VarIntWrapped, FixedWrapped, unwrap, flatType, flatMap
 
-from test_objects import DistinctInt, toProtobuf, fromProtobuf, `==`
+from test_objects import DistinctInt, `==`
 
 type
   Basic = object
@@ -131,13 +131,6 @@ suite "Test Encoding/Decoding of Options":
     let output = Protobuf.encode(some(basicInst))
     check output == Protobuf.encode(flatMap(basicInst))
     check Protobuf.decode(output, Option[ptr Basic]).get()[] == basicInst
-
-  test "Option distinct type":
-    testNone(DistinctInt)
-    #The following test broke.
-    #I have no idea why.
-    #Considering its failure is related to fromProtobuf, which is slated to be purged, I'm fine with this for now.
-    #testSome(DistinctInt(5))
 
   #This was banned at one point in this library's lifetime.
   #It should work now.

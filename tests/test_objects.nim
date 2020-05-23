@@ -19,7 +19,6 @@ type
     f: Basic
     g: string
     h: bool
-    i: DistinctInt
 
   Nested* = ref object
     child*: Nested
@@ -31,21 +30,8 @@ type
   Pointered = object
     x {.sint.}: ptr int32
 
-#Instead of relying on encode, you could instead write your own implementations.
-#Any byte sequence returned by this will be passed directly to the matching fromProtobuf.
-#Doing thibgs this way requires knowing what wire type to prepend.
-#That said, as this is for distinct objects, that shouldn't be too problematic.
-proc toProtobuf*(x: DistinctInt): seq[byte] =
-  result = Protobuf.encode(SInt(x.int32))
-  if result.len == 0:
-    return
-  result = result[1 ..< result.len]
-
-proc fromProtobuf*(bytes: seq[byte], value: var DistinctInt) =
-  if bytes.len == 0:
-    return
-  value = DistinctInt(Protobuf.decode(@[wireType(SInt(int32))] & bytes, type(SInt(int32))))
-
+type DistinctTypeSerialized = SInt(int32)
+DistinctInt.borrowSerialization(DistinctTypeSerialized)
 proc `==`*(lhs: DistinctInt, rhs: DistinctInt): bool {.borrow.}
 
 proc `==`*(lhs: Nested, rhs: Nested): bool =
@@ -95,8 +81,7 @@ suite "Test Object Encoding/Decoding":
       e: 200,
       f: Basic(a: 100, b: "Test string.", c: 'C'),
       g: "Other test string.",
-      h: true,
-      i: 124521.DistinctInt
+      h: true
     )
     check Protobuf.decode(Protobuf.encode(obj), type(Wrapped)) == obj
 
@@ -107,21 +92,18 @@ suite "Test Object Encoding/Decoding":
         e: 200,
         f: Basic(a: 100, b: "Test string.", c: 'C'),
         g: "Other test string.",
-        h: true,
-        i: 124521.DistinctInt
+        h: true
       )
       writer = ProtobufWriter.init(memoryOutput())
 
     writer.writeField(1, SInt(obj.d))
     writer.writeField(3, obj.f)
     writer.writeField(4, obj.g)
-    writer.writeField(6, obj.i)
 
     let result = Protobuf.decode(writer.finish(), type(Wrapped))
     check result.d == obj.d
     check result.f == obj.f
     check result.g == obj.g
-    check result.i == obj.i
     check result.e == 0
     check result.h == false
 
@@ -132,13 +114,11 @@ suite "Test Object Encoding/Decoding":
         e: 200,
         f: Basic(a: 100, b: "Test string.", c: 'C'),
         g: "Other test string.",
-        h: true,
-        i: 124521.DistinctInt
+        h: true
       )
       writer = ProtobufWriter.init(memoryOutput())
 
     writer.writeField(3, obj.f)
-    writer.writeField(6, obj.i)
     writer.writeField(1, SInt(obj.d))
     writer.writeField(2, SInt(obj.e))
     writer.writeField(5, obj.h)

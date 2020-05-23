@@ -106,9 +106,7 @@ proc readLengthDelimited[B](stream: InputStream, fieldVar: var B, key: byte) =
     elif preResult is object:
       preResult = substream.readValueInternal(type(preResult))
     else:
-      var bytes = newSeq[byte](len)
-      discard substream.readInto(bytes)
-      bytes.fromProtobuf(preResult)
+      {.fatal: "Tried to read a Length Delimited type which wasn't actually Length Delimited.".}
 
   box(fieldVar, preResult)
 
