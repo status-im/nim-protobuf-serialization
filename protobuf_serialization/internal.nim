@@ -113,9 +113,8 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
         {.fatal: "Serializing a number requires specifying the amount of bits via the type.".}
       elif fieldVar is ((not (VarIntWrapped or FixedWrapped)) and (VarIntTypes or FixedTypes)):
         const
-          hasPInt = ty.hasCustomPragmaFixed(fieldName, pint)
+          hasPInt = ty.hasCustomPragmaFixed(fieldName, pint) or (flatType(fieldVar) is bool)
           hasSInt = ty.hasCustomPragmaFixed(fieldName, sint)
-          hasUInt = (ty.hasCustomPragmaFixed(fieldName, puint) or (flatType(fieldVar) is bool))
           hasFixed = ty.hasCustomPragmaFixed(fieldName, fixed)
-        when uint(hasPInt) + uint(hasSInt) + uint(hasUInt) + uint(hasFixed) != 1:
+        when uint(hasPInt) + uint(hasSInt) + uint(hasFixed) != 1:
           {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}

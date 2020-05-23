@@ -15,7 +15,7 @@ proc readProtobufKey(
   stream: InputStream
 ): ProtobufKey =
   let
-    varint = stream.decodeVarInt(uint32, UInt(uint32))
+    varint = stream.decodeVarInt(uint32, PInt(uint32))
     wire = byte(varint and WIRE_TYPE_MASK)
   if (wire < byte(low(ProtobufWireType))) or (byte(high(ProtobufWireType)) < wire):
     raise newException(ProtobufMessageError, "Protobuf key had an invalid wire type.")
@@ -112,7 +112,7 @@ proc setField[T](
 
   elif T is not (object or tuple):
     when T is bool:
-      stream.readVarInt(value, UInt(value), key)
+      stream.readVarInt(value, PInt(value), key)
     elif T is VarIntWrapped:
       stream.readVarInt(value, value, key)
     elif T is FixedWrapped:
@@ -153,7 +153,7 @@ proc setField[T](
           stream.readFixed(flattened, key)
 
         elif flattened is bool:
-          stream.readVarInt(flattened, UInt(flattened), key)
+          stream.readVarInt(flattened, PInt(flattened), key)
 
         elif flattened is SIntegerTypes:
           const
@@ -173,12 +173,12 @@ proc setField[T](
 
         elif flattened is UIntegerTypes:
           const
-            hasUInt = T.hasCustomPragmaFixed(fieldName, puint)
+            hasPInt = T.hasCustomPragmaFixed(fieldName, pint)
             hasFixed = T.hasCustomPragmaFixed(fieldName, fixed)
-          when uint(hasUInt) + uint(hasFixed) != 1:
+          when uint(hasPInt) + uint(hasFixed) != 1:
             {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
-          elif hasUInt:
-            stream.readVarInt(flattened, UInt(flattened), key)
+          elif hasPInt:
+            stream.readVarInt(flattened, PInt(flattened), key)
           elif hasFixed:
             stream.readFixed(flattened, key)
 

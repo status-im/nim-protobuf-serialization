@@ -16,7 +16,7 @@ proc writeProtobufKey(
   number: uint32,
   wire: ProtobufWireType
 ) {.inline.} =
-  stream.write(encodeVarInt(UInt((number shl 3) or uint32(wire))))
+  stream.write(encodeVarInt(PInt((number shl 3) or uint32(wire))))
 
 proc writeVarInt(stream: OutputStream, fieldNum: uint32, value: VarIntWrapped) =
   let bytes = encodeVarInt(value)
@@ -105,7 +105,7 @@ proc writeFieldInternal[T, R](
   let flattened = flattenedOption.get()
 
   when flattened is bool:
-    stream.writeVarInt(fieldNum, UInt(flattened))
+    stream.writeVarInt(fieldNum, PInt(flattened))
   elif flattened is VarIntWrapped:
     stream.writeVarInt(fieldNum, flattened)
   elif flattened is FixedWrapped:
@@ -156,10 +156,10 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
 
           elif flattenedField is UIntegerTypes:
             const
-              hasUInt = (flatType(value).hasCustomPragmaFixed(fieldName, puint) or (flattenedField is bool))
+              hasPInt = flatType(value).hasCustomPragmaFixed(fieldName, pint) or (flattenedField is bool)
               hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
-            when hasUInt:
-              stream.writeFieldInternal(counter, UInt(flattenedField), type(value), fieldName)
+            when hasPInt:
+              stream.writeFieldInternal(counter, PInt(flattenedField), type(value), fieldName)
             elif hasFixed:
               stream.writeFieldInternal(counter, Fixed(flattenedField), type(value), fieldName)
             else:

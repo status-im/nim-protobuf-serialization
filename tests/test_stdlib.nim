@@ -11,7 +11,7 @@ type
 
   PragmadStdlib = object
     x {.sint.}: seq[int32]
-    y {.puint.}: array[5, uint32]
+    y {.pint.}: array[5, uint32]
     z {.fixed.}: HashSet[float32]
 
   BooldStdlib = object

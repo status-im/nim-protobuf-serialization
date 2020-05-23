@@ -25,8 +25,8 @@ suite "Test Encoding of Empty Objects/Values":
     writeEmpty(PInt(0'i64))
 
   test "Empty unsigned VarInt":
-    writeEmpty(UInt(0'u32))
-    writeEmpty(UInt(0'u64))
+    writeEmpty(PInt(0'u32))
+    writeEmpty(PInt(0'u64))
 
   test "Empty zigzagged VarInt":
     writeEmpty(SInt(0'i32))

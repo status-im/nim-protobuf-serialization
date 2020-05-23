@@ -7,7 +7,7 @@ type
     x {.pint.}: int32
 
   UIntType = object
-    x {.puint.}: uint32
+    x {.pint.}: uint32
 
   SIntType = object
     x {.sint.}: int32
@@ -38,10 +38,10 @@ suite "Test Boolean Encoding/Decoding":
     writeRead(PIntType(x: 0), BoolType(x: false))
 
   test "Can encode/decode boolean as unsigned VarInt":
-    writeRead(UInt(0'u32), false)
-    writeRead(UInt(0'u64), false)
-    writeRead(UInt(1'u32), true)
-    writeRead(UInt(1'u64), true)
+    writeRead(PInt(0'u32), false)
+    writeRead(PInt(0'u64), false)
+    writeRead(PInt(1'u32), true)
+    writeRead(PInt(1'u64), true)
 
     writeRead(UIntType(x: 1), BoolType(x: true))
     writeRead(UIntType(x: 0), BoolType(x: false))

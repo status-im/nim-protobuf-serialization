@@ -15,7 +15,7 @@ proc decodeNumber[T, E](
 ) =
   var flattened: flatType(T)
   when flattened is bool:
-    flattened = stream.decodeVarInt(bool, UInt(uint32))
+    flattened = stream.decodeVarInt(bool, PInt(uint32))
   elif E is VarIntWrapped:
     flattened = stream.decodeVarInt(type(flattened), encoding)
   elif E is FixedWrapped:
@@ -77,8 +77,6 @@ proc stdlibFromProtobuf[R, T](
 
       when R.hasCustomPragmaFixed(fieldName, pint):
         stream.decodeNumber(seqInstance[^1], PInt(type(seqInstance[^1])))
-      elif R.hasCustomPragmaFixed(fieldName, puint):
-        stream.decodeNumber(seqInstance[^1], UInt(type(seqInstance[^1])))
       elif R.hasCustomPragmaFixed(fieldName, sint):
         stream.decodeNumber(seqInstance[^1], SInt(type(seqInstance[^1])))
       elif R.hasCustomPragmaFixed(fieldName, fixed):
@@ -146,8 +144,6 @@ proc stdlibFromProtobuf[R, CRange, T](
     elif fType is VarIntTypes:
       when R.hasCustomPragmaFixed(fieldName, pint):
         stream.decodeNumber(arr[i], PInt(type(arr[i])))
-      elif R.hasCustomPragmaFixed(fieldName, puint):
-        stream.decodeNumber(arr[i], UInt(type(arr[i])))
       elif R.hasCustomPragmaFixed(fieldName, sint):
         stream.decodeNumber(arr[i], SInt(type(arr[i])))
       elif R.hasCustomPragmaFixed(fieldName, fixed):

@@ -22,28 +22,33 @@ type
   SFixedWrapped32* = distinct int32
   SFixedWrapped64* = distinct int64
 
-  PIntWrapped* = PIntWrapped32 or PIntWrapped64
-  UIntWrapped* = UIntWrapped32 or UIntWrapped64
-  SIntWrapped* = SIntWrapped32 or SIntWrapped64
+  LIntWrapped32* = distinct int32
+  LIntWrapped64* = distinct int64
+  LUIntWrapped32* = distinct int32
+  LUIntWrapped64* = distinct int64
+
+  PIntWrapped*   = PIntWrapped32 or PIntWrapped64
+  UIntWrapped*   = UIntWrapped32 or UIntWrapped64
+  SIntWrapped*   = SIntWrapped32 or SIntWrapped64
   VarIntWrapped* = PIntWrapped or UIntWrapped or SIntWrapped
-  FixedWrapped* = FixedWrapped32 or FixedWrapped64 or
-                  SFixedWrapped32 or SFixedWrapped64
+  FixedWrapped*  = FixedWrapped32 or FixedWrapped64 or
+                   SFixedWrapped32 or SFixedWrapped64
 
   #Signed native types utilizing the VarInt/Fixed wire types.
   PureSIntegerTypes* = SomeSignedInt or enum
 
   #Every Signed Integer Type.
   SIntegerTypes* = PIntWrapped32 or PIntWrapped64 or
-                 SIntWrapped32 or SIntWrapped64 or
-                 SFixedWrapped32 or SFixedWrapped64 or
-                 PureSIntegerTypes
+                   SIntWrapped32 or SIntWrapped64 or
+                   SFixedWrapped32 or SFixedWrapped64 or
+                   PureSIntegerTypes
 
   #Unsigned native types utilizing the VarInt/Fixed wire types.
   PureUIntegerTypes* = SomeUnsignedInt or char or bool
   #Every Unsigned Integer Type.
   UIntegerTypes* = UIntWrapped32 or UIntWrapped64 or
-                 FixedWrapped32 or FixedWrapped64 or
-                 PureUIntegerTypes
+                   FixedWrapped32 or FixedWrapped64 or
+                   PureUIntegerTypes
 
   #Every type valid for the VarInt wire type.
   VarIntTypes* = SIntegerTypes or UIntegerTypes
@@ -52,67 +57,76 @@ type
                 PureUIntegerTypes or PureSIntegerTypes or
                 float32 or float64
 
-macro generateWrapperConstructors(
+macro generateWrapper(
   name: untyped,
   supported: typed,
-  smaller: typed,
-  larger: typed,
+  uLarger: typed,
+  uSmaller: typed,
+  sLarger: typed,
+  sSmaller: typed,
   err: string
-) =
+): untyped =
   quote do:
     template `name`*(value: untyped): untyped =
       when value is not `supported`:
         {.fatal: `err`.}
 
       when value is type:
-        when sizeof(value) == 8:
-          `larger`
+        when value is UIntegerTypes:
+          when sizeof(value) == 8:
+            `uLarger`
+          else:
+            `uSmaller`
         else:
-          `smaller`
+          when sizeof(value) == 8:
+            `sLarger`
+          else:
+            `sSmaller`
       else:
-        when sizeof(value) == 8:
-          cast[`larger`](value)
+        when value is UIntegerTypes:
+          when sizeof(value) == 8:
+            `uLarger`(value)
+          else:
+            `uSmaller`(value)
         else:
-          cast[`smaller`](value)
+          when sizeof(value) == 8:
+            cast[`sLarger`](value)
+          else:
+            cast[`sSmaller`](value)
 
-generateWrapperConstructors(PInt, SIntegerTypes, PIntWrapped32, PIntWrapped64, "PInt should only be used with a signed integer type.")
-generateWrapperConstructors(UInt, UIntegerTypes, UIntWrapped32, UIntWrapped64, "UInt should only be used with an unsigned integer type.")
-generateWrapperConstructors(SInt, SIntegerTypes, SIntWrapped32, SIntWrapped64, "SInt should only be used with a signed integer type.")
+generateWrapper(
+  SInt, SIntegerTypes,
+  SIntWrapped32,  SIntWrapped64,
+  SIntWrapped32,  SIntWrapped64,
+  "SInt should only be used with a signed integer type."
+)
 
-#Manually generate the Fixed template.
-#This allows us to offer a single template for signed and unsigned fixed values.
-template Fixed*(value: untyped): untyped =
-  when value is not FixedTypes:
-    {.fatal: "Fixed should only be used with a number.".}
+generateWrapper(
+  PInt, SIntegerTypes or UIntegerTypes,
+  UIntWrapped64, UIntWrapped32,
+  PIntWrapped64, PIntWrapped32,
+  "LInt should only be used with a integer value (signed or unsigned)."
+)
 
-  when value is type:
-    when value is UIntegerTypes:
-      when sizeof(value) == 8:
-        FixedWrapped64
-      else:
-        FixedWrapped32
-    else:
-      when sizeof(value) == 8:
-        SFixedWrapped64
-      else:
-        SFixedWrapped32
-  else:
-    when value is UIntegerTypes:
-      when sizeof(value) == 8:
-        FixedWrapped64(value)
-      else:
-        FixedWrapped32(value)
-    else:
-      when sizeof(value) == 8:
-        cast[SFixedWrapped64](value)
-      else:
-        cast[SFixedWrapped32](value)
+generateWrapper(
+  Fixed, FixedTypes,
+  FixedWrapped64, FixedWrapped32,
+  SFixedWrapped64, SFixedWrapped32,
+  "Fixed should only be used with a number."
+)
+
+generateWrapper(
+  LInt, SIntegerTypes or UIntegerTypes,
+  LUIntWrapped64, LUIntWrapped32,
+  LIntWrapped64, LIntWrapped32,
+  "LInt should only be used with a integer value (signed or unsigned)."
+)
 
 #Used to specify how to encode/decode fields in an object.
 template pint*() {.pragma.}
-template puint*() {.pragma.}
 template sint*() {.pragma.}
 template fixed*() {.pragma.}
+template lint*() {.pragma.}
 
 template unwrap*[T](value: T): untyped =
   when T is (PIntWrapped32 or SIntWrapped32 or SFixedWrapped32):

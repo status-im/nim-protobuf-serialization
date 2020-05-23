@@ -9,9 +9,9 @@ type
   DistinctInt* = distinct int32
 
   Basic = object
-    a {.puint.}: uint64
+    a {.pint.}: uint64
     b: string
-    c {.puint.}: char
+    c {.pint.}: char
 
   Wrapped = object
     d {.sint.}: int32
@@ -74,22 +74,22 @@ suite "Test Object Encoding/Decoding":
     let
       unnamed: (
         SInt(int32),
-        UInt(uint32),
+        PInt(uint32),
         bool,
         string,
         bool
-      ) = (SInt(5'i32), UInt(3'u32), true, "abc", false)
+      ) = (SInt(5'i32), PInt(3'u32), true, "abc", false)
       unnamedRead = Protobuf.decode(Protobuf.encode(unnamed), type(unnamed))
 
       named: tuple[
         a: SInt(int32),
-        b: UInt(uint32),
+        b: PInt(uint32),
         c: bool,
         d: string,
         e: bool
       ] = (
         a: SInt(6'i32),
-        b: UInt(4'u32),
+        b: PInt(4'u32),
         c: false,
         d: "def",
         e: true

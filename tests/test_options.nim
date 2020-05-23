@@ -44,8 +44,8 @@ suite "Test Encoding/Decoding of Options":
     testSome(PInt(-5'i32))
 
   test "Option unsigned VarInt":
-    testNone(UInt(uint32))
-    testSome(UInt(5'u32))
+    testNone(PInt(uint32))
+    testSome(PInt(5'u32))
 
   test "Option zigzagged VarInt":
     testNone(SInt(int32))

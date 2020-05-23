@@ -10,7 +10,7 @@ import types
 
 func encodeNumber[T](value: T): seq[byte] =
   when value is bool:
-    result = encodeVarInt(UInt(uint32(value)))
+    result = encodeVarInt(PInt(uint32(value)))
     if result.len == 0:
       result = @[byte(0)]
   elif value is VarIntWrapped:
@@ -55,8 +55,6 @@ proc stdlibToProtobuf[R, T](
 
       when R.hasCustomPragmaFixed(fieldName, pint):
         result &= encodeNumber(PInt(possibleNumber.get(blank)))
-      elif R.hasCustomPragmaFixed(fieldName, puint):
-        result &= encodeNumber(UInt(possibleNumber.get(blank)))
       elif R.hasCustomPragmaFixed(fieldName, sint):
         result &= encodeNumber(SInt(possibleNumber.get(blank)))
       elif R.hasCustomPragmaFixed(fieldName, fixed):
