@@ -24,7 +24,7 @@ proc decodeNumber[T, E](
     else:
       var temp: uint32
     for i in 0 ..< sizeof(temp):
-      temp = temp + (stream.read() shl (i * 8))
+      temp = temp + (type(temp)(stream.read()) shl (i * 8))
     flattened = cast[type(flattened)](temp)
   else:
     {.fatal: "Trying to decode a number which isn't wrapped. This should never happen.".}
