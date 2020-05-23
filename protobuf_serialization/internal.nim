@@ -83,6 +83,9 @@ proc boxInternal[C, B](value: C, into: B): B =
   elif into is ref:
     new(result)
     result[] = boxInternal(value, nextType(result))
+  elif into is ptr:
+    result = cast[B](alloc0(sizeof(B)))
+    result[] = boxInternal(value, nextType(result))
 
 proc box*[B](into: var B, value: auto) =
   into = boxInternal(value, into)

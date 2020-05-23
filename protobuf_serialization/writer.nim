@@ -23,7 +23,7 @@ func verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
     {.fatal: "Writing a number requires specifying the encoding to use.".}
   elif T.isStdlib():
     discard
-  elif T is (object or ref):
+  elif T is object:
     enumInstanceSerializedFields(T(), fieldName, fieldVar):
       discard fieldName
       when fieldVar is PlatformDependentTypes:

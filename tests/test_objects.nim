@@ -28,6 +28,9 @@ type
   Circular = ref object
     child: Circular
 
+  Pointered = object
+    x {.sint.}: ptr int32
+
 #Instead of relying on encode, you could instead write your own implementations.
 #Any byte sequence returned by this will be passed directly to the matching fromProtobuf.
 #Doing thibgs this way requires knowing what wire type to prepend.
@@ -144,13 +147,24 @@ suite "Test Object Encoding/Decoding":
     check Protobuf.decode(writer.finish(), type(Wrapped)) == obj
 
   test "Can read nested objects":
-    var obj: Nested = Nested(
+    let obj: Nested = Nested(
       child: Nested(
         data: "Child data."
       ),
       data: "Parent data."
     )
     check Protobuf.decode(Protobuf.encode(obj), type(Nested)) == obj
+
+  test "Can read pointered objects":
+    var ptrd = Pointered()
+    ptrd.x = cast[ptr int32](alloc0(sizeof(int32)))
+    ptrd.x[] = 5
+    check Protobuf.decode(Protobuf.encode(ptrd), Pointered).x[] == ptrd.x[]
+
+    var ptrPtrd = addr ptrd
+    ptrPtrd.x = cast[ptr int32](alloc0(sizeof(int32)))
+    ptrPtrd.x[] = 8
+    check Protobuf.decode(Protobuf.encode(ptrPtrd), ptr Pointered).x[] == ptrPtrd.x[]
 
   test "Doesn't allow remaining data in the buffer":
     expect ProtobufReadError:
