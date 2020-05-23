@@ -20,7 +20,7 @@ type
 
   ProtobufReader* = object
     stream*: InputStream
-    wireOverride*: Option[byte]
+    keyOverride*: Option[ProtobufKey]
     closeAfter*: bool
 
 func init*(T: type ProtobufWriter, stream: OutputStream): T {.inline.} =
@@ -29,10 +29,10 @@ func init*(T: type ProtobufWriter, stream: OutputStream): T {.inline.} =
 func init*(
   T: type ProtobufReader,
   stream: InputStream,
-  wire: Option[byte] = none(byte),
+  key: Option[ProtobufKey] = none(ProtobufKey),
   closeAfter: bool = true
 ): T {.inline.} =
-  T(stream: stream, wireOverride: wire, closeAfter: closeAfter)
+  T(stream: stream, keyOverride: key, closeAfter: closeAfter)
 
 #This was originally called buffer, and retuned just the output.
 #That said, getting the output purges the stream, and doesn't close it.

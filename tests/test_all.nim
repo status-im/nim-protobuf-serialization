@@ -11,7 +11,7 @@ import
   test_options,
   test_stdlib,
   test_different_types,
-  test_thirty_three_fields_dont_serialize
+  test_thirty_three_fields
 
 #Test internal types aren't exported.
 #There's just not a good place for this to go.

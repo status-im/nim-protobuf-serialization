@@ -9,17 +9,7 @@ import serialization
 import internal
 import types
 
-const
-  FIELD_NUMBER_MASK: byte = 0b1111_1000
-  WIRE_TYPE_MASK: byte = 0b0000_0111
-
-#We don't cast this back to a ProtobufWireType despite exclusively comparing it against ProtobufWireTypes.
-#This is so an invalid wire type doesn't trigger boundChecks.
-template wireType(key: byte): byte =
-  key and WIRE_TYPE_MASK
-
-template fieldNumber(key: byte): byte =
-  (key and FIELD_NUMBER_MASK) shr 3
+const WIRE_TYPE_MASK = 0b0000_0111'u32
 
 func handleReadException*(
   reader: ProtobufReader,
@@ -35,33 +25,41 @@ proc eofSafeRead(stream: InputStream): byte =
     raise newException(ProtobufEOFError, "Couldn't read the next byte from this stream despite expecting one.")
   result = stream.read()
 
-#Ideally, these would be in a table.
-#That said, due to the context specific return type, which goes beyond the wire type, you need generics.
-#As Generic types aren't concrete, they can't be used in a table.
+proc readProtobufKey*(
+  stream: InputStream
+): ProtobufKey =
+  let
+    varint = stream.decodeVarInt(uint32, UInt(uint32))
+    wire = byte(varint and WIRE_TYPE_MASK)
+  if (wire < byte(low(ProtobufWireType))) or (byte(high(ProtobufWireType)) < wire):
+    raise newException(ProtobufMessageError, "Protobuf key had an invalid wire type.")
+  result.wire = ProtobufWireType(wire)
+  result.number = varint shr 3
+
 proc readVarInt[B; E](
   stream: InputStream,
   fieldVar: var B,
   encoding: E,
-  key: byte
+  key: ProtobufKey
 ) =
   when E is not VarIntWrapped:
     {.fatal: "Tried to read a VarInt without a specified encoding. This should never happen.".}
 
-  if key.wireType != byte(VarInt):
+  if key.wire != VarInt:
     raise newException(ProtobufMessageError, "Invalid wire type for a VarInt.")
 
   #Box the result back up.
   box(fieldVar, stream.decodeVarInt(flatType(B), type(E)))
 
-proc readFixed[B](stream: InputStream, fieldVar: var B, key: byte) =
+proc readFixed[B](stream: InputStream, fieldVar: var B, key: ProtobufKey) =
   type T = flatType(B)
   when sizeof(T) == 8:
     type U = uint64
-    if key.wireType != byte(Fixed64):
+    if key.wire != Fixed64:
       raise newException(ProtobufMessageError, "Invalid wire type for a Fixed64.")
   else:
     type U = uint32
-    if key.wireType != byte(Fixed32):
+    if key.wire != Fixed32:
       raise newException(ProtobufMessageError, "Invalid wire type for a Fixed32.")
 
   var value = U(0)
@@ -73,8 +71,12 @@ include stdlib_readers
 
 proc readValueInternal[T](stream: InputStream, ty: typedesc[T]): T
 
-proc readLengthDelimited[B](stream: InputStream, fieldVar: var B, key: byte) =
-  if key.wireType != byte(LengthDelimited):
+proc readLengthDelimited[B](
+  stream: InputStream,
+  fieldVar: var B,
+  key: ProtobufKey
+) =
+  if key.wire != LengthDelimited:
     raise newException(ProtobufMessageError, "Invalid wire type for a length delimited sequence/object.")
 
   var
@@ -110,7 +112,7 @@ proc readLengthDelimited[B](stream: InputStream, fieldVar: var B, key: byte) =
 
   box(fieldVar, preResult)
 
-proc setField[T](value: var T, stream: InputStream, key: byte) =
+proc setField[T](value: var T, stream: InputStream, key: ProtobufKey) =
   when T is (ref or Option):
     {.fatal: "Ref or Option made it to setField. This should never happen.".}
 
@@ -146,7 +148,7 @@ proc setField[T](value: var T, stream: InputStream, key: byte) =
     #This iterative approach is extemely poor.
     var
       counter = 1'u8
-      fieldNumber = key.fieldNumber
+      fieldNumber = key.number
     if (fieldNumber == 0) or (uint(fieldNumber) > uint(totalSerializedFields(T))):
       raise newException(ProtobufMessageError, "Unknown field number specified: " & $fieldNumber)
 
@@ -209,17 +211,18 @@ proc setField[T](value: var T, stream: InputStream, key: byte) =
 
 proc readValueInternal[T](stream: InputStream, ty: typedesc[T]): T =
   while stream.readable():
-    result.setField(stream, stream.read())
+    result.setField(stream, stream.readProtobufKey())
 
 proc readValue*(reader: ProtobufReader, value: var auto) =
   if not reader.stream.readable():
     return
-  elif reader.wireOverride.isNone():
+
+  if reader.keyOverride.isNone():
     box(value, reader.stream.readValueInternal(flatType(type(value))))
   else:
     var preResult: flatType(type(value))
     while reader.stream.readable():
-      preResult.setField(reader.stream, reader.wireOverride.get())
+      preResult.setField(reader.stream, reader.keyOverride.get())
     box(value, preResult)
 
   if reader.closeAfter:

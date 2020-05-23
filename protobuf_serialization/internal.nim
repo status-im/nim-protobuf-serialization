@@ -11,6 +11,10 @@ type
   ProtobufWireType* = enum
     VarInt, Fixed64, LengthDelimited, StartGroup, EndGroup, Fixed32
 
+  ProtobufKey* = object
+    number*: uint32
+    wire*: ProtobufWireType
+
   #Number types which are platform-dependent and therefore unsafe.
   PlatformDependentTypes* = int or uint or float
 

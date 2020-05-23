@@ -11,10 +11,6 @@ import types
 
 const LAST_BYTE = 0b1111_1111
 
-#Create a field key.
-template key(fieldNum: uint, wire: ProtobufWireType): byte =
-  ((byte(fieldNum shl 3)) or wire.byte).byte
-
 #Created in response to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/5.
 func verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
   when T is PlatformDependentTypes:
@@ -40,27 +36,34 @@ func verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
     if totalSerializedFields(T) > 32:
       raise newException(Defect, "Object has too many fields; Protobuf has a maximum of 32.")
 
-proc writeVarInt(stream: OutputStream, fieldNum: uint, value: VarIntWrapped) =
+proc writeProtobufKey*(
+  stream: OutputStream,
+  number: uint32,
+  wire: ProtobufWireType
+) {.inline.} =
+  stream.write(encodeVarInt(UInt((number shl 3) or uint32(wire))))
+
+proc writeVarInt(stream: OutputStream, fieldNum: uint32, value: VarIntWrapped) =
   let bytes = encodeVarInt(value)
   if (bytes.len == 1) and (bytes[0] == 0):
     return
-  stream.write(key(fieldNum, VarInt))
+  stream.writeProtobufKey(fieldNum, VarInt)
   stream.write(bytes)
 
-proc writeFixed(stream: OutputStream, fieldNum: uint, value: FixedWrapped) =
+proc writeFixed(stream: OutputStream, fieldNum: uint32, value: FixedWrapped) =
   when sizeof(value) == 8:
     var raw = cast[uint64](value)
   else:
     var raw = cast[uint32](value)
   if raw == 0:
     return
-  stream.write(key(
+  stream.writeProtobufKey(
     fieldNum,
     when sizeof(value) == 8:
       Fixed64
     else:
       Fixed32
-  ))
+  )
   for _ in 0 ..< sizeof(value):
     stream.write(byte(raw and LAST_BYTE))
     raw = raw shr 8
@@ -72,7 +75,7 @@ proc writeValueInternal[T](stream: OutputStream, value: T)
 
 proc writeLengthDelimited[T](
   stream: OutputStream,
-  fieldNum: uint,
+  fieldNum: uint32,
   rootType: typedesc[T],
   flatValue: LengthDelimitedTypes
 ) =
@@ -107,13 +110,13 @@ proc writeLengthDelimited[T](
   else:
     {.fatal: "Tried to write a Length Delimited type which wasn't actually Length Delimited.".}
 
-  stream.write(key(fieldNum, LengthDelimited))
+  stream.writeProtobufKey(fieldNum, LengthDelimited)
   stream.write(encodeVarInt(PInt(bytes.len)))
   stream.write(bytes)
 
 proc writeFieldInternal[T, R](
   stream: OutputStream,
-  fieldNum: uint,
+  fieldNum: uint32,
   value: T,
   rootType: typedesc[R]
 ) =
@@ -133,10 +136,10 @@ proc writeFieldInternal[T, R](
 
 proc writeField*[T](
   writer: ProtobufWriter,
-  fieldNum: uint,
+  fieldNum: uint32,
   value: T
 ) {.inline.} =
-  static: verifyWritable(flatType(T))
+  static: verifySerializable(flatType(T))
   writer.stream.writeFieldInternal(fieldNum, value, type(value))
 
 proc writeValueInternal[T](stream: OutputStream, value: T) =
@@ -146,9 +149,10 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
   let flattened = flattenedOption.get()
 
   when flatType(value).isStdlib():
-    stream.writeFieldInternal(1'u, flattened, type(value))
+    stream.writeFieldInternal(1'u32, flattened, type(value))
   elif flattened is object:
-    var counter = 0'u
+    var counter = 0'u32
+    discard counter
     enumInstanceSerializedFields(flattened, fieldName, fieldVal):
       discard fieldName
       inc(counter)
@@ -191,8 +195,8 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
         else:
           stream.writeFieldInternal(counter, flattenedField, type(fieldVal))
   else:
-    stream.writeFieldInternal(1'u, flattened, type(value))
+    stream.writeFieldInternal(1'u32, flattened, type(value))
 
 proc writeValue*[T](writer: ProtobufWriter, value: T) {.inline.} =
-  static: verifyWritable(type(flatType(T)))
+  static: verifySerializable(type(flatType(T)))
   writer.stream.writeValueInternal(value)
