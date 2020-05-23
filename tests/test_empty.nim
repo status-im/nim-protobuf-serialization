@@ -2,7 +2,9 @@ import unittest
 
 import ../protobuf_serialization
 
-from test_objects import DistinctInt, toProtobuf, `==`
+from test_objects import DistinctInt, `==`
+type DistinctTypeSerialized = SInt(int32)
+DistinctInt.borrowSerialization(DistinctTypeSerialized)
 
 type
   X = object

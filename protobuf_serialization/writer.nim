@@ -11,32 +11,7 @@ import types
 
 const LAST_BYTE = 0b1111_1111
 
-#Created in response to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/5.
-func verifyWritable[T](ty: typedesc[T]) {.compileTime.} =
-  when T is PlatformDependentTypes:
-    {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
-  elif T is ((PureSIntegerTypes or PureUIntegerTypes) and (not bool)):
-    {.fatal: "Writing a number requires specifying the encoding to use.".}
-  elif T.isStdlib():
-    discard
-  elif T is object:
-    enumInstanceSerializedFields(T(), fieldName, fieldVar):
-      discard fieldName
-      when fieldVar is PlatformDependentTypes:
-        {.fatal: "Writing a number requires specifying the amount of bits via the type.".}
-      elif fieldVar is (VarIntTypes or FixedTypes):
-        const
-          hasPInt = ty.hasCustomPragmaFixed(fieldName, pint)
-          hasSInt = ty.hasCustomPragmaFixed(fieldName, sint)
-          hasUInt = (ty.hasCustomPragmaFixed(fieldName, puint) or (flatType(fieldVar) is bool))
-          hasFixed = ty.hasCustomPragmaFixed(fieldName, fixed)
-        when uint(hasPInt) + uint(hasSInt) + uint(hasUInt) + uint(hasFixed) != 1:
-          {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
-
-    if totalSerializedFields(T) > 32:
-      raise newException(Defect, "Object has too many fields; Protobuf has a maximum of 32.")
-
-proc writeProtobufKey*(
+proc writeProtobufKey(
   stream: OutputStream,
   number: uint32,
   wire: ProtobufWireType
@@ -120,6 +95,8 @@ proc writeFieldInternal[T, R](
   value: T,
   rootType: typedesc[R]
 ) =
+  static: verifySerializable(flatType(T))
+
   let flattenedOption = value.flatMap()
   if flattenedOption.isNone():
     return
@@ -139,10 +116,11 @@ proc writeField*[T](
   fieldNum: uint32,
   value: T
 ) {.inline.} =
-  static: verifySerializable(flatType(T))
   writer.stream.writeFieldInternal(fieldNum, value, type(value))
 
 proc writeValueInternal[T](stream: OutputStream, value: T) =
+  static: verifySerializable(flatType(T))
+
   let flattenedOption = value.flatMap()
   if flattenedOption.isNone():
     return
@@ -198,5 +176,4 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
     stream.writeFieldInternal(1'u32, flattened, type(value))
 
 proc writeValue*[T](writer: ProtobufWriter, value: T) {.inline.} =
-  static: verifySerializable(type(flatType(T)))
   writer.stream.writeValueInternal(value)

@@ -4,6 +4,9 @@ import options
 import sets
 import tables
 
+import stew/shims/macros
+import serialization
+
 import varint
 export varint
 
@@ -93,3 +96,25 @@ proc boxInternal[C, B](value: C, into: B): B =
 
 proc box*[B](into: var B, value: auto) =
   into = boxInternal(value, into)
+
+#Created in response to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/5.
+func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
+  when T is PlatformDependentTypes:
+    {.fatal: "Serializing a number requires specifying the amount of bits via the type.".}
+  elif T is ((PureSIntegerTypes or PureUIntegerTypes) and (not bool)):
+    {.fatal: "Serializing a number requires specifying the encoding to use.".}
+  elif T.isStdlib():
+    discard
+  elif T is object:
+    enumInstanceSerializedFields(T(), fieldName, fieldVar):
+      discard fieldName
+      when fieldVar is PlatformDependentTypes:
+        {.fatal: "Serializing a number requires specifying the amount of bits via the type.".}
+      elif fieldVar is (VarIntTypes or FixedTypes):
+        const
+          hasPInt = ty.hasCustomPragmaFixed(fieldName, pint)
+          hasSInt = ty.hasCustomPragmaFixed(fieldName, sint)
+          hasUInt = (ty.hasCustomPragmaFixed(fieldName, puint) or (flatType(fieldVar) is bool))
+          hasFixed = ty.hasCustomPragmaFixed(fieldName, fixed)
+        when uint(hasPInt) + uint(hasSInt) + uint(hasUInt) + uint(hasFixed) != 1:
+          {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}

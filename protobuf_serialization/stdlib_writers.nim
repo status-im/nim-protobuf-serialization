@@ -22,12 +22,12 @@ func encodeNumber[T](value: T): seq[byte] =
 
 proc writeValue*[T](writer: ProtobufWriter, value: T) {.inline.}
 
-func stdLibToProtobuf*(
+func stdLibToProtobuf(
   value: cstring or string
 ): seq[byte] {.inline.} =
   cast[seq[byte]]($value)
 
-proc stdlibToProtobuf*[T](arrInstance: openArray[T]): seq[byte] =
+proc stdlibToProtobuf[T](arrInstance: openArray[T]): seq[byte] =
   for value in arrInstance:
     when flatType(T) is (bool or VarIntWrapped or FixedWrapped):
       let possibleNumber = flatMap(value)
@@ -51,11 +51,11 @@ proc stdlibToProtobuf*[T](arrInstance: openArray[T]): seq[byte] =
     else:
       {.fatal: "Tried to encode an unrecognized object used in a stdlib type.".}
 
-proc stdlibToProtobuf*[T](setInstance: set[T]): seq[byte] =
+proc stdlibToProtobuf[T](setInstance: set[T]): seq[byte] =
   var seqInstance: seq[T]
   for value in setInstance:
     seqInstance.add(value)
   result = seqInstance.stdLibToProtobuf()
 
-proc stdlibToProtobuf*[T](setInstance: HashSet[T]): seq[byte] {.inline.} =
+proc stdlibToProtobuf[T](setInstance: HashSet[T]): seq[byte] {.inline.} =
   setInstance.toSeq().stdLibToProtobuf()

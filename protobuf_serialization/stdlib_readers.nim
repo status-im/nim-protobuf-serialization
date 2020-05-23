@@ -26,18 +26,18 @@ proc decodeNumber[T](stream: InputStream, next: var T) =
 
 proc readValue*(reader: ProtobufReader, value: var auto)
 
-proc stdlibFromProtobuf*(stream: InputStream, value: var string) =
+proc stdlibFromProtobuf(stream: InputStream, value: var string) =
   value = newString(stream.totalUnconsumedBytes)
   for c in 0 ..< value.len:
     value[c] = char(stream.read())
 
-proc stdlibFromProtobuf*(stream: InputStream, value: var cstring) =
+proc stdlibFromProtobuf(stream: InputStream, value: var cstring) =
   var preValue = newString(stream.totalUnconsumedBytes)
   for c in 0 ..< preValue.len:
     preValue[c] = char(stream.read())
   value = preValue
 
-proc stdlibFromProtobuf*[T](stream: InputStream, seqInstance: var seq[T]) =
+proc stdlibFromProtobuf[T](stream: InputStream, seqInstance: var seq[T]) =
   var blank: T
   while stream.readable():
     seqInstance.add(blank)
@@ -72,7 +72,7 @@ proc stdlibFromProtobuf*[T](stream: InputStream, seqInstance: var seq[T]) =
       {.fatal: "Tried to decode an unrecognized object used in a stdlib type.".}
     #---
 
-proc stdlibFromProtobuf*[C, T](stream: InputStream, arr: var array[C, T]) =
+proc stdlibFromProtobuf[C, T](stream: InputStream, arr: var array[C, T]) =
   when C == 0:
     {.fatal: "Protobuf was told to decode an array of length 0.".}
 
@@ -108,7 +108,7 @@ proc stdlibFromProtobuf*[C, T](stream: InputStream, arr: var array[C, T]) =
   if i != C:
     raise newException(ProtobufMessageError, "Length delimited buffer was missing elements for this array.")
 
-proc stdlibFromProtobuf*[T](
+proc stdlibFromProtobuf[T](
   stream: InputStream,
   setInstance: var (set[T] or HashSet[T])
 ) =

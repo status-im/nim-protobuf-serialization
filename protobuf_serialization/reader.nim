@@ -11,21 +11,7 @@ import types
 
 const WIRE_TYPE_MASK = 0b0000_0111'u32
 
-func handleReadException*(
-  reader: ProtobufReader,
-  Record: type,
-  fieldName: string,
-  field: auto,
-  err: ref CatchableError
-) {.inline.} =
-  raise err
-
-proc eofSafeRead(stream: InputStream): byte =
-  if not stream.readable():
-    raise newException(ProtobufEOFError, "Couldn't read the next byte from this stream despite expecting one.")
-  result = stream.read()
-
-proc readProtobufKey*(
+proc readProtobufKey(
   stream: InputStream
 ): ProtobufKey =
   let
@@ -64,7 +50,9 @@ proc readFixed[B](stream: InputStream, fieldVar: var B, key: ProtobufKey) =
 
   var value = U(0)
   for offset in countup(0, (sizeof(T) - 1) * 8, 8):
-    value += U(stream.eofSafeRead()) shl U(offset)
+    if not stream.readable():
+      raise newException(ProtobufEOFError, "Couldn't read the next byte from this stream despite expecting one.")
+    value += U(stream.read()) shl U(offset)
   box(fieldVar, cast[T](value))
 
 include stdlib_readers
@@ -132,19 +120,6 @@ proc setField[T](value: var T, stream: InputStream, key: ProtobufKey) =
     stream.readLengthDelimited(value, key)
 
   else:
-    discard """
-    #Verify the field number.
-    var fieldNumber = key.fieldNumber
-    if (fieldNumber == 0) or (fieldNumber > T.totalSerializedFields):
-      raise newException(ProtobufMessageError, "Unknown field number specified: " & $fieldNumber)
-
-    when T.totalSerializedFields > 0:
-      #Generally, once we generate this table, we'd need to verify the reader exists.
-      #That said, the readers are indexed by string name, and we have an absolute list of field names.
-      #Since Protobuf doesn't specify field names, just field index, and we verify said index above...
-      T.fieldReadersTable(ProtobufReader).findFieldReader(fieldName, 0)(value, reader)
-    discard """
-
     #This iterative approach is extemely poor.
     var
       counter = 1'u8
@@ -210,6 +185,8 @@ proc setField[T](value: var T, stream: InputStream, key: ProtobufKey) =
         break
 
 proc readValueInternal[T](stream: InputStream, ty: typedesc[T]): T =
+  static: verifySerializable(flatType(T))
+
   while stream.readable():
     result.setField(stream, stream.readProtobufKey())
 
