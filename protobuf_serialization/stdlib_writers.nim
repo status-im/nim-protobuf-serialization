@@ -3,6 +3,11 @@
 import sets
 import sequtils
 
+import stew/shims/macros
+
+import internal
+import types
+
 func encodeNumber[T](value: T): seq[byte] =
   when value is bool:
     result = encodeVarInt(UInt(1'u32))
@@ -13,7 +18,7 @@ func encodeNumber[T](value: T): seq[byte] =
     if result.len == 0:
       result = @[byte(0)]
   elif value is FixedWrapped:
-    let unwrapped = value.unwrap()
+    var unwrapped = value.unwrap()
     for _ in 0 ..< sizeof(unwrapped):
       result.add(byte(unwrapped and 0b1111_1111))
       unwrapped = unwrapped shr 8
@@ -24,29 +29,56 @@ proc writeValue*[T](writer: ProtobufWriter, value: T) {.inline.}
 
 func stdLibToProtobuf[R](
   _: typedesc[R],
+  unusedFieldName: static string,
   value: cstring or string
 ): seq[byte] {.inline.} =
   cast[seq[byte]]($value)
 
 proc stdlibToProtobuf[R, T](
   ty: typedesc[R],
+  fieldName: static string,
   arrInstance: openArray[T]
 ): seq[byte] =
+  type fType = flatType(T)
   for value in arrInstance:
-    when flatType(T) is (bool or VarIntWrapped or FixedWrapped):
+    when fType is (bool or VarIntWrapped or FixedWrapped):
       let possibleNumber = flatMap(value)
-      var blank: flatType(T)
+      var blank: fType
       result &= encodeNumber(possibleNumber.get(blank))
 
-    elif flatType(T) is (cstring or string):
-      let thisVal = ty.stdlibToProtobuf(flatMap(value).get(""))
+    elif fType is VarIntTypes:
+      when fieldName is "":
+        {.fatal: "A standard lib type didn't specify the encoding to use for a number.".}
+
+      let possibleNumber = flatMap(value)
+      var blank: fType
+
+      when R.hasCustomPragmaFixed(fieldName, pint):
+        result &= encodeNumber(PInt(possibleNumber.get(blank)))
+      elif R.hasCustomPragmaFixed(fieldName, puint):
+        result &= encodeNumber(UInt(possibleNumber.get(blank)))
+      elif R.hasCustomPragmaFixed(fieldName, sint):
+        result &= encodeNumber(SInt(possibleNumber.get(blank)))
+      elif R.hasCustomPragmaFixed(fieldName, fixed):
+        result &= encodeNumber(Fixed(possibleNumber.get(blank)))
+
+    elif fType is FixedTypes:
+      when fieldName is "":
+        {.fatal: "A standard lib type didn't specify the encoding to use for a number.".}
+
+      let possibleNumber = flatMap(value)
+      var blank: fType
+      result &= encodeNumber(Fixed(possibleNumber.get(blank)))
+
+    elif fType is (cstring or string):
+      let thisVal = ty.stdlibToProtobuf(fieldName, flatMap(value).get(""))
       result &= byte(thisVal.len) & thisVal
 
-    elif flatType(T) is CastableLengthDelimitedTypes:
+    elif fType is CastableLengthDelimitedTypes:
       let toEncode = flatMap(value).get(T(@[]))
       result &= byte(toEncode.len) & cast[byte](toEncode)
 
-    elif (flatType(T) is object) or flatType(T).isStdlib():
+    elif (fType is object) or fType.isStdlib():
       var writer = ProtobufWriter.init(memoryOutput())
       writer.writeValue(value)
       let valueBytes = writer.finish()
@@ -55,14 +87,19 @@ proc stdlibToProtobuf[R, T](
     else:
       {.fatal: "Tried to encode an unrecognized object used in a stdlib type.".}
 
-proc stdlibToProtobuf[R, T](ty: typedesc[R], setInstance: set[T]): seq[byte] =
+proc stdlibToProtobuf[R, T](
+  ty: typedesc[R],
+  fieldName: static string,
+  setInstance: set[T]
+): seq[byte] =
   var seqInstance: seq[T]
   for value in setInstance:
     seqInstance.add(value)
-  result = ty.stdLibToProtobuf(seqInstance)
+  result = ty.stdLibToProtobuf(fieldName, seqInstance)
 
 proc stdlibToProtobuf[R, T](
   ty: typedesc[R],
+  fieldName: static string,
   setInstance: HashSet[T]
 ): seq[byte] {.inline.} =
-  ty.stdLibToProtobuf(setInstance.toSeq())
+  ty.stdLibToProtobuf(fieldName, setInstance.toSeq())
