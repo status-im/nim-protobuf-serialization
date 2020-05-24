@@ -190,12 +190,10 @@ proc encodeVarInt*(
   outLen = viSizeof(value, raw)
 
   #Verify the value fits into the specified encoding and there's enough bytes to store it.
-  if (
-    (value is (LIntWrapped32 or LIntWrapped64 or LUIntWrapped32 or LUIntWrapped64)) and
-    (outLen == 10)
-  ):
-    return VarIntStatus.Overflow
-  elif res.len < outLen:
+  when value is (LIntWrapped32 or LIntWrapped64 or LUIntWrapped32 or LUIntWrapped64):
+    if outLen == 10:
+      return VarIntStatus.Overflow
+  if res.len < outLen:
     return VarIntStatus.Incomplete
 
   #Write the VarInt.
