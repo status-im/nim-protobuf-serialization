@@ -182,7 +182,7 @@ func viSizeof(base: VarIntWrapped, raw: uint32 or uint64): int =
       return 10
   result = max((log2trunc(raw) + 7) div 7, 1)
 
-proc encodeVarInt*(
+func encodeVarInt*(
   res: var openarray[byte],
   outLen: var int,
   value: VarIntWrapped
@@ -248,7 +248,7 @@ func decodeBinaryValue[E](
     {.fatal: "Tried to decode a raw binary value into an encoding with a different size. This should never happen.".}
 
   when E is (PIntWrapped or LUIntWrapped):
-    if res.unwrap() shr 63 == 1:
+    if res.unwrap() shr ((sizeof(res) * 8) - 1) == 1:
       return VarIntStatus.Overflow
 
     when E is PIntWrapped:
@@ -272,12 +272,12 @@ func decodeBinaryValue[E](
 
   return VarIntStatus.Success
 
-proc decodeVarInt*[R, E](
-  stream: InputStream,
-  returnType: typedesc[R],
-  encoding: typedesc[E]
-): R =
-  when sizeof(E) == 8:
+proc decodeVarInt*(
+  bytes: openarray[byte],
+  inLen: var int,
+  res: var VarIntWrapped
+): VarIntStatus =
+  when sizeof(res) == 8:
     type U = uint64
   else:
     type U = uint32
@@ -287,12 +287,32 @@ proc decodeVarInt*[R, E](
     offset = 0'i8
     next = VAR_INT_CONTINUATION_MASK
   while (next and VAR_INT_CONTINUATION_MASK) != 0:
-    if not stream.readable():
-      raise newException(IOError, "Couldn't read the next byte from this stream despite expecting one.")
-    next = stream.read()
+    if inLen == bytes.len:
+      return VarIntStatus.Incomplete
+    next = bytes[inLen]
     value += (next and U(VAR_INT_VALUE_MASK)) shl offset
+    inLen += 1
     offset += 7
 
-  var preResult: E
-  doAssert decodeBinaryValue(preResult, value, offset div 7) == VarIntStatus.Success
-  result = R(preResult)
+  doAssert decodeBinaryValue(res, value, inLen) == VarIntStatus.Success
+
+proc decodeVarInt*[R, E](
+  stream: InputStream,
+  returnType: typedesc[R],
+  encoding: typedesc[E]
+): R =
+  var
+    bytes: seq[byte]
+    next: byte = VAR_INT_CONTINUATION_MASK
+    value: E
+    inLen: int
+
+  while (next and VAR_INT_CONTINUATION_MASK) != 0:
+    if not stream.readable():
+      raise newException(ProtobufEOFError, "Stream ended before the VarInt was finished.")
+    next = stream.read()
+    bytes.add(next)
+
+  doAssert decodeVarInt(bytes, inLen, value) == VarIntStatus.Success
+  doAssert inLen == bytes.len
+  result = R(value)
