@@ -8,7 +8,7 @@ const
   VAR_INT_VALUE_MASK*: byte = 0b0111_1111
 
 type
-  VarintStatus* = enum
+  VarIntStatus* = enum
     Success,
     Overflow,
     Incomplete
@@ -165,36 +165,50 @@ func getBinaryValue(value: VarIntWrapped): auto =
     if value.unwrap() < 0:
       result = not result
   elif value is SIntWrapped:
-    result = (result shl 1) xor cast[type(result)](ashr(value.unwrap(), (sizeof(result) * 8) - 1))
+    #This line is the formula exactly as described in the Protobuf docs.
+    #That said, it's quite verbose.
+    #The below formula which is actually used is much simpler and possibly faster.
+    #This is preserved to note it, but not to be used.
+    #result = (result shl 1) xor cast[type(result)](ashr(value.unwrap(), (sizeof(result) * 8) - 1))
+    result = result shl 1
+    if value.unwrap() < 0:
+      result = not result
 
 func viSizeof(base: VarIntWrapped, raw: uint32 or uint64): int =
   when base is PIntWrapped:
     if base.unwrap() < 0:
       return 10
-  result = (log2trunc(raw) + 7) div 7
+  result = max((log2trunc(raw) + 7) div 7, 1)
 
-func encodeVarInt*(value: VarIntWrapped): seq[byte] =
+proc encodeVarInt*(
+  res: var openarray[byte],
+  outLen: var int,
+  value: VarIntWrapped
+): VarIntStatus =
   #Get the binary value of whatever we're decoding.
-  var
-    raw = getBinaryValue(value)
-    bytesNeeded = viSizeof(value, raw)
-  #Always return at least one byte.
-  if bytesNeeded == 0:
-    return @[byte(0)]
-  result = newSeq[byte](bytesNeeded)
+  var raw = getBinaryValue(value)
+  outLen = viSizeof(value, raw)
+
+  #Verify the value fits into the specified encoding and there's enough bytes to store it.
+  if (
+    (value is (LIntWrapped32 or LIntWrapped64 or LUIntWrapped32 or LUIntWrapped64)) and
+    (outLen == 10)
+  ):
+    return VarIntStatus.Overflow
+  elif res.len < outLen:
+    return VarIntStatus.Incomplete
 
   #Write the VarInt.
   var i = 0
   while raw > type(raw)(VAR_INT_VALUE_MASK):
-    #We could convert raw to a byte, but that'll trigger a bounds check.
-    result[i] = byte(raw and type(raw)(VAR_INT_VALUE_MASK)) or VAR_INT_CONTINUATION_MASK
+    res[i] = byte(raw and type(raw)(VAR_INT_VALUE_MASK)) or VAR_INT_CONTINUATION_MASK
     inc(i)
     raw = raw shr 7
 
   #If this was a positive number (PInt or UInt), or zig-zagged, we only need to write this last byte.
   when value is PIntWrapped:
-    if value.unwrap() > 0:
-      result[i] = byte(raw)
+    if value.unwrap() >= 0:
+      res[i] = byte(raw)
     else:
       #[
       To signify this is negative, this should be artifically padded to 10 bytes.
@@ -206,11 +220,17 @@ func encodeVarInt*(value: VarIntWrapped): seq[byte] =
       By setting raw to 0, which is pointless after the first loop, we avoid two conditionals.
       ]#
       while i < 9:
-        result[i] = VAR_INT_CONTINUATION_MASK or byte(raw)
+        res[i] = VAR_INT_CONTINUATION_MASK or byte(raw)
         inc(i)
         raw = 0
   else:
-    result[i] = byte(raw)
+    res[i] = byte(raw)
+
+func encodeVarInt*(value: VarIntWrapped): seq[byte] =
+  result = newSeq[byte](10)
+  var outLen: int
+  doAssert encodeVarInt(result, outLen, value) == VarIntStatus.Success
+  result.setLen(outLen)
 
 proc decodeVarInt*[R, E](
   stream: InputStream,
