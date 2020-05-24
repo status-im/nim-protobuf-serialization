@@ -152,7 +152,7 @@ template unwrap*[T](value: T): untyped =
   else:
     {.fatal: "Tried to get the unwrapped value of a non-wrapped type. This should never happen.".}
 
-func getBinaryValue(value: VarIntWrapped): auto =
+func encodeBinaryValue(value: VarIntWrapped): auto =
   when sizeof(value) == 8:
     result = cast[uint64](value)
   else:
@@ -195,9 +195,9 @@ proc encodeVarInt*(
     #Get the binary value of whatever we're decoding.
     #Beyond the above check, LibP2P uses the standard UInt encoding.
     #That's why we perform this cast.
-    var raw = getBinaryValue(PInt(value))
+    var raw = encodeBinaryValue(PInt(value))
   else:
-    var raw = getBinaryValue(value)
+    var raw = encodeBinaryValue(value)
 
   outLen = viSizeof(value, raw)
 
@@ -239,22 +239,51 @@ func encodeVarInt*(value: VarIntWrapped): seq[byte] =
   doAssert encodeVarInt(result, outLen, value) == VarIntStatus.Success
   result.setLen(outLen)
 
+func decodeBinaryValue[E](
+  res: var E,
+  value: uint32 or uint64,
+  len: int
+): VarIntStatus =
+  when sizeof(E) != sizeof(value):
+    {.fatal: "Tried to decode a raw binary value into an encoding with a different size. This should never happen.".}
+
+  when E is (PIntWrapped or LUIntWrapped):
+    if res.unwrap() shr 63 == 1:
+      return VarIntStatus.Overflow
+
+    when E is PIntWrapped:
+      if len == 10:
+        type S = type(res.unwrap())
+        res = E(-S(value + 1))
+      else:
+        res = E(value)
+    else:
+      res = E(value)
+
+  elif E is SIntWrapped:
+    type S = type(res.unwrap())
+    res = E(S(value shr 1) xor -S(value and 0b0000_0001))
+
+  elif E is UIntWrapped:
+    res = E(value)
+
+  else:
+    {.fatal: "Tried to decode a raw binary value into an unrecognized type. This should never happen.".}
+
+  return VarIntStatus.Success
+
 proc decodeVarInt*[R, E](
   stream: InputStream,
   returnType: typedesc[R],
   encoding: typedesc[E]
 ): R =
   when sizeof(E) == 8:
-    type
-      S = int64
-      U = uint64
+    type U = uint64
   else:
-    type
-      S = int32
-      U = uint32
+    type U = uint32
 
   var
-    value = U(0)
+    value: U
     offset = 0'i8
     next = VAR_INT_CONTINUATION_MASK
   while (next and VAR_INT_CONTINUATION_MASK) != 0:
@@ -264,22 +293,6 @@ proc decodeVarInt*[R, E](
     value += (next and U(VAR_INT_VALUE_MASK)) shl offset
     offset += 7
 
-  #Unsigned, requiring no further work.
-  when E is UIntWrapped:
-    result = R(value)
-  #Zig-zagged.
-  elif E is SIntWrapped:
-    result = R(S(value shr 1) xor -S(value and U(0b0000_0001)))
-  else:
-    #Not zig-zagged, yet negative.
-    if offset == 70:
-      #This should handle the lowest possible negative value.
-      #The cast to a signed value causes it to error/wrap to the lowest value.
-      #Said lowest value will be negative, multiplied by -1, and wrap again.
-      #This behavior requires boundChecks to be turned off in order to not raise though.
-      {.push boundChecks: off.}
-      result = R(-S(value + 1))
-      {.pop.}
-    #Not zig-zagged, yet positive.
-    else:
-      result = R(value)
+  var preResult: E
+  doAssert decodeBinaryValue(preResult, value, offset div 7) == VarIntStatus.Success
+  result = R(preResult)

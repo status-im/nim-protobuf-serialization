@@ -100,7 +100,7 @@ proc stdlibFromProtobuf[R, T](
       ProtobufReader.init(substream, some(T.wireType), false).readValue(seqInstance[^1])
 
     elif (fType is object) or fType.isStdlib():
-      let len = stream.decodeVarInt(int, PInt32)
+      let len = stream.decodeVarInt(int, PInt(int32))
       if len < 0:
         raise newException(ProtobufMessageError, "Length delimited buffer contained more than 2 GB of data.")
       elif len == 0:
@@ -159,7 +159,7 @@ proc stdlibFromProtobuf[R, CRange, T](
       ProtobufReader.init(substream, some(T.wireType), false).readValue(arr[i])
 
     elif (fType is object) or fType.isStdlib():
-      let len = stream.decodeVarInt(int, PInt32)
+      let len = stream.decodeVarInt(int, PInt(int32))
       if len < 0:
         raise newException(ProtobufMessageError, "Length delimited buffer contained more than 2 GB of data.")
       elif len == 0:
