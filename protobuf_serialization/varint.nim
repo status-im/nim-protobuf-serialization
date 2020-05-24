@@ -1,5 +1,6 @@
 from macros import quote
 
+import stew/bitops2
 import faststreams
 
 const
@@ -35,10 +36,10 @@ type
   UnsignedWrapped32Types = UIntWrapped32 or FixedWrapped32 or LUIntWrapped32
   UnsignedWrapped64Types = UIntWrapped64 or FixedWrapped64 or LUIntWrapped64
 
+  PIntWrapped    = PIntWrapped32 or PIntWrapped64
   SIntWrapped    = SIntWrapped32 or SIntWrapped64
   UIntWrapped    = UIntWrapped32 or UIntWrapped64
-  VarIntWrapped* = PIntWrapped32 or PIntWrapped64 or
-                   SIntWrapped or UIntWrapped or
+  VarIntWrapped* = PIntWrapped or SIntWrapped or UIntWrapped or
                    LIntWrapped32 or LIntWrapped64 or
                    LUIntWrapped32 or LUIntWrapped64
   FixedWrapped*  = FixedWrapped32 or FixedWrapped64 or
@@ -153,59 +154,63 @@ template unwrap*[T](value: T): untyped =
   else:
     {.fatal: "Tried to get the unwrapped value of a non-wrapped type. This should never happen.".}
 
-#Get the unsigned absolute value of a number.
-#Used when encoding numbers.
-template uabs[U](number: VarIntTypes): U =
-  if number < type(number)(0):
-    not cast[U](number)
-  else:
-    U(number)
-
-#This could write to a seq, yet we need to prepend a key and omit the VarInt in certain circumstances.
-#That's why it doesn't.
-#It may be valuable to write an encodeVarIntStream which this wraps.
-#This could be used for arrays/seqs where a VarInt is never omitted or keyed.
-func encodeVarInt*(value: VarIntWrapped): seq[byte] =
-  #Declare an unsigned integer which can contain any possible value.
+func getBinaryValue(value: VarIntWrapped): auto =
   when sizeof(value) == 8:
-    type U = uint64
+    result = cast[uint64](value)
   else:
-    type U = uint32
+    result = cast[uint32](value)
 
-  var
-    #Get the unsigned value which is what will be encoded.
-    #2 in PInt is 2. -2 in PInt is 2, yet padded to 10 bytes.
-    #2 in SInt is 4. -2 in SInt is 3 (solved with a shl, xor, and if neg, inc).
-    #2 in UInt is 2. -2 in UInt doesn't exist.
-    raw = uabs[U](value.unwrap())
-    #Written bytes.
-    #This can be replaced with a countLeadingZeroBits solution so we know the amount of bytes in advance.
-    bytesWritten: uint = 0
-
-  #If we're using SInt, we need to transform the value to its zig-zagged equivalent.
-  if value is SIntWrapped:
-    raw = (raw shl 1) xor (raw shr ((sizeof(raw) * 8) - 1))
+  mixin unwrap
+  when value is PIntWrapped:
     if value.unwrap() < 0:
-      inc(raw)
+      result = not result
+  elif value is SIntWrapped:
+    result = (result shl 1) xor cast[type(result)](ashr(value.unwrap(), (sizeof(result) * 8) - 1))
+
+func viSizeof(base: VarIntWrapped, raw: uint32 or uint64): int =
+  when base is PIntWrapped:
+    if base.unwrap() < 0:
+      return 10
+  result = (log2trunc(raw) + 7) div 7
+
+func encodeVarInt*(value: VarIntWrapped): seq[byte] =
+  #Get the binary value of whatever we're decoding.
+  var
+    raw = getBinaryValue(value)
+    bytesNeeded = viSizeof(value, raw)
+  #Always return at least one byte.
+  if bytesNeeded == 0:
+    return @[byte(0)]
+  result = newSeq[byte](bytesNeeded)
 
   #Write the VarInt.
-  while raw > U(VAR_INT_VALUE_MASK):
+  var i = 0
+  while raw > type(raw)(VAR_INT_VALUE_MASK):
     #We could convert raw to a byte, but that'll trigger a bounds check.
-    result.add(byte(raw and U(VAR_INT_VALUE_MASK)) or VAR_INT_CONTINUATION_MASK)
+    result[i] = byte(raw and type(raw)(VAR_INT_VALUE_MASK)) or VAR_INT_CONTINUATION_MASK
+    inc(i)
     raw = raw shr 7
-    inc(bytesWritten)
 
   #If this was a positive number (PInt or UInt), or zig-zagged, we only need to write this last byte.
-  if (value.unwrap() >= 0) or (value is SIntWrapped):
-    result.add(byte(raw))
-  #We need to write blank bytes until the length is 10.
+  when value is PIntWrapped:
+    if value.unwrap() > 0:
+      result[i] = byte(raw)
+    else:
+      #[
+      To signify this is negative, this should be artifically padded to 10 bytes.
+      That said, we have to write the final pending byte left in raw, as well as masks until then.
+      #This iterates up to 9.
+      We don't immediately write the final pending byte and then loop.
+      Why? Because if all 9 bytes were used, it'll set the continuation flag when it shouldn't.
+      If all 9 bytes were used, the last byte is 0 anyways.
+      By setting raw to 0, which is pointless after the first loop, we avoid two conditionals.
+      ]#
+      while i < 9:
+        result[i] = VAR_INT_CONTINUATION_MASK or byte(raw)
+        inc(i)
+        raw = 0
   else:
-    result.add(byte(raw) or VAR_INT_CONTINUATION_MASK)
-    inc(bytesWritten)
-    while bytesWritten < 9:
-      result.add(VAR_INT_CONTINUATION_MASK)
-      inc(bytesWritten)
-    result.add(byte(0))
+    result[i] = byte(raw)
 
 proc decodeVarInt*[R, E](
   stream: InputStream,
