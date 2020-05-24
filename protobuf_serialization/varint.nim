@@ -26,22 +26,21 @@ type
   SFixedWrapped32 = distinct int32
   SFixedWrapped64 = distinct int64
 
-  LIntWrapped32  = distinct int32
-  LIntWrapped64  = distinct int64
   LUIntWrapped32 = distinct int32
   LUIntWrapped64 = distinct int64
 
-  SignedWrapped32Types   = PIntWrapped32 or SIntWrapped32 or SFixedWrapped32 or LIntWrapped32
-  SignedWrapped64Types   = PIntWrapped64 or SIntWrapped64 or SFixedWrapped64 or LIntWrapped64
+  SignedWrapped32Types   = PIntWrapped32 or SIntWrapped32 or SFixedWrapped32
+  SignedWrapped64Types   = PIntWrapped64 or SIntWrapped64 or SFixedWrapped64
   UnsignedWrapped32Types = UIntWrapped32 or FixedWrapped32 or LUIntWrapped32
   UnsignedWrapped64Types = UIntWrapped64 or FixedWrapped64 or LUIntWrapped64
 
-  PIntWrapped    = PIntWrapped32 or PIntWrapped64
-  SIntWrapped    = SIntWrapped32 or SIntWrapped64
-  UIntWrapped    = UIntWrapped32 or UIntWrapped64
-  VarIntWrapped* = PIntWrapped or SIntWrapped or UIntWrapped or
-                   LIntWrapped32 or LIntWrapped64 or
-                   LUIntWrapped32 or LUIntWrapped64
+  PIntWrapped  = PIntWrapped32 or PIntWrapped64
+  SIntWrapped  = SIntWrapped32 or SIntWrapped64
+  UIntWrapped  = UIntWrapped32 or UIntWrapped64
+  LUIntWrapped = LUIntWrapped32 or LUIntWrapped64
+
+  VarIntWrapped* = PIntWrapped or SIntWrapped or
+                   UIntWrapped or LUIntWrapped
   FixedWrapped*  = FixedWrapped32 or FixedWrapped64 or
                    SFixedWrapped32 or SFixedWrapped64
 
@@ -56,9 +55,8 @@ type
   #Unsigned native types utilizing the VarInt/Fixed wire types.
   PureUIntegerTypes = SomeUnsignedInt or char or bool
   #Every Unsigned Integer Type.
-  UIntegerTypes* = UIntWrapped32 or UIntWrapped64 or
-                   FixedWrapped32 or FixedWrapped64 or
-                   PureUIntegerTypes
+  UIntegerTypes* = UIntWrapped or FixedWrapped or
+                   LUIntWrapped or PureUIntegerTypes
 
   PureTypes* = PureSIntegerTypes or PureUIntegerTypes
 
@@ -112,14 +110,14 @@ generateWrapper(
   SInt, SIntegerTypes,
   SIntWrapped32,  SIntWrapped64,
   SIntWrapped32,  SIntWrapped64,
-  "SInt should only be used with a signed integer type."
+  "SInt should only be used with signed integers."
 )
 
 generateWrapper(
   PInt, SIntegerTypes or UIntegerTypes,
   UIntWrapped64, UIntWrapped32,
   PIntWrapped64, PIntWrapped32,
-  "LInt should only be used with a integer value (signed or unsigned)."
+  "LInt should only be used with integers (signed or unsigned)."
 )
 
 generateWrapper(
@@ -130,10 +128,10 @@ generateWrapper(
 )
 
 generateWrapper(
-  LInt, SIntegerTypes or UIntegerTypes,
+  LInt, UIntegerTypes,
   LUIntWrapped64, LUIntWrapped32,
-  LIntWrapped64, LIntWrapped32,
-  "LInt should only be used with a integer value (signed or unsigned)."
+  LUIntWrapped64, LUIntWrapped32,
+  "LInt should only be used with unsigned integers."
 )
 
 #Used to specify how to encode/decode fields in an object.
@@ -173,6 +171,10 @@ func getBinaryValue(value: VarIntWrapped): auto =
     result = result shl 1
     if value.unwrap() < 0:
       result = not result
+  elif value is UIntWrapped:
+    discard
+  else:
+    {.fatal: "Tried to get the binary value of an unrecognized VarInt type.".}
 
 func viSizeof(base: VarIntWrapped, raw: uint32 or uint64): int =
   when base is PIntWrapped:
@@ -185,14 +187,21 @@ proc encodeVarInt*(
   outLen: var int,
   value: VarIntWrapped
 ): VarIntStatus =
-  #Get the binary value of whatever we're decoding.
-  var raw = getBinaryValue(value)
+  #Verify the value fits into the specified encoding.
+  when value is (LUIntWrapped32 or LUIntWrapped64):
+    if value shr 63 != 0:
+      return VarIntStatus.Overflow
+
+    #Get the binary value of whatever we're decoding.
+    #Beyond the above check, LibP2P uses the standard UInt encoding.
+    #That's why we perform this cast.
+    var raw = getBinaryValue(PInt(value))
+  else:
+    var raw = getBinaryValue(value)
+
   outLen = viSizeof(value, raw)
 
-  #Verify the value fits into the specified encoding and there's enough bytes to store it.
-  when value is (LIntWrapped32 or LIntWrapped64 or LUIntWrapped32 or LUIntWrapped64):
-    if outLen == 10:
-      return VarIntStatus.Overflow
+  #Verify there's enough bytes to store this value.
   if res.len < outLen:
     return VarIntStatus.Incomplete
 
