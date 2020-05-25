@@ -127,11 +127,9 @@ proc setField[T](
 
   else:
     #This iterative approach is extemely poor.
-    var
-      counter = 1'u8
-      fieldNumber = key.number
-    if (fieldNumber == 0) or (uint(fieldNumber) > uint(totalSerializedFields(T))):
-      raise newException(ProtobufMessageError, "Unknown field number specified: " & $fieldNumber)
+    var keyNumber = key.number
+    if (keyNumber == 0) or (uint(keyNumber) > uint(totalSerializedFields(T))):
+      raise newException(ProtobufMessageError, "Unknown field number specified: " & $keyNumber)
 
     enumInstanceSerializedFields(value, fieldName, fieldVar):
       discard fieldName
@@ -139,9 +137,7 @@ proc setField[T](
       when fieldVar is PlatformDependentTypes:
         {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
 
-      if counter != fieldNumber:
-        inc(counter)
-      else:
+      if keyNumber == fieldVar.getCustomPragmaVal(fieldNumber):
         #Only calculate the encoding VarInt.
         #In every other case, the type is enough.
         #We don't need to track the boolean type as literally every encoding will parse to the same true/false.

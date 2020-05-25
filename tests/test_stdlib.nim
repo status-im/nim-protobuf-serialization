@@ -6,17 +6,17 @@ from ../protobuf_serialization/internal import unwrap
 
 type
   Basic = object
-    x {.pint.}: int32
-    y: seq[string]
+    x {.pint, fieldNumber: 1.}: int32
+    y {.fieldNumber: 2.}: seq[string]
 
   PragmadStdlib = object
-    x {.sint.}: seq[int32]
-    y {.pint.}: array[5, uint32]
-    z {.fixed.}: HashSet[float32]
+    x {.sint, fieldNumber: 1.}: seq[int32]
+    y {.pint, fieldNumber: 2.}: array[5, uint32]
+    z {.fixed, fieldNumber: 3.}: HashSet[float32]
 
   BooldStdlib = object
-    x: seq[bool]
-    y: array[3, bool]
+    x {.fieldNumber: 1.}: seq[bool]
+    y {.fieldNumber: 2.}: array[3, bool]
 
 suite "Test Standard Lib Objects Encoding/Decoding":
   test "Can encode/decode cstrings":

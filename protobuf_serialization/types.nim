@@ -4,7 +4,7 @@ import faststreams
 import serialization/errors
 
 import internal
-export PInt, SInt, Fixed, LInt, pint, sint, fixed, lint
+export PInt, SInt, Fixed, LInt, pint, sint, fixed, lint, fieldNumber
 
 type
   ProtobufError* = object of SerializationError

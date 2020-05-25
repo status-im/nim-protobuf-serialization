@@ -9,7 +9,7 @@ DistinctInt.borrowSerialization(DistinctTypeSerialized)
 type
   X = object
   Y = object
-    a {.pint.}: int32
+    a {.pint, fieldNumber: 1.}: int32
   Z = object
     b {.dontSerialize.}: string
 

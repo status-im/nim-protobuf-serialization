@@ -9,26 +9,26 @@ type
   DistinctInt* = distinct int32
 
   Basic = object
-    a {.pint.}: uint64
-    b: string
-    c {.pint.}: char
+    a {.pint, fieldNumber: 1.}: uint64
+    b {.fieldNumber: 2.}: string
+    c {.pint, fieldNumber: 3.}: char
 
   Wrapped = object
-    d {.sint.}: int32
-    e {.sint.}: int64
-    f: Basic
-    g: string
-    h: bool
+    d {.sint, fieldNumber: 1.}: int32
+    e {.sint, fieldNumber: 2.}: int64
+    f {.fieldNumber: 3.}: Basic
+    g {.fieldNumber: 4.}: string
+    h {.fieldNumber: 5.}: bool
 
   Nested* = ref object
-    child*: Nested
-    data*: string
+    child* {.fieldNumber: 1.}: Nested
+    data* {.fieldNumber: 2.}: string
 
   Circular = ref object
-    child: Circular
+    child {.fieldNumber: 1.}: Circular
 
   Pointered = object
-    x {.sint.}: ptr int32
+    x {.sint, fieldNumber: 1.}: ptr int32
 
 type DistinctTypeSerialized = SInt(int32)
 DistinctInt.borrowSerialization(DistinctTypeSerialized)
@@ -70,7 +70,7 @@ suite "Test Object Encoding/Decoding":
     let x: DistinctInt = 5.DistinctInt
     check Protobuf.decode(Protobuf.encode(x), type(DistinctInt)) == x
 
-  test "Can encode/decode tuples":
+  #[test "Can encode/decode tuples":
     let
       unnamed: (
         SInt(int32),
@@ -109,7 +109,7 @@ suite "Test Object Encoding/Decoding":
     check namedRead.e == named.e
 
     let obj = Basic(a: 100, b: "Test string.", c: 'C')
-    check Protobuf.decode(Protobuf.encode(obj), type(Basic)) == obj
+    check Protobuf.decode(Protobuf.encode(obj), type(Basic)) == obj]#
 
   test "Can encode/decode a wrapper object":
     let obj = Wrapped(

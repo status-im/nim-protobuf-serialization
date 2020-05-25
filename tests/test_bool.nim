@@ -4,16 +4,16 @@ import ../protobuf_serialization
 
 type
   PIntType = object
-    x {.pint.}: int32
+    x {.pint, fieldNumber: 1.}: int32
 
   UIntType = object
-    x {.pint.}: uint32
+    x {.pint, fieldNumber: 1.}: uint32
 
   SIntType = object
-    x {.sint.}: int32
+    x {.sint, fieldNumber: 1.}: int32
 
   BoolType = object
-    x: bool
+    x {.fieldNumber: 1.}: bool
 
 proc writeRead[W, R](toWrite: W, value: R) =
   check Protobuf.decode(Protobuf.encode(toWrite), R) == value

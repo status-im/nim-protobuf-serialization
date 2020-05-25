@@ -5,6 +5,9 @@ import sets
 import tables
 
 import stew/shims/macros
+#I did try use getCustomPragmaFixed.
+#Unfortunately, I couldn't due to fieldNumber resolution errors.
+export getCustomPragmaVal
 import serialization
 
 import varint
@@ -97,6 +100,8 @@ proc boxInternal[C, B](value: C, into: B): B =
 proc box*[B](into: var B, value: auto) =
   into = boxInternal(value, into)
 
+template fieldNumber*(num: int) {.pragma.}
+
 #Created in response to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/5.
 func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
   when T is PlatformDependentTypes:
@@ -118,3 +123,14 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
           hasFixed = ty.hasCustomPragmaFixed(fieldName, fixed)
         when uint(hasPInt) + uint(hasSInt) + uint(hasFixed) != 1:
           {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
+
+      const thisFieldNumber = fieldVar.getCustomPragmaVal(fieldNumber)
+      when thisFieldNumber is NimNode:
+        {.fatal: "No field number specified on serialized field.".}
+      else:
+        when thisFieldNumber <= 0:
+          {.fatal: "Negative field number or 0 field number was specified. Protobuf fields start at 1.".}
+        elif thisFieldNumber shr 28 != 0:
+          #I mean, it is technically serializable with an uint64 (max 2^60), or even uint32 (max 2^29).
+          #That said, having more than 2^28 fields should never be needed. Why lose performance for a never-useful case?
+          {.fatal: "Field number greater than 2^28 specified. On 32-bit systems, this isn't serializable.".}

@@ -3,39 +3,39 @@ import unittest
 import ../protobuf_serialization
 
 type X = object
-  x00: bool
-  x01: bool
-  x02: bool
-  x03: bool
-  x04: bool
-  x05: bool
-  x06: bool
-  x07: bool
-  x08: bool
-  x09: bool
-  x0A: bool
-  x0B: bool
-  x0C: bool
-  x0D: bool
-  x0E: bool
-  x0F: bool
-  x10: bool
-  x11: bool
-  x12: bool
-  x13: bool
-  x14: bool
-  x15: bool
-  x16: bool
-  x17: bool
-  x18: bool
-  x19: bool
-  x1A: bool
-  x1B: bool
-  x1C: bool
-  x1D: bool
-  x1E: bool
-  x1F: bool
-  x20: bool
+  x00 {.fieldNumber: 1.}: bool
+  x01 {.fieldNumber: 2.}: bool
+  x02 {.fieldNumber: 3.}: bool
+  x03 {.fieldNumber: 4.}: bool
+  x04 {.fieldNumber: 5.}: bool
+  x05 {.fieldNumber: 6.}: bool
+  x06 {.fieldNumber: 7.}: bool
+  x07 {.fieldNumber: 8.}: bool
+  x08 {.fieldNumber: 9.}: bool
+  x09 {.fieldNumber: 10.}: bool
+  x0A {.fieldNumber: 11.}: bool
+  x0B {.fieldNumber: 12.}: bool
+  x0C {.fieldNumber: 13.}: bool
+  x0D {.fieldNumber: 14.}: bool
+  x0E {.fieldNumber: 15.}: bool
+  x0F {.fieldNumber: 16.}: bool
+  x10 {.fieldNumber: 17.}: bool
+  x11 {.fieldNumber: 18.}: bool
+  x12 {.fieldNumber: 19.}: bool
+  x13 {.fieldNumber: 20.}: bool
+  x14 {.fieldNumber: 21.}: bool
+  x15 {.fieldNumber: 22.}: bool
+  x16 {.fieldNumber: 23.}: bool
+  x17 {.fieldNumber: 24.}: bool
+  x18 {.fieldNumber: 25.}: bool
+  x19 {.fieldNumber: 26.}: bool
+  x1A {.fieldNumber: 27.}: bool
+  x1B {.fieldNumber: 28.}: bool
+  x1C {.fieldNumber: 29.}: bool
+  x1D {.fieldNumber: 30.}: bool
+  x1E {.fieldNumber: 31.}: bool
+  x1F {.fieldNumber: 32.}: bool
+  x20 {.fieldNumber: 33.}: bool
 
 suite "Thirty-three fielded object":
   test "Can encode and decode an object with 33 fields":

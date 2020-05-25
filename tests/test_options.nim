@@ -8,14 +8,14 @@ from test_objects import DistinctInt, `==`
 
 type
   Basic = object
-    x {.sint.}: int32
+    x {.sint, fieldNumber: 1.}: int32
 
   Wrapped = object
-    y {.sint.}: Option[int32]
+    y {.sint, fieldNumber: 1.}: Option[int32]
 
   Nested = ref object
-    child: Option[Nested]
-    z: Option[Wrapped]
+    child {.fieldNumber: 1.}: Option[Nested]
+    z {.fieldNumber: 2.}: Option[Wrapped]
 
 proc `==`*(lhs: Nested, rhs: Nested): bool =
   lhs.z == rhs.z
