@@ -111,7 +111,9 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
   elif T.isStdlib():
     discard
   elif T is (object or tuple):
-    var inst: T
+    var
+      inst: T
+      fieldNumberSet = initHashSet[int]()
     enumInstanceSerializedFields(inst, fieldName, fieldVar):
       discard fieldName
       when fieldVar is PlatformDependentTypes:
@@ -134,3 +136,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
           #I mean, it is technically serializable with an uint64 (max 2^60), or even uint32 (max 2^29).
           #That said, having more than 2^28 fields should never be needed. Why lose performance for a never-useful case?
           {.fatal: "Field number greater than 2^28 specified. On 32-bit systems, this isn't serializable.".}
+
+        if fieldNumberSet.contains(thisFieldNumber):
+          raise newException(Exception, "Field number was used twice on two different fields.")
+        fieldNumberSet.incl(thisFieldNumber)
