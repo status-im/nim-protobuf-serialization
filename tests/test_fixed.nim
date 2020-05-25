@@ -4,7 +4,10 @@ import ../protobuf_serialization
 from ../protobuf_serialization/internal import unwrap
 
 proc writeRead(x: SomeNumber) =
-  check cast[uint64](Protobuf.decode(Protobuf.encode(Fixed(x)), type(Fixed(x)))) == cast[uint64](x)
+  when sizeof(x) == 4:
+    check cast[uint32](Protobuf.decode(Protobuf.encode(Fixed(x)), type(Fixed(x)))) == cast[uint32](x)
+  else:
+    check cast[uint64](Protobuf.decode(Protobuf.encode(Fixed(x)), type(Fixed(x)))) == cast[uint64](x)
 
 suite "Test Fixed Encoding/Decoding":
   test "Can encode/decode int":
