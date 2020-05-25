@@ -66,7 +66,7 @@ template flatMap*(value: auto): auto =
   flatMapInternal(value, flatType(value))
 
 template isStdlib*[B](ty: typedesc[B]): bool =
-  flatType(ty) is (cstring or string or seq or array or set or HashSet or Table)
+  flatType(ty) is (cstring or string or seq or array or set or HashSet)
 
 template nextType[B](box: B): auto =
   when B is Option:
@@ -110,6 +110,11 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
     {.fatal: "Serializing a number requires specifying the encoding to use.".}
   elif T.isStdlib():
     discard
+  elif T is tuple:
+    {.fatal: "Tuples aren't serializable due to the lack of being able to attach pragmas.".}
+  elif T is Table:
+    {.fatal: "Support for Tables was never added. For more info, see https://github.com/kayabaNerve/nim-protobuf-serialization/issues/4.".}
+  #Tuple inclusion is so in case we can add back support for tuples, we solely have to delete the above case.
   elif T is (object or tuple):
     var
       inst: T
