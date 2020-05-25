@@ -162,6 +162,17 @@ suite "Test Object Encoding/Decoding":
 
     check Protobuf.decode(writer.finish(), type(Wrapped)) == obj
 
+  test "Can read repeated fields":
+    let
+      writer = ProtobufWriter.init(memoryOutput())
+      basic: Basic = Basic(b: "Initial string.")
+      repeated = "Repeated string."
+
+    writer.writeField(2, basic.b)
+    writer.writeField(2, repeated)
+
+    check Protobuf.decode(writer.finish(), type(Basic)) == Basic(b: repeated)
+
   test "Can read nested objects":
     let obj: Nested = Nested(
       child: Nested(
@@ -191,14 +202,3 @@ suite "Test Object Encoding/Decoding":
   test "Doesn't allow unknown fields":
     expect ProtobufMessageError:
       discard Protobuf.decode((Protobuf.encode(Basic(a: 100, b: "Test string.", c: 'C')) & @[byte(4 shl 3)]), type(Basic))
-
-  test "Doesn't allow duplicate fields":
-    let
-      obj = Basic(a: 100, b: "Test string.", c: 'C')
-      writer = ProtobufWriter.init(memoryOutput())
-
-    writer.writeField(2, obj.b)
-    writer.writeField(2, obj.b)
-
-    expect ProtobufMessageError:
-      discard Protobuf.decode(writer.finish(), type(Wrapped))
