@@ -85,7 +85,7 @@ proc writeLengthDelimited[T](
   else:
     {.fatal: "Tried to write a Length Delimited type which wasn't actually Length Delimited.".}
 
-  if stream.pos != startPos:
+  if (stream.pos != startPos) or (rootType.isPotentiallyNull()):
     cursor.finalWrite(newProtobufKey(fieldNum, LengthDelimited) & encodeVarInt(PInt(int32(stream.pos - startPos))))
   else:
     cursor.finalWrite([])

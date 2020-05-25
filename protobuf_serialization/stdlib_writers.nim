@@ -12,7 +12,6 @@ proc encodeNumber[T](stream: OutputStream, value: T) =
   when value is bool:
     stream.encodeVarInt(PInt(uint32(value)))
   elif value is VarIntWrapped:
-    let pos = stream.pos
     stream.encodeVarInt(value)
   elif value is FixedWrapped:
     var unwrapped = value.unwrap()

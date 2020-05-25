@@ -318,4 +318,8 @@ proc decodeVarInt*[R, E](
 
   doAssert decodeVarInt(bytes, inLen, value) == VarIntStatus.Success
   doAssert inLen == bytes.len
-  result = R(value)
+  #Removes a warning.
+  when value is R:
+    result = value
+  else:
+    result = R(value)
