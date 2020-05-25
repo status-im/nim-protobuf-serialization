@@ -55,7 +55,7 @@ type
   #Unsigned native types utilizing the VarInt/Fixed wire types.
   PureUIntegerTypes = SomeUnsignedInt or char or bool
   #Every Unsigned Integer Type.
-  UIntegerTypes* = UIntWrapped or FixedWrapped or
+  UIntegerTypes* = UIntWrapped or FixedWrapped32 or FixedWrapped64 or
                    LUIntWrapped or PureUIntegerTypes
 
   PureTypes* = PureSIntegerTypes or PureUIntegerTypes
