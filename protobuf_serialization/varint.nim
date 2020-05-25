@@ -188,7 +188,7 @@ func encodeVarInt*(
   value: VarIntWrapped
 ): VarIntStatus =
   #Verify the value fits into the specified encoding.
-  when value is (LUIntWrapped32 or LUIntWrapped64):
+  when value is LUIntWrapped:
     if value shr 63 != 0:
       return VarIntStatus.Overflow
 
@@ -250,18 +250,18 @@ func decodeBinaryValue[E](
   when sizeof(E) != sizeof(value):
     {.fatal: "Tried to decode a raw binary value into an encoding with a different size. This should never happen.".}
 
-  when E is (PIntWrapped or LUIntWrapped):
+  when E is LUIntWrapped:
     if res.unwrap() shr ((sizeof(res) * 8) - 1) == 1:
       return VarIntStatus.Overflow
 
-    when E is PIntWrapped:
-      if len == 10:
-        type S = type(res.unwrap())
-        res = E(-S(value + 1))
-      else:
-        res = E(value)
+  elif E is PIntWrapped:
+    if len == 10:
+      type S = type(res.unwrap())
+      res = E(-S(value + 1))
     else:
       res = E(value)
+  else:
+    res = E(value)
 
   elif E is SIntWrapped:
     type S = type(res.unwrap())
