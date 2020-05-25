@@ -108,8 +108,9 @@ suite "Test Object Encoding/Decoding":
     check namedRead.d == named.d
     check namedRead.e == named.e
 
+  test "Can encode/decode objects":
     let obj = Basic(a: 100, b: "Test string.", c: 'C')
-    check Protobuf.decode(Protobuf.encode(obj), type(Basic)) == obj]#
+    check Protobuf.decode(Protobuf.encode(obj), Basic) == obj
 
   test "Can encode/decode a wrapper object":
     let obj = Wrapped(

@@ -127,9 +127,9 @@ proc setField[T](
 
   else:
     #This iterative approach is extemely poor.
-    var keyNumber = key.number
-    if (keyNumber == 0) or (uint(keyNumber) > uint(totalSerializedFields(T))):
-      raise newException(ProtobufMessageError, "Unknown field number specified: " & $keyNumber)
+    var
+      keyNumber = key.number
+      foundKey = false
 
     enumInstanceSerializedFields(value, fieldName, fieldVar):
       discard fieldName
@@ -138,6 +138,9 @@ proc setField[T](
         {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
 
       if keyNumber == fieldVar.getCustomPragmaVal(fieldNumber):
+        #Mark the key as found.
+        foundKey = true
+
         #Only calculate the encoding VarInt.
         #In every other case, the type is enough.
         #We don't need to track the boolean type as literally every encoding will parse to the same true/false.
@@ -189,6 +192,9 @@ proc setField[T](
 
         box(fieldVar, flattened)
         break
+
+    if not foundKey:
+      raise newException(ProtobufMessageError, "Unknown field number specified: " & $keyNumber)
 
 proc readValueInternal[T](stream: InputStream, ty: typedesc[T]): T =
   static: verifySerializable(flatType(T))
