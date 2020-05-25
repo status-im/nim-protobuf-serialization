@@ -106,7 +106,7 @@ suite "Test Object Encoding/Decoding":
     check uint32(namedRead.b) == uint32(named.b)
     check namedRead.c == named.c
     check namedRead.d == named.d
-    check namedRead.e == named.e
+    check namedRead.e == named.e]#
 
   test "Can encode/decode objects":
     let obj = Basic(a: 100, b: "Test string.", c: 'C')
