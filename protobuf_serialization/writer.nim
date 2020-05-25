@@ -11,12 +11,18 @@ import types
 
 const LAST_BYTE = 0b1111_1111
 
+proc newProtobufKey(number: int, wire: ProtobufWireType): seq[byte] =
+  result = newSeq[byte](10)
+  var viLen = 0
+  doAssert encodeVarInt(result, viLen, PInt((number shl 3) or int(wire))) == VarIntStatus.Success
+  result.setLen(viLen)
+
 proc writeProtobufKey(
   stream: OutputStream,
   number: int,
   wire: ProtobufWireType
 ) {.inline.} =
-  stream.write(encodeVarInt(PInt((number shl 3) or int(wire))))
+  stream.write(newProtobufKey(number, wire))
 
 proc writeVarInt(stream: OutputStream, fieldNum: int, value: VarIntWrapped) =
   let bytes = encodeVarInt(value)
@@ -55,40 +61,35 @@ proc writeLengthDelimited[T](
   fieldName: static string,
   flatValue: LengthDelimitedTypes
 ) =
-  var bytes: seq[byte]
+  var cursor = stream.delayVarSizeWrite(10)
+  let startPos = stream.pos
 
   #Byte seqs.
   when flatValue is CastableLengthDelimitedTypes:
     if flatValue.len == 0:
       return
-    bytes = cast[seq[byte]](flatValue)
+    stream.write(cast[seq[byte]](flatValue))
 
   #Standard lib types which use custom converters, instead of encoding the literal Nim representation.
   elif type(flatValue).isStdlib():
-    bytes = rootType.stdlibToProtobuf(fieldName, flatValue)
-    if bytes.len == 0:
-      return
+    stream.stdlibToProtobuf(rootType, fieldName, flatValue)
 
   #Nested object which even if the sub-value is empty, should be encoded as long as it exists.
   elif rootType.isPotentiallyNull():
-    var substream = memoryOutput()
-    writeValueInternal(substream, flatValue)
-    bytes = substream.getOutput()
+    writeValueInternal(stream, flatValue)
 
   #Object which should only be encoded if it has data.
   elif flatValue is (object or tuple):
-    var substream = memoryOutput()
-    writeValueInternal(substream, flatValue)
-    bytes = substream.getOutput()
-    if bytes.len == 0:
-      return
+    writeValueInternal(stream, flatValue)
 
   else:
     {.fatal: "Tried to write a Length Delimited type which wasn't actually Length Delimited.".}
 
-  stream.writeProtobufKey(fieldNum, LengthDelimited)
-  stream.write(encodeVarInt(PInt(bytes.len)))
-  stream.write(bytes)
+  if stream.pos != startPos:
+    cursor.finalWrite(newProtobufKey(fieldNum, LengthDelimited) & encodeVarInt(PInt(int32(stream.pos - startPos))))
+  else:
+    cursor.finalWrite([])
+
 
 proc writeFieldInternal[T, R](
   stream: OutputStream,

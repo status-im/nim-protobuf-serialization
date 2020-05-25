@@ -239,6 +239,9 @@ func encodeVarInt*(value: VarIntWrapped): seq[byte] =
   doAssert encodeVarInt(result, outLen, value) == VarIntStatus.Success
   result.setLen(outLen)
 
+proc encodeVarInt*(stream: OutputStream, value: VarIntWrapped) {.inline.} =
+  stream.write(encodeVarInt(value))
+
 func decodeBinaryValue[E](
   res: var E,
   value: uint32 or uint64,

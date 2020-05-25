@@ -8,43 +8,42 @@ import stew/shims/macros
 import internal
 import types
 
-func encodeNumber[T](value: T): seq[byte] =
+proc encodeNumber[T](stream: OutputStream, value: T) =
   when value is bool:
-    result = encodeVarInt(PInt(uint32(value)))
-    if result.len == 0:
-      result = @[byte(0)]
+    stream.encodeVarInt(PInt(uint32(value)))
   elif value is VarIntWrapped:
-    result = encodeVarInt(value)
-    if result.len == 0:
-      result = @[byte(0)]
+    let pos = stream.pos
+    stream.encodeVarInt(value)
   elif value is FixedWrapped:
     var unwrapped = value.unwrap()
     for _ in 0 ..< sizeof(unwrapped):
-      result.add(byte(unwrapped and 0b1111_1111))
+      stream.write(byte(unwrapped and LAST_BYTE))
       unwrapped = unwrapped shr 8
   else:
     {.fatal: "Trying to encode a number which isn't wrapped. This should never happen.".}
 
 proc writeValue*[T](writer: ProtobufWriter, value: T) {.inline.}
 
-func stdLibToProtobuf[R](
+proc stdLibToProtobuf[R](
+  stream: OutputStream,
   _: typedesc[R],
   unusedFieldName: static string,
   value: cstring or string
-): seq[byte] {.inline.} =
-  cast[seq[byte]]($value)
+) {.inline.} =
+  stream.write(cast[seq[byte]]($value))
 
 proc stdlibToProtobuf[R, T](
+  stream: OutputStream,
   ty: typedesc[R],
   fieldName: static string,
   arrInstance: openArray[T]
-): seq[byte] =
+) =
   type fType = flatType(T)
   for value in arrInstance:
     when fType is (bool or VarIntWrapped or FixedWrapped):
       let possibleNumber = flatMap(value)
       var blank: fType
-      result &= encodeNumber(possibleNumber.get(blank))
+      stream.encodeNumber(possibleNumber.get(blank))
 
     elif fType is VarIntTypes:
       when fieldName is "":
@@ -54,11 +53,11 @@ proc stdlibToProtobuf[R, T](
       var blank: fType
 
       when R.hasCustomPragmaFixed(fieldName, pint):
-        result &= encodeNumber(PInt(possibleNumber.get(blank)))
+        stream.encodeNumber(PInt(possibleNumber.get(blank)))
       elif R.hasCustomPragmaFixed(fieldName, sint):
-        result &= encodeNumber(SInt(possibleNumber.get(blank)))
+        stream.encodeNumber(SInt(possibleNumber.get(blank)))
       elif R.hasCustomPragmaFixed(fieldName, fixed):
-        result &= encodeNumber(Fixed(possibleNumber.get(blank)))
+        stream.encodeNumber(Fixed(possibleNumber.get(blank)))
 
     elif fType is FixedTypes:
       when fieldName is "":
@@ -66,38 +65,48 @@ proc stdlibToProtobuf[R, T](
 
       let possibleNumber = flatMap(value)
       var blank: fType
-      result &= encodeNumber(Fixed(possibleNumber.get(blank)))
+      stream.encodeNumber(Fixed(possibleNumber.get(blank)))
 
     elif fType is (cstring or string):
-      let thisVal = ty.stdlibToProtobuf(fieldName, flatMap(value).get(""))
-      result &= byte(thisVal.len) & thisVal
+      var cursor = stream.delayVarSizeWrite(10)
+      let startPos = stream.pos
+      stream.stdlibToProtobuf(ty, fieldName, flatMap(value).get(""))
+      cursor.finalWrite(encodeVarInt(PInt(int32(stream.pos - startPos))))
 
     elif fType is CastableLengthDelimitedTypes:
       let toEncode = flatMap(value).get(T(@[]))
-      result &= byte(toEncode.len) & cast[byte](toEncode)
+      if toEncode.len == 0:
+        return
+      stream.write(encodeVarInt(PInt(toEncode.len)))
+      stream.write(cast[byte](toEncode))
 
-    elif (fType is object) or fType.isStdlib():
-      var writer = ProtobufWriter.init(memoryOutput())
+    elif (fType is (object or tuple)) or fType.isStdlib():
+      var cursor = stream.delayVarSizeWrite(10)
+      let startPos = stream.pos
+
+      var writer = ProtobufWriter.init(stream)
       writer.writeValue(value)
-      let valueBytes = writer.finish()
-      result &= byte(valueBytes.len) & valueBytes
+
+      cursor.finalWrite(encodeVarInt(PInt(int32(stream.pos - startPos))))
 
     else:
       {.fatal: "Tried to encode an unrecognized object used in a stdlib type.".}
 
 proc stdlibToProtobuf[R, T](
+  stream: OutputStream,
   ty: typedesc[R],
   fieldName: static string,
   setInstance: set[T]
-): seq[byte] =
+) =
   var seqInstance: seq[T]
   for value in setInstance:
     seqInstance.add(value)
-  result = ty.stdLibToProtobuf(fieldName, seqInstance)
+  stream.stdLibToProtobuf(ty, fieldName, seqInstance)
 
 proc stdlibToProtobuf[R, T](
+  stream: OutputStream,
   ty: typedesc[R],
   fieldName: static string,
   setInstance: HashSet[T]
-): seq[byte] {.inline.} =
-  ty.stdLibToProtobuf(fieldName, setInstance.toSeq())
+) {.inline.} =
+  stream.stdLibToProtobuf(ty, fieldName, setInstance.toSeq())
