@@ -108,7 +108,7 @@ macro generateWrapper(
 
 generateWrapper(
   SInt, SIntegerTypes,
-  SIntWrapped32,  SIntWrapped64,
+  void, void,
   SIntWrapped32,  SIntWrapped64,
   "SInt should only be used with signed integers."
 )
@@ -253,6 +253,7 @@ func decodeBinaryValue[E](
   when E is LUIntWrapped:
     if res.unwrap() shr ((sizeof(res) * 8) - 1) == 1:
       return VarIntStatus.Overflow
+    res = E(value)
 
   elif E is PIntWrapped:
     if len == 10:
@@ -260,8 +261,6 @@ func decodeBinaryValue[E](
       res = E(-S(value + 1))
     else:
       res = E(value)
-  else:
-    res = E(value)
 
   elif E is SIntWrapped:
     type S = type(res.unwrap())
