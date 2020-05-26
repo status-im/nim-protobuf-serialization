@@ -1,3 +1,4 @@
+import math
 import unittest
 
 import ../protobuf_serialization
@@ -40,3 +41,11 @@ suite "Test Length Delimited Encoding/Decoding":
 
     check cstrlen(Protobuf.decode(Protobuf.encode(cstring(str)), string)) == csize_t(str.len)
     check cstrlen(Protobuf.decode(Protobuf.encode(cstring(str)), cstring)) == csize_t(str.len)
+
+  test "Can encode a string which has a length which requires three bytes to encode":
+    let
+      x = newString(2 ^ 15)
+      vi = Protobuf.encode(PInt(x.len))
+      encoded = Protobuf.encode(x)
+    check encoded[1 ..< vi.len] == vi[1 ..< vi.len]
+    check Protobuf.decode(encoded, string) == x
