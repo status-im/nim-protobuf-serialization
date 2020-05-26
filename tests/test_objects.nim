@@ -30,6 +30,11 @@ type
   Pointered = object
     x {.sint, fieldNumber: 1.}: ptr int32
 
+discard Protobuf.supports(Basic)
+discard Protobuf.supports(Wrapped)
+discard Protobuf.supports(Nested)
+discard Protobuf.supports(Circular)
+
 type DistinctTypeSerialized = SInt(int32)
 DistinctInt.borrowSerialization(DistinctTypeSerialized)
 proc `==`*(lhs: DistinctInt, rhs: DistinctInt): bool {.borrow.}
