@@ -80,5 +80,7 @@ proc decodeFixed*(
   else:
     var temp: uint32
   for i in 0 ..< sizeof(temp):
+    if not stream.readable():
+      raise newException(ProtobufEOFError, "Stream ended before the Fixed number was finished.")
     temp = temp + (type(temp)(stream.read()) shl (i * 8))
   res = cast[type(res)](temp)
