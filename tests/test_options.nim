@@ -65,10 +65,10 @@ suite "Test Encoding/Decoding of Options":
     fixedTest(Fixed(5'u64))
     fixedTest(Fixed(5'u32))
 
-    fixedTest(5.5'f64)
-    fixedTest(-5.5'f64)
-    fixedTest(5.5'f32)
-    fixedTest(-5.5'f32)
+    fixedTest(Float64(5.5'f64))
+    fixedTest(Float64(-5.5'f64))
+    fixedTest(Float32(5.5'f32))
+    fixedTest(Float32(-5.5'f32))
 
   test "Option length-delimited":
     testNone(string)

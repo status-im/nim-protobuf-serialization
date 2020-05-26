@@ -35,7 +35,7 @@ suite "Test Encoding of Empty Objects/Values":
   test "Empty Fixed64":
     writeEmpty(Fixed(0'i64))
     writeEmpty(Fixed(0'u64))
-    writeEmpty(0'f64)
+    writeEmpty(Float64(0'f64))
 
   test "Empty length-delimited":
     writeEmpty("")
@@ -51,4 +51,4 @@ suite "Test Encoding of Empty Objects/Values":
   test "Empty Fixed32":
     writeEmpty(Fixed(0'i32))
     writeEmpty(Fixed(0'u32))
-    writeEmpty(0'f32)
+    writeEmpty(Float32(0'f32))

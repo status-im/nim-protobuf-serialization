@@ -21,7 +21,7 @@ suite "Test Fixed Encoding/Decoding":
     writeRead(Fixed(7'u64))
 
   test "Can encode/decode float":
-    writeRead(8.90123'f32)
-    writeRead(4.56789'f64)
-    writeRead(-0.1234'f32)
-    writeRead(-5.6789'f64)
+    writeRead(Float32(8.90123'f32))
+    writeRead(Float64(4.56789'f64))
+    writeRead(Float32(-0.1234'f32))
+    writeRead(Float64(-5.6789'f64))

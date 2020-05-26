@@ -109,6 +109,8 @@ template fieldNumber*(num: int) {.pragma.}
 func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
   when T is PlatformDependentTypes:
     {.fatal: "Serializing a number requires specifying the amount of bits via the type.".}
+  elif T is SomeFloat:
+    {.fatal: "Couldnt serialize the float; all floats need their bits specified with a PFloat32 or PFloat64 call.".}
   elif T is PureTypes:
     {.fatal: "Serializing a number requires specifying the encoding to use.".}
   elif T.isStdlib():
@@ -135,6 +137,19 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
         when fieldVar is (VarIntWrapped or FixedWrapped):
           when uint(hasPInt) + uint(hasSInt) + uint(hasLInt) + uint(hasFixed) != 0:
             {.fatal: "Encoding specified for an already wrapped type, or a type which isn't wrappable due to always having one encoding (byte, char, bool, or float).".}
+
+          when fieldVar is SomeFloat:
+            const
+              hasF32 = ty.hasCustomPragmaFixed(fieldName, pfloat32)
+              hasF64 = ty.hasCustomPragmaFixed(fieldName, pfloat64)
+            when hasF32:
+              when sizeof(fieldVar) != 4:
+                {.fatal: "pfloat32 pragma attached to a 64-bit float.".}
+            elif hasF64:
+              when sizeof(fieldVar) != 8:
+                {.fatal: "pfloat64 pragma attached to a 32-bit float.".}
+            else:
+              {.fatal: "Floats require the pfloat32 or pfloat64 pragma to be attached.".}
         elif uint(hasPInt) + uint(hasSInt) + uint(hasLInt) + uint(hasFixed) != 1:
             {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
 

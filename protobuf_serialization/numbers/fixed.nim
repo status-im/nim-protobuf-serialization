@@ -10,9 +10,12 @@ type
   FixedWrapped32  = distinct uint32
   SFixedWrapped64 = distinct int64
   SFixedWrapped32 = distinct int32
+  FloatWrapped64  = distinct uint64
+  FloatWrapped32  = distinct uint32
 
   FixedDistinctWrapped = FixedWrapped64 or FixedWrapped32 or
-                         SFixedWrapped64 or SFixedWrapped32
+                         SFixedWrapped64 or SFixedWrapped32 or
+                         FloatWrapped64 or FloatWrapped32
 
   FixedWrapped* = FixedDistinctWrapped or float64 or float32
 
@@ -28,6 +31,12 @@ generateWrapper(
   "Fixed should only be used with a non-float number. Floats are always fixed already."
 )
 
+template Float64*(value: float64): FloatWrapped64 =
+  cast[FloatWrapped64](value)
+
+template Float32*(value: float32): FloatWrapped32 =
+  cast[FloatWrapped32](value)
+
 template unwrap*(value: FixedWrapped): untyped =
   when value is FixedWrapped64:
     uint64(value)
@@ -37,12 +46,18 @@ template unwrap*(value: FixedWrapped): untyped =
     int64(value)
   elif value is SFixedWrapped32:
     int32(value)
+  elif value is FloatWrapped64:
+    float64(value)
+  elif value is FloatWrapped32:
+    float32(value)
   elif value is (float64 or float32):
     value
   else:
     {.fatal: "Tried to get the unwrapped value of a non-wrapped type. This should never happen.".}
 
 template fixed*() {.pragma.}
+template pfloat32*() {.pragma.}
+template pfloat64*() {.pragma.}
 
 proc encodeFixed*(stream: OutputStream, value: FixedWrapped) =
   when sizeof(value) == 8:

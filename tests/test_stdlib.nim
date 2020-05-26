@@ -12,7 +12,7 @@ type
   PragmadStdlib = object
     x {.sint, fieldNumber: 1.}: seq[int32]
     y {.pint, fieldNumber: 2.}: array[5, uint32]
-    z {.fieldNumber: 3.}: HashSet[float32]
+    z {.pfloat32, fieldNumber: 3.}: HashSet[float32]
 
   BooldStdlib = object
     x {.fieldNumber: 1.}: seq[bool]
