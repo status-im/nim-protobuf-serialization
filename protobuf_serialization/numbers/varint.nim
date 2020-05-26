@@ -59,7 +59,7 @@ generateWrapper(
 generateWrapper(
   SInt, SIntegerTypes, VarIntWrapped,
   void, void, void,
-  SIntegerTypes, SIntWrapped32,  SIntWrapped64,
+  SIntegerTypes, SIntWrapped64,  SIntWrapped32,
   "SInt should only be used with signed integers."
 )
 
@@ -126,8 +126,9 @@ func encodeVarInt*(
 ): VarIntStatus =
   #Verify the value fits into the specified encoding.
   when value is LUIntWrapped:
-    if value.unwrap() shr 63 != 0:
-      return VarIntStatus.Overflow
+    when sizeof(value) == 8:
+      if value.unwrap() shr 63 != 0:
+        return VarIntStatus.Overflow
 
     #Get the binary value of whatever we're decoding.
     #Beyond the above check, LibP2P uses the standard UInt encoding.
@@ -215,15 +216,20 @@ func decodeBinaryValue[E](
 
   return VarIntStatus.Success
 
-proc decodeVarInt*(
+func decodeVarInt*(
   bytes: openarray[byte],
   inLen: var int,
   res: var VarIntWrapped
 ): VarIntStatus =
   when sizeof(res) == 8:
     type U = uint64
+    var maxBits = 64
   else:
     type U = uint32
+    var maxBits = 32
+
+  when (res is LUIntWrapped) and (sizeof(res) == 8):
+    maxBits = 63
 
   var
     value: U
@@ -233,12 +239,19 @@ proc decodeVarInt*(
     if inLen == bytes.len:
       return VarIntStatus.Incomplete
     next = bytes[inLen]
+    if (next and VAR_INT_VALUE_MASK) == 0:
+      inLen += 1
+      offset += 7
+      continue
+
+    if (offset + log2trunc(next) + 1) > maxBits:
+      return VarIntStatus.Overflow
+
     value += (next and U(VAR_INT_VALUE_MASK)) shl offset
     inLen += 1
     offset += 7
 
-  if decodeBinaryValue(res, value, inLen) != VarIntStatus.Success:
-    raise newException(ProtobufMessageError, "Attempted to decode an invalid VarInt.")
+  return decodeBinaryValue(res, value, inLen)
 
 proc decodeVarInt*[R, E](
   stream: InputStream,

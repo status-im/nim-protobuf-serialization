@@ -3,9 +3,12 @@
 import faststreams
 import serialization/errors
 
+import numbers/varint
+import numbers/fixed
+export varint, fixed
+
 import internal
-export PInt, SInt, LInt, Fixed, Float64, Float32
-export pint, sint, lint, fixed, pfloat32, pfloat64, fieldNumber
+export fieldNumber
 export ProtobufError, ProtobufWriteError
 export ProtobufReadError, ProtobufEOFError, ProtobufMessageError
 
