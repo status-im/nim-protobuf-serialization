@@ -78,23 +78,25 @@ proc readLengthDelimited[R, B](
   if len < 0:
     raise newException(ProtobufMessageError, "Length delimited buffer contained more than 2 GB of data.")
 
-  if not stream.readable(len):
-    raise newException(ProtobufEOFError, "Couldn't read the length delimited buffer from this stream despite expecting one.")
+  when preResult is CastableLengthDelimitedTypes:
+    var byteResult: seq[byte] = newSeq[byte](len)
+    if not stream.readInto(byteResult):
+      raise newException(ProtobufEOFError, "Couldn't read the length delimited buffer from this stream.")
+    preResult = cast[type(preResult)](byteResult)
 
-  stream.withReadableRange(len, substream):
-    when preResult is not LengthDelimitedTypes:
-      {.fatal: "Tried to read a Length Delimited value which we didn't recognize. This should never happen.".}
-    elif type(preResult) is CastableLengthDelimitedTypes:
-      var byteResult: seq[byte] = newSeq[byte](len)
-      if not substream.readInto(byteResult):
-        raise newException(ProtobufEOFError, "Couldn't read the length delimited buffer from this stream despite verifying it's readable.")
-      preResult = cast[type(preResult)](byteResult)
-    elif B.isStdlib():
-      substream.stdlibFromProtobuf(rootType, fieldName, preResult)
-    elif preResult is (object or tuple):
-      preResult = substream.readValueInternal(type(preResult))
-    else:
-      {.fatal: "Tried to read a Length Delimited type which wasn't actually Length Delimited.".}
+  else:
+    if not stream.readable(len):
+      raise newException(ProtobufEOFError, "Couldn't read the length delimited buffer from this stream despite expecting one.")
+
+    stream.withReadableRange(len, substream):
+      when preResult is not LengthDelimitedTypes:
+        {.fatal: "Tried to read a Length Delimited value which we didn't recognize. This should never happen.".}
+      elif B.isStdlib():
+        substream.stdlibFromProtobuf(rootType, fieldName, preResult)
+      elif preResult is (object or tuple):
+        preResult = substream.readValueInternal(type(preResult))
+      else:
+        {.fatal: "Tried to read a Length Delimited type which wasn't actually Length Delimited.".}
 
   box(fieldVar, preResult)
 
