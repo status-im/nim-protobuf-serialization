@@ -200,7 +200,7 @@ func decodeBinaryValue[E](
   elif E is PIntWrapped:
     if len == 10:
       type S = type(res.unwrap())
-      res = E(-S(value + 1))
+      res = E((-S(value)) - 1)
     else:
       res = E(value)
 
@@ -244,7 +244,7 @@ func decodeVarInt*(
       offset += 7
       continue
 
-    if (offset + log2trunc(next) + 1) > maxBits:
+    if (offset + log2trunc(next and VAR_INT_VALUE_MASK) + 1) > maxBits:
       return VarIntStatus.Overflow
 
     value += (next and U(VAR_INT_VALUE_MASK)) shl offset

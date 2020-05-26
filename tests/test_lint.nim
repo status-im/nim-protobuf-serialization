@@ -36,12 +36,16 @@ suite "Test LInt Encoding/Decoding":
 
     check decodeVarInt(bytes, inLen, res64) == VarIntStatus.Overflow
 
-  test "Can handle the highest value for each encoding":
-    check Protobuf.decode(Protobuf.encode(PInt(high(int32))), PInt(int32)).unwrap() == high(int32)
-    check Protobuf.decode(Protobuf.encode(SInt(high(int32))), SInt(int32)).unwrap() == high(int32)
-    check Protobuf.decode(Protobuf.encode(LInt(high(uint32))), LInt(uint32)).unwrap() == high(uint32)
+  test "Can handle the highest/lowest value for each encoding":
+    template testHighLow(Encoding: untyped, ty: typed) =
+      check Protobuf.decode(Protobuf.encode(Encoding(high(ty))), Encoding(ty)).unwrap() == high(ty)
+      check Protobuf.decode(Protobuf.encode(Encoding(low(ty))), Encoding(ty)).unwrap() == low(ty)
 
-    check Protobuf.decode(Protobuf.encode(PInt(high(int64))), PInt(int64)).unwrap() == high(int64)
-    check Protobuf.decode(Protobuf.encode(SInt(high(int64))), SInt(int64)).unwrap() == high(int64)
+    testHighLow(PInt, int32)
+    testHighLow(PInt, int64)
+    testHighLow(PInt, uint32)
+    testHighLow(PInt, uint64)
+    testHighLow(SInt, int32)
+    testHighLow(SInt, int64)
+    check Protobuf.decode(Protobuf.encode(LInt(high(uint32))), LInt(uint32)).unwrap() == high(uint32)
     check Protobuf.decode(Protobuf.encode(LInt(high(uint64) shr 1)), LInt(uint64)).unwrap() == (high(uint64) shr 1)
-    

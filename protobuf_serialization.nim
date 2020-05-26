@@ -19,6 +19,7 @@ func supportsInternal[T](ty: typedesc[T], handled: var HashSet[string]) {.compil
   verifySerializable(T)
   var inst: T
   enumInstanceSerializedFields(inst, fieldName, fieldVar):
+    discard fieldName
     when flatType(fieldVar) is (object or tuple):
       supportsInternal(flatType(fieldVar), handled)
 

@@ -124,6 +124,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
     var
       inst: T
       fieldNumberSet = initHashSet[int]()
+    discard fieldNumberSet
     enumInstanceSerializedFields(inst, fieldName, fieldVar):
       discard fieldName
       when fieldVar is PlatformDependentTypes:
