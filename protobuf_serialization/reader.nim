@@ -39,21 +39,17 @@ proc readVarInt[B; E](
 
 proc readFixed[B](stream: InputStream, fieldVar: var B, key: ProtobufKey) =
   type T = flatType(B)
+  var value: T
+
   when sizeof(T) == 8:
-    type U = uint64
     if key.wire != Fixed64:
       raise newException(ProtobufMessageError, "Invalid wire type for a Fixed64.")
   else:
-    type U = uint32
     if key.wire != Fixed32:
       raise newException(ProtobufMessageError, "Invalid wire type for a Fixed32.")
 
-  var value = U(0)
-  for offset in countup(0, (sizeof(T) - 1) * 8, 8):
-    if not stream.readable():
-      raise newException(ProtobufEOFError, "Couldn't read the next byte from this stream despite expecting one.")
-    value += U(stream.read()) shl U(offset)
-  box(fieldVar, cast[T](value))
+  stream.decodeFixed(value)
+  box(fieldVar, value)
 
 include stdlib_readers
 
@@ -111,9 +107,7 @@ proc setField[T](
     {.fatal: "Ref or Ptr or Option made it to setField. This should never happen.".}
 
   elif T is not (object or tuple):
-    when T is bool:
-      stream.readVarInt(value, PInt(value), key)
-    elif T is VarIntWrapped:
+    when T is VarIntWrapped:
       stream.readVarInt(value, value, key)
     elif T is FixedWrapped:
       stream.readFixed(value, key)
@@ -151,41 +145,22 @@ proc setField[T](
         elif flattened is FixedWrapped:
           stream.readFixed(flattened, key)
 
-        elif flattened is bool:
-          stream.readVarInt(flattened, PInt(flattened), key)
-
-        elif flattened is SIntegerTypes:
+        elif flattened is VarIntTypes:
           const
             hasPInt = T.hasCustomPragmaFixed(fieldName, pint)
             hasSInt = T.hasCustomPragmaFixed(fieldName, sint)
+            hasLInt = T.hasCustomPragmaFixed(fieldName, lint)
             hasFixed = T.hasCustomPragmaFixed(fieldName, fixed)
-          when uint(hasPInt) + uint(hasSInt) + uint(hasFixed) != 1:
-            {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
-          elif hasPInt:
+          when hasPInt:
             stream.readVarInt(flattened, PInt(flattened), key)
           elif hasSInt:
             stream.readVarInt(flattened, SInt(flattened), key)
+          elif hasLInt:
+            stream.readVarInt(flattened, LInt(flattened), key)
           elif hasFixed:
             stream.readFixed(flattened, key)
           else:
             {.fatal: "Encoding pragma specified yet no enoding matched. This should never happen.".}
-
-        elif flattened is UIntegerTypes:
-          const
-            hasPInt = T.hasCustomPragmaFixed(fieldName, pint)
-            hasFixed = T.hasCustomPragmaFixed(fieldName, fixed)
-          when uint(hasPInt) + uint(hasFixed) != 1:
-            {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
-          elif hasPInt:
-            stream.readVarInt(flattened, PInt(flattened), key)
-          elif hasFixed:
-            stream.readFixed(flattened, key)
-
-        elif flattened is FixedTypes:
-          const hasFixed = T.hasCustomPramgaFixed(fieldName, fixed)
-          when not hasFixed:
-            {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
-          stream.readFixed(flattened, key)
 
         else:
           stream.readLengthDelimited(type(value), fieldName, flattened, key)

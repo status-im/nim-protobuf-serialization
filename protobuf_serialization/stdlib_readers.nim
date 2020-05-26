@@ -14,18 +14,10 @@ proc decodeNumber[T, E](
   encoding: typedesc[E]
 ) =
   var flattened: flatType(T)
-  when flattened is bool:
-    flattened = stream.decodeVarInt(bool, PInt(uint32))
-  elif E is VarIntWrapped:
+  when E is VarIntWrapped:
     flattened = stream.decodeVarInt(type(flattened), encoding)
   elif E is FixedWrapped:
-    when sizeof(flattened) == 8:
-      var temp: uint64
-    else:
-      var temp: uint32
-    for i in 0 ..< sizeof(temp):
-      temp = temp + (type(temp)(stream.read()) shl (i * 8))
-    flattened = cast[type(flattened)](temp)
+    stream.decodeFixed(flattened)
   else:
     {.fatal: "Trying to decode a number which isn't wrapped. This should never happen.".}
   box(next, flattened)
@@ -68,7 +60,7 @@ proc stdlibFromProtobuf[R, T](
     #One uses seqInstance[^1], one uses arr[i].
     #This should really be templated out.
     #---
-    when fType is (bool or VarIntWrapped or FixedWrapped):
+    when fType is (VarIntWrapped or FixedWrapped):
       stream.decodeNumber(seqInstance[^1], type(seqInstance[^1]))
 
     elif fType is VarIntTypes:
@@ -79,6 +71,8 @@ proc stdlibFromProtobuf[R, T](
         stream.decodeNumber(seqInstance[^1], PInt(type(seqInstance[^1])))
       elif R.hasCustomPragmaFixed(fieldName, sint):
         stream.decodeNumber(seqInstance[^1], SInt(type(seqInstance[^1])))
+      elif R.hasCustomPragmaFixed(fieldName, lint):
+        stream.decodeNumber(seqInstance[^1], LInt(type(seqInstance[^1])))
       elif R.hasCustomPragmaFixed(fieldName, fixed):
         stream.decodeNumber(seqInstance[^1], Fixed(type(seqInstance[^1])))
 
@@ -138,7 +132,7 @@ proc stdlibFromProtobuf[R, CRange, T](
       raise newException(ProtobufMessageError, "Length delimited buffer represents an array exceeding this array's length.")
 
     #---
-    when fType is (bool or VarIntWrapped or FixedWrapped):
+    when fType is (VarIntWrapped or FixedWrapped):
       stream.decodeNumber(arr[i], type(arr[i]))
 
     elif fType is VarIntTypes:
@@ -146,6 +140,8 @@ proc stdlibFromProtobuf[R, CRange, T](
         stream.decodeNumber(arr[i], PInt(type(arr[i])))
       elif R.hasCustomPragmaFixed(fieldName, sint):
         stream.decodeNumber(arr[i], SInt(type(arr[i])))
+      elif R.hasCustomPragmaFixed(fieldName, lint):
+        stream.decodeNumber(arr[i], LInt(type(arr[i])))
       elif R.hasCustomPragmaFixed(fieldName, fixed):
         stream.decodeNumber(arr[i], Fixed(type(arr[i])))
 

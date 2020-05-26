@@ -11,7 +11,7 @@ type
   Basic = object
     a {.pint, fieldNumber: 1.}: uint64
     b {.fieldNumber: 2.}: string
-    c {.pint, fieldNumber: 3.}: char
+    c {.fieldNumber: 3.}: char
 
   Wrapped = object
     d {.sint, fieldNumber: 1.}: int32

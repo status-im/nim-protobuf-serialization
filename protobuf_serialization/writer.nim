@@ -9,8 +9,6 @@ import serialization
 import internal
 import types
 
-const LAST_BYTE = 0b1111_1111
-
 proc newProtobufKey(number: int, wire: ProtobufWireType): seq[byte] =
   result = newSeq[byte](10)
   var viLen = 0
@@ -31,23 +29,16 @@ proc writeVarInt(stream: OutputStream, fieldNum: int, value: VarIntWrapped) =
   stream.writeProtobufKey(fieldNum, VarInt)
   stream.write(bytes)
 
-proc writeFixed(stream: OutputStream, fieldNum: int, value: FixedWrapped) =
+proc writeFixed(stream: OutputStream, fieldNum: int, value: auto) =
   when sizeof(value) == 8:
-    var raw = cast[uint64](value)
+    let wire = Fixed64
   else:
-    var raw = cast[uint32](value)
-  if raw == 0:
+    let wire = Fixed32
+  if value.unwrap() == 0:
     return
-  stream.writeProtobufKey(
-    fieldNum,
-    when sizeof(value) == 8:
-      Fixed64
-    else:
-      Fixed32
-  )
-  for _ in 0 ..< sizeof(value):
-    stream.write(byte(raw and LAST_BYTE))
-    raw = raw shr 8
+
+  stream.writeProtobufKey(fieldNum, wire)
+  stream.encodeFixed(value)
 
 #stdlib types toProtobuf's. inlined as it needs access to the writeValue function.
 include stdlib_writers
@@ -105,9 +96,7 @@ proc writeFieldInternal[T, R](
     return
   let flattened = flattenedOption.get()
 
-  when flattened is bool:
-    stream.writeVarInt(fieldNum, PInt(flattened))
-  elif flattened is VarIntWrapped:
+  when flattened is VarIntWrapped:
     stream.writeVarInt(fieldNum, flattened)
   elif flattened is FixedWrapped:
     stream.writeFixed(fieldNum, flattened)
@@ -139,36 +128,25 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
       if flattenedFieldOption.isSome():
         let flattenedField = flattenedFieldOption.get()
         when flattenedField is ((not (VarIntWrapped or FixedWrapped)) and (VarIntTypes or FixedTypes)):
-          when flattenedField is SIntegerTypes:
+          when flattenedField is VarIntTypes:
             const
               hasPInt = flatType(value).hasCustomPragmaFixed(fieldName, pint)
               hasSInt = flatType(value).hasCustomPragmaFixed(fieldName, sint)
+              hasLInt = flatType(value).hasCustomPragmaFixed(fieldName, lint)
               hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
             when hasPInt:
               stream.writeFieldInternal(fieldNum, PInt(flattenedField), type(value), fieldName)
             elif hasSInt:
               stream.writeFieldInternal(fieldNum, SInt(flattenedField), type(value), fieldName)
+            elif hasLInt:
+              stream.writeFieldInternal(fieldNum, LInt(flattenedField), type(value), fieldName)
             elif hasFixed:
               stream.writeFieldInternal(fieldNum, Fixed(flattenedField), type(value), fieldName)
             else:
-              {.fatal: "Either no pragma or unsigned pragma attached to signed field.".}
-
-          elif flattenedField is UIntegerTypes:
-            const
-              hasPInt = flatType(value).hasCustomPragmaFixed(fieldName, pint) or (flattenedField is bool)
-              hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
-            when hasPInt:
-              stream.writeFieldInternal(fieldNum, PInt(flattenedField), type(value), fieldName)
-            elif hasFixed:
-              stream.writeFieldInternal(fieldNum, Fixed(flattenedField), type(value), fieldName)
-            else:
-              {.fatal: "Either no pragma or signed pragma attached to unsigned field.".}
+              {.fatal: "Encoding pragma specified yet no enoding matched. This should never happen.".}
 
           elif flattenedField is FixedTypes:
-            const hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
-            when not hasFixed:
-              {.fatal: "Either no pragma or one other than fixed attached to float.".}
-            stream.writeFieldInternal(fieldNum, Fixed(flattenedField), type(value), fieldName)
+            stream.writeFieldInternal(fieldNum, flattenedField, type(value), fieldName)
 
           else:
             {.fatal: "Attempting to handle an unknown number type. This should never happen.".}

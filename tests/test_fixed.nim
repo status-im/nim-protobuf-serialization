@@ -3,22 +3,22 @@ import unittest
 import ../protobuf_serialization
 from ../protobuf_serialization/internal import unwrap
 
-proc writeRead(x: SomeNumber) =
+proc writeRead(x: auto) =
   when sizeof(x) == 4:
-    check cast[uint32](Protobuf.decode(Protobuf.encode(Fixed(x)), type(Fixed(x)))) == cast[uint32](x)
+    check cast[uint32](Protobuf.decode(Protobuf.encode(x), type(x))) == cast[uint32](x)
   else:
-    check cast[uint64](Protobuf.decode(Protobuf.encode(Fixed(x)), type(Fixed(x)))) == cast[uint64](x)
+    check cast[uint64](Protobuf.decode(Protobuf.encode(x), type(x))) == cast[uint64](x)
 
 suite "Test Fixed Encoding/Decoding":
   test "Can encode/decode int":
-    writeRead(2'i32)
-    writeRead(3'i64)
-    writeRead(-4'i32)
-    writeRead(-5'i64)
+    writeRead(Fixed(2'i32))
+    writeRead(Fixed(3'i64))
+    writeRead(Fixed(-4'i32))
+    writeRead(Fixed(-5'i64))
 
   test "Can encode/decode uint":
-    writeRead(6'u32)
-    writeRead(7'u64)
+    writeRead(Fixed(6'u32))
+    writeRead(Fixed(7'u64))
 
   test "Can encode/decode float":
     writeRead(8.90123'f32)

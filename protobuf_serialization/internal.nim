@@ -10,8 +10,11 @@ import stew/shims/macros
 export getCustomPragmaVal
 import serialization
 
-import varint
+import numbers/varint
 export varint
+
+import numbers/fixed
+export fixed
 
 type
   ProtobufWireType* = enum
@@ -22,11 +25,11 @@ type
     wire*: ProtobufWireType
 
   #Number types which are platform-dependent and therefore unsafe.
-  PlatformDependentTypes* = int or uint or float
+  PlatformDependentTypes* = int or uint
 
   #Castable length delimited types.
   #These can be directly casted from a seq[byte] and do not require a custom converter.
-  CastableLengthDelimitedTypes* = seq[char or byte or uint8 or bool]
+  CastableLengthDelimitedTypes* = seq[byte or char or bool]
   #This type is literally every other type.
   #Every other type is considered custom, due to the need for their own converters.
   #While cstring/array are built-ins, and therefore should have converters provided, but they still need converters.
@@ -106,7 +109,7 @@ template fieldNumber*(num: int) {.pragma.}
 func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
   when T is PlatformDependentTypes:
     {.fatal: "Serializing a number requires specifying the amount of bits via the type.".}
-  elif T is (PureTypes and (not bool)):
+  elif T is PureTypes:
     {.fatal: "Serializing a number requires specifying the encoding to use.".}
   elif T.isStdlib():
     discard
@@ -123,13 +126,17 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
       discard fieldName
       when fieldVar is PlatformDependentTypes:
         {.fatal: "Serializing a number requires specifying the amount of bits via the type.".}
-      elif fieldVar is ((not (VarIntWrapped or FixedWrapped)) and (VarIntTypes or FixedTypes)):
+      elif fieldVar is (VarIntTypes or FixedTypes):
         const
-          hasPInt = ty.hasCustomPragmaFixed(fieldName, pint) or (flatType(fieldVar) is bool)
+          hasPInt = ty.hasCustomPragmaFixed(fieldName, pint)
           hasSInt = ty.hasCustomPragmaFixed(fieldName, sint)
+          hasLInt = ty.hasCustomPragmaFixed(fieldName, lint)
           hasFixed = ty.hasCustomPragmaFixed(fieldName, fixed)
-        when uint(hasPInt) + uint(hasSInt) + uint(hasFixed) != 1:
-          {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
+        when fieldVar is (VarIntWrapped or FixedWrapped):
+          when uint(hasPInt) + uint(hasSInt) + uint(hasLInt) + uint(hasFixed) != 0:
+            {.fatal: "Encoding specified for an already wrapped type, or a type which isn't wrappable due to always having one encoding (byte, char, bool, or float).".}
+        elif uint(hasPInt) + uint(hasSInt) + uint(hasLInt) + uint(hasFixed) != 1:
+            {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
 
       const thisFieldNumber = fieldVar.getCustomPragmaVal(fieldNumber)
       when thisFieldNumber is NimNode:

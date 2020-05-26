@@ -1,11 +1,12 @@
-from macros import quote
-
 import stew/bitops2
 import faststreams
 
+import common
+export PureTypes
+
 const
-  VAR_INT_CONTINUATION_MASK*: byte = 0b1000_0000
-  VAR_INT_VALUE_MASK*: byte = 0b0111_1111
+  VAR_INT_CONTINUATION_MASK: byte = 0b1000_0000
+  VAR_INT_VALUE_MASK: byte = 0b0111_1111
 
 type
   VarIntStatus* = enum
@@ -15,140 +16,74 @@ type
 
   #Used to specify how to encode/decode primitives.
   #Despite being used outside of this library, all access is via templates.
-  PIntWrapped32   = distinct int32
-  PIntWrapped64   = distinct int64
-  UIntWrapped32   = distinct uint32
-  UIntWrapped64   = distinct uint64
-  SIntWrapped32   = distinct int32
-  SIntWrapped64   = distinct int64
-  FixedWrapped32  = distinct uint32
-  FixedWrapped64  = distinct uint64
-  SFixedWrapped32 = distinct int32
-  SFixedWrapped64 = distinct int64
+  PIntWrapped32  = distinct int32
+  PIntWrapped64  = distinct int64
+  SIntWrapped32  = distinct int32
+  SIntWrapped64  = distinct int64
+  UIntWrapped32  = distinct uint32
+  UIntWrapped64  = distinct uint64
+  LUIntWrapped32 = distinct uint32
+  LUIntWrapped64 = distinct uint64
 
-  LUIntWrapped32 = distinct int32
-  LUIntWrapped64 = distinct int64
-
-  SignedWrapped32Types   = PIntWrapped32 or SIntWrapped32 or SFixedWrapped32
-  SignedWrapped64Types   = PIntWrapped64 or SIntWrapped64 or SFixedWrapped64
-  UnsignedWrapped32Types = UIntWrapped32 or FixedWrapped32 or LUIntWrapped32
-  UnsignedWrapped64Types = UIntWrapped64 or FixedWrapped64 or LUIntWrapped64
-
+  #Types which share an encoding.
   PIntWrapped  = PIntWrapped32 or PIntWrapped64
   SIntWrapped  = SIntWrapped32 or SIntWrapped64
-  UIntWrapped  = UIntWrapped32 or UIntWrapped64
+  UIntWrapped  = UIntWrapped32 or UIntWrapped64 or
+                 byte or char or bool
   LUIntWrapped = LUIntWrapped32 or LUIntWrapped64
 
+  #Any wrapped VarInt types.
   VarIntWrapped* = PIntWrapped or SIntWrapped or
                    UIntWrapped or LUIntWrapped
-  FixedWrapped*  = FixedWrapped32 or FixedWrapped64 or
-                   SFixedWrapped32 or SFixedWrapped64
 
-  #Signed native types utilizing the VarInt/Fixed wire types.
-  PureSIntegerTypes = SomeSignedInt or enum
-  #Every Signed Integer Type.
-  SIntegerTypes* = PIntWrapped32 or PIntWrapped64 or
-                   SIntWrapped32 or SIntWrapped64 or
-                   SFixedWrapped32 or SFixedWrapped64 or
-                   PureSIntegerTypes
+  #Every signed integer Type.
+  SIntegerTypes = PureSIntegerTypes or
+                  PIntWrapped32 or PIntWrapped64 or
+                  SIntWrapped32 or SIntWrapped64
 
-  #Unsigned native types utilizing the VarInt/Fixed wire types.
-  PureUIntegerTypes = SomeUnsignedInt or char or bool
-  #Every Unsigned Integer Type.
-  UIntegerTypes* = UIntWrapped or FixedWrapped32 or FixedWrapped64 or
-                   LUIntWrapped or PureUIntegerTypes
-
-  PureTypes* = PureSIntegerTypes or PureUIntegerTypes
+  #Every unsigned integer Type.
+  UIntegerTypes = PureUIntegerTypes or UIntWrapped or LUIntWrapped
 
   #Every type valid for the VarInt wire type.
   VarIntTypes* = SIntegerTypes or UIntegerTypes
-  #Every type valid for the Fixed (32 or 64) wire type.
-  FixedTypes* = FixedWrapped or
-                PureUIntegerTypes or PureSIntegerTypes or
-                float32 or float64
-
-macro generateWrapper(
-  name: untyped,
-  supported: typed,
-  uLarger: typed,
-  uSmaller: typed,
-  sLarger: typed,
-  sSmaller: typed,
-  err: string
-): untyped =
-  quote do:
-    template `name`*(value: untyped): untyped =
-      when value is not `supported`:
-        {.fatal: `err`.}
-
-      when value is type:
-        when value is UIntegerTypes:
-          when sizeof(value) == 8:
-            `uLarger`
-          else:
-            `uSmaller`
-        else:
-          when sizeof(value) == 8:
-            `sLarger`
-          else:
-            `sSmaller`
-      else:
-        when value is UIntegerTypes:
-          when sizeof(value) == 8:
-            `uLarger`(value)
-          else:
-            `uSmaller`(value)
-        else:
-          when sizeof(value) == 8:
-            #Use a binary cast so we can convert floats.
-            #Required for Fixed; has no effect on any type.
-            cast[`sLarger`](value)
-          else:
-            cast[`sSmaller`](value)
 
 generateWrapper(
-  SInt, SIntegerTypes,
-  void, void,
-  SIntWrapped32,  SIntWrapped64,
-  "SInt should only be used with signed integers."
-)
-
-generateWrapper(
-  PInt, SIntegerTypes or UIntegerTypes,
-  UIntWrapped64, UIntWrapped32,
-  PIntWrapped64, PIntWrapped32,
+  PInt, UIntegerTypes or SIntegerTypes, VarIntWrapped,
+  UIntegerTypes, UIntWrapped64, UIntWrapped32,
+  SIntegerTypes, PIntWrapped64, PIntWrapped32,
   "LInt should only be used with integers (signed or unsigned)."
 )
 
 generateWrapper(
-  Fixed, FixedTypes,
-  FixedWrapped64, FixedWrapped32,
-  SFixedWrapped64, SFixedWrapped32,
-  "Fixed should only be used with a number."
+  SInt, SIntegerTypes, VarIntWrapped,
+  void, void, void,
+  SIntegerTypes, SIntWrapped32,  SIntWrapped64,
+  "SInt should only be used with signed integers."
 )
 
 generateWrapper(
-  LInt, UIntegerTypes,
-  LUIntWrapped64, LUIntWrapped32,
-  LUIntWrapped64, LUIntWrapped32,
+  LInt, UIntegerTypes, VarIntWrapped,
+  UIntegerTypes, LUIntWrapped64, LUIntWrapped32,
+  void, void, void,
   "LInt should only be used with unsigned integers."
 )
 
 #Used to specify how to encode/decode fields in an object.
 template pint*() {.pragma.}
 template sint*() {.pragma.}
-template fixed*() {.pragma.}
 template lint*() {.pragma.}
 
-template unwrap*[T](value: T): untyped =
-  when T is SignedWrapped32Types:
+template unwrap*(value: VarIntWrapped): untyped =
+  when value is (PIntWrapped32 or SIntWrapped32):
     int32(value)
-  elif T is SignedWrapped64Types:
+  elif value is (PIntWrapped64 or SIntWrapped64):
     int64(value)
-  elif T is UnsignedWrapped32Types:
+  elif value is (UIntWrapped32 or LUIntWrapped32):
     uint32(value)
-  elif T is UnsignedWrapped64Types:
+  elif value is (UIntWrapped64 or LUIntWrapped64):
     uint64(value)
+  elif value is UIntWrapped:
+    value
   else:
     {.fatal: "Tried to get the unwrapped value of a non-wrapped type. This should never happen.".}
 
@@ -247,7 +182,7 @@ func decodeBinaryValue[E](
   value: uint32 or uint64,
   len: int
 ): VarIntStatus =
-  when sizeof(E) != sizeof(value):
+  when (sizeof(E) != sizeof(value)) and (sizeof(E) != 1):
     {.fatal: "Tried to decode a raw binary value into an encoding with a different size. This should never happen.".}
 
   when E is LUIntWrapped:
