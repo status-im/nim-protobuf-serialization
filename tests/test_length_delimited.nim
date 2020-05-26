@@ -3,7 +3,7 @@ import unittest
 
 import ../protobuf_serialization
 
-func cstrlen(x: cstring): csize_t {.header: "string.h", importc: "strlen".}
+#func cstrlen(x: cstring): csize_t {.header: "string.h", importc: "strlen".}
 
 suite "Test Length Delimited Encoding/Decoding":
   test "Can encode/decode string":
@@ -34,13 +34,13 @@ suite "Test Length Delimited Encoding/Decoding":
     check output == @[byte(10), byte(boolSeq.len), 1, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0]
     check Protobuf.decode(output, type(seq[bool])) == boolSeq
 
-  test "Decoding a string/cstring doesn't remove the null terminator":
+  #[test "Decoding a string/cstring doesn't remove the null terminator":
     let str = "Testing string."
     check cstrlen(Protobuf.decode(Protobuf.encode(str), string)) == csize_t(str.len)
     check cstrlen(Protobuf.decode(Protobuf.encode(str), cstring)) == csize_t(str.len)
 
     check cstrlen(Protobuf.decode(Protobuf.encode(cstring(str)), string)) == csize_t(str.len)
-    check cstrlen(Protobuf.decode(Protobuf.encode(cstring(str)), cstring)) == csize_t(str.len)
+    check cstrlen(Protobuf.decode(Protobuf.encode(cstring(str)), cstring)) == csize_t(str.len)]#
 
   test "Can encode a string which has a length which requires three bytes to encode":
     let

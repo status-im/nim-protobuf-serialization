@@ -129,6 +129,12 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
       discard fieldName
       when fieldVar is PlatformDependentTypes:
         {.fatal: "Serializing a number requires specifying the amount of bits via the type.".}
+      elif T is tuple:
+        {.fatal: "Tuples aren't serializable due to the lack of being able to attach pragmas.".}
+      elif T is Table:
+        {.fatal: "Support for Tables was never added. For more info, see https://github.com/kayabaNerve/nim-protobuf-serialization/issues/4.".}
+      elif T is cstring:
+        {.fatal: "Support for cstrings has been disabled due to safety issues.".}
       elif fieldVar is (VarIntTypes or FixedTypes):
         const
           hasPInt = ty.hasCustomPragmaFixed(fieldName, pint)
