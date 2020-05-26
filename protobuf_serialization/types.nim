@@ -6,15 +6,10 @@ import serialization/errors
 import internal
 export PInt, SInt, LInt, Fixed, Float64, Float32
 export pint, sint, lint, fixed, pfloat32, pfloat64, fieldNumber
+export ProtobufError, ProtobufWriteError
+export ProtobufReadError, ProtobufEOFError, ProtobufMessageError
 
 type
-  ProtobufError* = object of SerializationError
-
-  ProtobufWriteError* = object of ProtobufError
-
-  ProtobufReadError* = object of ProtobufError
-  ProtobufEOFError* = object of ProtobufReadError
-  ProtobufMessageError* = object of ProtobufReadError
 
   ProtobufWriter* = object
     stream*: OutputStream

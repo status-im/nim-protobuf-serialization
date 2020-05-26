@@ -2,6 +2,8 @@ import faststreams
 
 import common
 export PureTypes
+export ProtobufError, ProtobufWriteError
+export ProtobufReadError, ProtobufEOFError, ProtobufMessageError
 
 const LAST_BYTE = 0b1111_1111
 

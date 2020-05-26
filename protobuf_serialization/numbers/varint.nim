@@ -3,6 +3,8 @@ import faststreams
 
 import common
 export PureTypes
+export ProtobufError, ProtobufWriteError
+export ProtobufReadError, ProtobufEOFError, ProtobufMessageError
 
 const
   VAR_INT_CONTINUATION_MASK: byte = 0b1000_0000
@@ -124,13 +126,13 @@ func encodeVarInt*(
 ): VarIntStatus =
   #Verify the value fits into the specified encoding.
   when value is LUIntWrapped:
-    if value shr 63 != 0:
+    if value.unwrap() shr 63 != 0:
       return VarIntStatus.Overflow
 
     #Get the binary value of whatever we're decoding.
     #Beyond the above check, LibP2P uses the standard UInt encoding.
     #That's why we perform this cast.
-    var raw = encodeBinaryValue(PInt(value))
+    var raw = encodeBinaryValue(PInt(value.unwrap()))
   else:
     var raw = encodeBinaryValue(value)
 
@@ -171,7 +173,11 @@ func encodeVarInt*(
 func encodeVarInt*(value: VarIntWrapped): seq[byte] =
   result = newSeq[byte](10)
   var outLen: int
-  doAssert encodeVarInt(result, outLen, value) == VarIntStatus.Success
+  if encodeVarInt(result, outLen, value) != VarIntStatus.Success:
+    when value is LUIntWrapped:
+      raise newException(ProtobufWriteError, "Tried to write a VarInt which wasn't valid for the encoding.")
+    else:
+      doAssert(false)
   result.setLen(outLen)
 
 proc encodeVarInt*(stream: OutputStream, value: VarIntWrapped) {.inline.} =
@@ -231,7 +237,8 @@ proc decodeVarInt*(
     inLen += 1
     offset += 7
 
-  doAssert decodeBinaryValue(res, value, inLen) == VarIntStatus.Success
+  if decodeBinaryValue(res, value, inLen) != VarIntStatus.Success:
+    raise newException(ProtobufMessageError, "Attempted to decode an invalid VarInt.")
 
 proc decodeVarInt*[R, E](
   stream: InputStream,
@@ -250,8 +257,10 @@ proc decodeVarInt*[R, E](
     next = stream.read()
     bytes.add(next)
 
-  doAssert decodeVarInt(bytes, inLen, value) == VarIntStatus.Success
+  if decodeVarInt(bytes, inLen, value) != VarIntStatus.Success:
+    raise newException(ProtobufMessageError, "Attempted to decode an invalid VarInt.")
   doAssert inLen == bytes.len
+
   #Removes a warning.
   when value is R:
     result = value

@@ -1,6 +1,17 @@
 import macros
 
+import serialization
+
 type
+  #Defined here so the number encoders/decoders have access.
+  ProtobufError* = object of SerializationError
+
+  ProtobufWriteError* = object of ProtobufError
+
+  ProtobufReadError* = object of ProtobufError
+  ProtobufEOFError* = object of ProtobufReadError
+  ProtobufMessageError* = object of ProtobufReadError
+
   #Signed native types.
   PureSIntegerTypes* = SomeSignedInt or enum
   #Unsigned native types.
