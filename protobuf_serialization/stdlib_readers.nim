@@ -87,6 +87,8 @@ proc stdlibFromProtobuf[R, T](
       if len < 0:
         raise newException(ProtobufMessageError, "String longer than 2 GB specified.")
 
+      if not stream.readable(len):
+        raise newException(ProtobufEOFError, "Length delimited buffer is bigger than the rest of the stream.")
       stream.withReadableRange(len, substream):
         substream.stdlibFromProtobuf(ty, fieldName, seqInstance[^1])
 
