@@ -22,18 +22,50 @@ proc stdLibToProtobuf[R](
   stream: OutputStream,
   _: typedesc[R],
   unusedFieldName: static string,
+  fieldNumber: int,
   value: cstring or string
-) {.inline.} =
+): bool =
   stream.write(cast[seq[byte]]($value))
+  result = true
 
 proc stdlibToProtobuf[R, T](
   stream: OutputStream,
   ty: typedesc[R],
   fieldName: static string,
+  fieldNumber: int,
   arrInstance: openArray[T]
-) =
+): bool =
+  when T is (byte or char or bool):
+    result = true
+
+  #Get the field number and create a key.
+  var
+    hasFixed = false
+    key: seq[byte]
+  when (R is (object or tuple)) and (not R.isStdlib()):
+    hasFixed = R.hasCustomPragmaFixed(fieldName, fixed)
+
   type fType = flatType(T)
+  when fType is (VarIntTypes or FixedTypes):
+    when fType is FixedWrapped:
+      if hasFixed:
+        key = newProtobufKey(
+          fieldNumber,
+          when sizeof(fType) == 8:
+            Fixed64
+          else:
+            Fixed32
+        )
+      else:
+        key = newProtobufKey(fieldNumber, VarInt)
+    else:
+      key = newProtobufKey(fieldNumber, VarInt)
+  else:
+    key = newProtobufKey(fieldNumber, LengthDelimited)
+
   for value in arrInstance:
+    stream.write(key)
+
     when fType is (VarIntWrapped or FixedWrapped):
       let possibleNumber = flatMap(value)
       var blank: fType
@@ -66,7 +98,7 @@ proc stdlibToProtobuf[R, T](
     elif fType is (cstring or string):
       var cursor = stream.delayVarSizeWrite(10)
       let startPos = stream.pos
-      stream.stdlibToProtobuf(ty, fieldName, flatMap(value).get(""))
+      discard stream.stdlibToProtobuf(ty, fieldName, fieldNumber, flatMap(value).get(""))
       cursor.finalWrite(encodeVarInt(PInt(int32(stream.pos - startPos))))
 
     elif fType is CastableLengthDelimitedTypes:
@@ -92,17 +124,19 @@ proc stdlibToProtobuf[R, T](
   stream: OutputStream,
   ty: typedesc[R],
   fieldName: static string,
+  fieldNumber: int,
   setInstance: set[T]
-) =
+): bool =
   var seqInstance: seq[T]
   for value in setInstance:
     seqInstance.add(value)
-  stream.stdLibToProtobuf(ty, fieldName, seqInstance)
+  result = stream.stdLibToProtobuf(ty, fieldName, fieldNumber, seqInstance)
 
 proc stdlibToProtobuf[R, T](
   stream: OutputStream,
   ty: typedesc[R],
   fieldName: static string,
+  fieldNumber: int,
   setInstance: HashSet[T]
-) {.inline.} =
-  stream.stdLibToProtobuf(ty, fieldName, setInstance.toSeq())
+): bool {.inline.} =
+  stream.stdLibToProtobuf(ty, fieldName, fieldNumber, setInstance.toSeq())
