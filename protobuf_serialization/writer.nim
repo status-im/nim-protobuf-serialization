@@ -12,7 +12,11 @@ import types
 proc newProtobufKey(number: int, wire: ProtobufWireType): seq[byte] =
   result = newSeq[byte](10)
   var viLen = 0
-  doAssert encodeVarInt(result, viLen, PInt((number shl 3) or int(wire))) == VarIntStatus.Success
+  doAssert encodeVarInt(
+    result,
+    viLen,
+    PInt((int32(number) shl 3) or int32(wire))
+  ) == VarIntStatus.Success
   result.setLen(viLen)
 
 proc writeProtobufKey(

@@ -170,12 +170,14 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
     {.fatal: "Couldnt serialize the float; all floats need their bits specified with a PFloat32 or PFloat64 call.".}
   elif T is PureTypes:
     {.fatal: "Serializing a number requires specifying the encoding to use.".}
-  elif T.isStdlib():
-    discard
   elif T is tuple:
     {.fatal: "Tuples aren't serializable due to the lack of being able to attach pragmas.".}
   elif T is Table:
     {.fatal: "Support for Tables was never added. For more info, see https://github.com/kayabaNerve/nim-protobuf-serialization/issues/4.".}
+  elif T is cstring:
+    {.fatal: "Support for cstrings has been disabled due to safety issues.".}
+  elif T.isStdlib():
+    discard
   #Tuple inclusion is so in case we can add back support for tuples, we solely have to delete the above case.
   elif T is (object or tuple):
     var
@@ -186,11 +188,11 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
       discard fieldName
       when fieldVar is PlatformDependentTypes:
         {.fatal: "Serializing a number requires specifying the amount of bits via the type.".}
-      elif T is tuple:
+      elif fieldVar is tuple:
         {.fatal: "Tuples aren't serializable due to the lack of being able to attach pragmas.".}
-      elif T is Table:
+      elif fieldVar is Table:
         {.fatal: "Support for Tables was never added. For more info, see https://github.com/kayabaNerve/nim-protobuf-serialization/issues/4.".}
-      elif T is cstring:
+      elif fieldVar is cstring:
         {.fatal: "Support for cstrings has been disabled due to safety issues.".}
       elif fieldVar is (VarIntTypes or FixedTypes):
         const

@@ -19,9 +19,9 @@ type
     y {.fieldNumber: 2.}: array[3, bool]
 
 suite "Test Standard Lib Objects Encoding/Decoding":
-  test "Can encode/decode cstrings":
+  #[test "Can encode/decode cstrings":
     let str: cstring = "Testing string."
-    check Protobuf.decode(Protobuf.encode(str), type(cstring)) == str
+    check Protobuf.decode(Protobuf.encode(str), type(cstring)) == str]#
 
   test "Can encode/decode seqs":
     let

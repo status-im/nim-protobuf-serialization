@@ -35,15 +35,16 @@ proc stdlibToProtobuf[R, T](
   arrInstance: openArray[T]
 ) =
   #Get the field number and create a key.
-  var
-    hasFixed = false
-    key: seq[byte]
-  when (R is (object or tuple)) and (not R.isStdlib()):
-    hasFixed = R.hasCustomPragmaFixed(fieldName, fixed)
+  var key: seq[byte]
 
   type fType = flatType(T)
+  when fType is FixedTypes:
+    var hasFixed = false
+    when (R is (object or tuple)) and (not R.isStdlib()):
+      hasFixed = R.hasCustomPragmaFixed(fieldName, fixed)
+
   when fType is (VarIntTypes or FixedTypes):
-    when fType is FixedWrapped:
+    when fType is FixedTypes:
       if hasFixed:
         key = newProtobufKey(
           fieldNumber,
