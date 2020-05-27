@@ -52,9 +52,7 @@ proc writeLengthDelimited[T](
   fieldName: static string,
   flatValue: LengthDelimitedTypes
 ) =
-  var
-    cursor = stream.delayVarSizeWrite(10)
-    singleBuffer = false
+  var cursor = stream.delayVarSizeWrite(10)
   let startPos = stream.pos
 
   #Byte seqs.
@@ -65,7 +63,7 @@ proc writeLengthDelimited[T](
 
   #Standard lib types which use custom converters, instead of encoding the literal Nim representation.
   elif type(flatValue).isStdlib():
-    singleBuffer = stream.stdlibToProtobuf(rootType, fieldName, fieldNum, flatValue)
+    stream.stdlibToProtobuf(rootType, fieldName, fieldNum, flatValue)
 
   #Nested object which even if the sub-value is empty, should be encoded as long as it exists.
   elif rootType.isPotentiallyNull():
@@ -78,7 +76,7 @@ proc writeLengthDelimited[T](
   else:
     {.fatal: "Tried to write a Length Delimited type which wasn't actually Length Delimited.".}
 
-
+  const singleBuffer = type(flatValue).singleBufferable()
   if singleBuffer and ((stream.pos != startPos) or (rootType.isPotentiallyNull())):
     cursor.finalWrite(newProtobufKey(fieldNum, LengthDelimited) & encodeVarInt(PInt(int32(stream.pos - startPos))))
   else:

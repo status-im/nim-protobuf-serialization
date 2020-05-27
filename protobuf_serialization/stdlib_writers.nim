@@ -24,9 +24,8 @@ proc stdLibToProtobuf[R](
   unusedFieldName: static string,
   fieldNumber: int,
   value: cstring or string
-): bool =
+) =
   stream.write(cast[seq[byte]]($value))
-  result = true
 
 proc stdlibToProtobuf[R, T](
   stream: OutputStream,
@@ -34,10 +33,7 @@ proc stdlibToProtobuf[R, T](
   fieldName: static string,
   fieldNumber: int,
   arrInstance: openArray[T]
-): bool =
-  when T is (byte or char or bool):
-    result = true
-
+) =
   #Get the field number and create a key.
   var
     hasFixed = false
@@ -63,8 +59,10 @@ proc stdlibToProtobuf[R, T](
   else:
     key = newProtobufKey(fieldNumber, LengthDelimited)
 
+  const singleBuffer = type(arrInstance).singleBufferable()
   for value in arrInstance:
-    stream.write(key)
+    if not singleBuffer:
+      stream.write(key)
 
     when fType is (VarIntWrapped or FixedWrapped):
       let possibleNumber = flatMap(value)
@@ -92,13 +90,13 @@ proc stdlibToProtobuf[R, T](
         {.fatal: "A standard lib type didn't specify the encoding to use for a number.".}
 
       let possibleNumber = flatMap(value)
-      var blank: fType
+      var blank: fTypeflatType(T)
       stream.encodeNumber(Fixed(possibleNumber.get(blank)))
 
     elif fType is (cstring or string):
       var cursor = stream.delayVarSizeWrite(10)
       let startPos = stream.pos
-      discard stream.stdlibToProtobuf(ty, fieldName, fieldNumber, flatMap(value).get(""))
+      stream.stdlibToProtobuf(ty, fieldName, fieldNumber, flatMap(value).get(""))
       cursor.finalWrite(encodeVarInt(PInt(int32(stream.pos - startPos))))
 
     elif fType is CastableLengthDelimitedTypes:
@@ -126,11 +124,10 @@ proc stdlibToProtobuf[R, T](
   fieldName: static string,
   fieldNumber: int,
   setInstance: set[T]
-): bool =
+) =
   var seqInstance: seq[T]
   for value in setInstance:
     seqInstance.add(value)
-  result = stream.stdLibToProtobuf(ty, fieldName, fieldNumber, seqInstance)
 
 proc stdlibToProtobuf[R, T](
   stream: OutputStream,
@@ -138,5 +135,5 @@ proc stdlibToProtobuf[R, T](
   fieldName: static string,
   fieldNumber: int,
   setInstance: HashSet[T]
-): bool {.inline.} =
+) {.inline.} =
   stream.stdLibToProtobuf(ty, fieldName, fieldNumber, setInstance.toSeq())

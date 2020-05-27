@@ -50,8 +50,11 @@ template flatType*(value: auto): type =
   type(flatTypeInternal(value))
 
 template flatType*[B](ty: typedesc[B]): type =
-  var blank: B
-  type(flatType(blank))
+  when B is openArray:
+    B
+  else:
+    var blank: B
+    type(flatType(blank))
 
 proc flatMapInternal[B, T](value: B, ty: typedesc[T]): Option[T] =
   when value is Option:
@@ -68,8 +71,62 @@ proc flatMapInternal[B, T](value: B, ty: typedesc[T]): Option[T] =
 template flatMap*(value: auto): auto =
   flatMapInternal(value, flatType(value))
 
-template isStdlib*[B](ty: typedesc[B]): bool =
-  flatType(ty) is (cstring or string or seq or array or set or HashSet)
+func isStdlib*[B](_: typedesc[B]): bool {.compileTime.} =
+  flatType(B) is (cstring or string or seq or array or set or HashSet)
+
+func mustUseSingleBuffer*[T](_: typedesc[T]): bool {.compileTime.}
+
+func convertAndCallMustUseSingleBuffer[T](
+  _: typedesc[seq[T] or openArray[T] or set[T] or HashSet[T]]
+): bool {.compileTime.} =
+  when flatType(T).isStdlib():
+    false
+  else:
+    mustUseSingleBuffer(flatType(T))
+
+func convertAndCallMustUseSingleBuffer[C, T](
+  _: typedesc[array[C, T]]
+): bool {.compileTime.} =
+  when flatType(T).isStdlib():
+    false
+  else:
+    mustUseSingleBuffer(flatType(T))
+
+func mustUseSingleBuffer*[T](_: typedesc[T]): bool {.compileTime.} =
+  when flatType(T) is (cstring or string or seq[byte or char or bool]):
+    true
+  elif flatType(T) is (array or openArray or set or HashSet):
+    flatType(T).convertAndCallMustUseSingleBuffer()
+  else:
+    false
+
+func singleBufferable*[T](_: typedesc[T]): bool {.compileTime.}
+
+func convertAndCallSingleBufferable[T](
+  _: typedesc[seq[T] or openArray[T] or set[T] or HashSet[T]]
+): bool {.compileTime.} =
+  when flatType(T).isStdlib():
+    false
+  else:
+    singleBufferable(flatType(T))
+
+func convertAndCallSingleBufferable[C, T](
+  _: typedesc[array[C, T]]
+): bool {.compileTime.} =
+  when flatType(T).isStdlib():
+    false
+  else:
+    singleBufferable(flatType(T))
+
+func singleBufferable*[T](_: typedesc[T]): bool {.compileTime.} =
+  when flatType(T).mustUseSingleBuffer():
+    true
+  elif flatType(T) is (VarIntTypes or FixedTypes):
+    true
+  elif flatType(T) is (seq or array or openArray or set or HashSet):
+    flatType(T).convertAndCallSingleBufferable()
+  else:
+    false
 
 template nextType[B](box: B): auto =
   when B is Option:
