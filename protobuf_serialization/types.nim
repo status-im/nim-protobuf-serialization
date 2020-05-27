@@ -13,11 +13,10 @@ export ProtobufError, ProtobufWriteError
 export ProtobufReadError, ProtobufEOFError, ProtobufMessageError
 
 type
-
   ProtobufWriter* = object
     stream*: OutputStream
 
-  ProtobufReader* = object
+  ProtobufReader* = ref object
     stream*: InputStream
     keyOverride*: Option[ProtobufKey]
     closeAfter*: bool

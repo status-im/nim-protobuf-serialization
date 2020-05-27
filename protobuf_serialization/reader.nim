@@ -179,7 +179,83 @@ proc readValueInternal[T](stream: InputStream, ty: typedesc[T]): T =
   while stream.readable():
     result.setField(stream, stream.readProtobufKey())
 
+proc extractFieldAsBytes[T](
+  unpacked: InputStream,
+  ty: typedesc[T],
+  key: ProtobufKey
+): seq[byte] =
+  if key.wire == VarInt:
+    var next = VAR_INT_CONTINUATION_MASK
+    while next == VAR_INT_CONTINUATION_MASK:
+      if not unpacked.readable():
+        raise newException(ProtobufEOFError, "Couldn't extract the next VarInt.")
+      next = unpacked.read()
+      result.add(next)
+
+  elif key.wire == Fixed32:
+    result.setLen(4)
+    if not unpacked.readInto(result):
+      raise newException(ProtobufEOFError, "Couldn't extract the next Fixed32.")
+
+  elif key.wire == Fixed64:
+    result.setLen(8)
+    if not unpacked.readInto(result):
+      raise newException(ProtobufEOFError, "Couldn't extract the next Fixed64.")
+
+  elif key.wire == LengthDelimited:
+    result.setLen(unpacked.decodeVarInt(int, PInt(int32)))
+    if not unpacked.readInto(result):
+      raise newException(ProtobufEOFError, "Couldn't extract the next buffer.")
+
+proc packIntoSeq[T](
+  unpacked: InputStream,
+  container: typedesc[seq[T] or openArray[T] or set[T] or HashSet[T]]
+): InputStream =
+  var
+    key: ProtobufKey = unpacked.readProtobufKey()
+    values: seq[seq[byte]]
+    totalLen: int
+    output: OutputStream = memoryOutput()
+
+  while unpacked.readable():
+    values.add(unpacked.extractFieldAsBytes(T, key))
+    totalLen += values[^1].len
+    if unpacked.readable():
+      key = unpacked.readProtobufKey()
+
+  output.encodeVarInt(PInt((int32(key.number) shl 3) or int32(LengthDelimited)))
+  output.encodeVarInt(PInt(totalLen))
+
+  for value in values:
+    output.write(value)
+
+  result = memoryInput(output.getOutput())
+  output.close()
+
+proc packIntoSeq[C, T](
+  unpacked: InputStream,
+  container: typedesc[array[C, T]]
+): InputStream =
+  unpacked.packIntoSeq(seq[T])
+
+proc pack[T](unpacked: InputStream, rootType: typedesc[T]): InputStream =
+  when T is object:
+    while unpacked.readable():
+      var key: ProtobufKey = unpacked.readProtobufKey()
+      discard key
+      #var (key, value) = unpacked.extractFieldAsBytes()
+      var inst: T
+      enumInstanceSerializedFields(inst, fieldName, fieldVar):
+        discard fieldName
+        discard fieldVar
+    result = memoryInput(newSeq[byte]())
+  elif T is (array or seq or set or HashSet):
+    result = unpacked.packIntoSeq(T)
+  else:
+    result = unpacked
+
 proc readValue*(reader: ProtobufReader, value: var auto) =
+  reader.stream = reader.stream.pack(flatType(value))
   if not reader.stream.readable():
     return
 
