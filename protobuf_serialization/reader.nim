@@ -239,18 +239,43 @@ proc packIntoSeq[C, T](
   unpacked.packIntoSeq(seq[T])
 
 proc pack[T](unpacked: InputStream, rootType: typedesc[T]): InputStream =
-  when T is object:
+  when T is (array or seq or set or HashSet):
+    result = unpacked.packIntoSeq(T)
+  elif T is object:
+    var output = memoryOutput()
     while unpacked.readable():
       var key: ProtobufKey = unpacked.readProtobufKey()
-      discard key
       #var (key, value) = unpacked.extractFieldAsBytes()
       var inst: T
       enumInstanceSerializedFields(inst, fieldName, fieldVar):
-        discard fieldName
-        discard fieldVar
-    result = memoryInput(newSeq[byte]())
-  elif T is (array or seq or set or HashSet):
-    result = unpacked.packIntoSeq(T)
+        when T.getCustomPragmaFixed(fieldName, fieldNumber) is int:
+          if T.getCustomPragmaFixed(fieldName, fieldNumber) ==  key.number:
+            when fieldVar is not (seq or array or set or HashSet):
+              output.encodeVarInt(
+                PInt((int32(key.number) shl 3) or int32(
+                  when (
+                    T.hasCustomPragmaFixed(fieldName, pint) or
+                    T.hasCustomPragmaFixed(fieldName, sint) or
+                    T.hasCustomPragmaFixed(fieldName, lint) or
+                    (fieldVar is VarIntWrapped)
+                  ):
+                    VarInt
+                  elif fieldVar is FixedTypes:
+                    when sizeof(fieldVar) == 8:
+                      Fixed64
+                    else:
+                      Fixed32
+                  else:
+                    LengthDelimited
+                ))
+              )
+              output.write(unpacked.extractFieldAsBytes(type(fieldVar), key))
+            else:
+              discard
+        else:
+          {.fatal: "Field didn't have the field number pragma attached.".}
+    result = memoryInput(output.getOutput())
+    output.close()
   else:
     result = unpacked
 
