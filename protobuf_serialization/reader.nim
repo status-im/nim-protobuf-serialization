@@ -296,27 +296,28 @@ proc pack[T](
     unpacked.close()
 
 proc readValue*(reader: ProtobufReader, value: var auto) =
-  if not reader.stream.readable():
-    return
-
   var closeAfter = reader.closeAfter
-  reader.stream = reader.stream.pack(flatType(value), closeAfter)
+  try:
+    if reader.stream.readable():
+      reader.stream = reader.stream.pack(flatType(value), closeAfter)
 
-  if reader.keyOverride.isNone():
-    box(value, reader.stream.readValueInternal(flatType(type(value))))
-  else:
-    var preResult: flatType(type(value))
-    while reader.stream.readable():
-      preResult.setField(reader.stream, reader.keyOverride.get())
-    box(value, preResult)
-
-  #We only want to close the 'remade' stream if it isn't the source stream.
-  #If it is the source stream, we want to use original closeAfter value.
-  #pack mutates closeAfter to false when we already close it.
-  #We only already close it if we didn't return it and we were supposed to.
-  #So shouldn't close = doesn't close, no mutation.
-  #Should clouse yet no stream mutation, returns stream, doesn't close, no mutation.
-  #The following check actually closes it.
-  #Should close and stream mutaton occurred invalidating the original, automatically closed with mutation to false.
-  if closeAfter:
-    reader.stream.close()
+      if reader.keyOverride.isNone():
+        box(value, reader.stream.readValueInternal(flatType(type(value))))
+      else:
+        var preResult: flatType(type(value))
+        while reader.stream.readable():
+          preResult.setField(reader.stream, reader.keyOverride.get())
+        box(value, preResult)
+  except Exception as e:
+    raise e
+  finally:
+    #We only want to close the 'remade' stream if it isn't the source stream.
+    #If it is the source stream, we want to use original closeAfter value.
+    #pack mutates closeAfter to false when we already close it.
+    #We only already close it if we didn't return it and we were supposed to.
+    #So shouldn't close = doesn't close, no mutation.
+    #Should clouse yet no stream mutation, returns stream, doesn't close, no mutation.
+    #The following check actually closes it.
+    #Should close and stream mutaton occurred invalidating the original, automatically closed with mutation to false.
+    if closeAfter:
+      reader.stream.close()
