@@ -158,7 +158,6 @@ proc setField[T](
           blank: flatType(fieldVar)
           flattened = flatMap(fieldVar).get(blank)
         when blank is (seq or set or HashSet):
-          static: echo flattened.getUnderlyingType()
           type U = flattened.getUnderlyingType()
           when U is (VarIntWrapped or FixedWrapped):
             var castedVar = flattened

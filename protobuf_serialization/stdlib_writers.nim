@@ -129,6 +129,7 @@ proc stdlibToProtobuf[R, T](
   var seqInstance: seq[T]
   for value in setInstance:
     seqInstance.add(value)
+  stream.stdLibToProtobuf(ty, fieldName, fieldNumber, seqInstance)
 
 proc stdlibToProtobuf[R, T](
   stream: OutputStream,
