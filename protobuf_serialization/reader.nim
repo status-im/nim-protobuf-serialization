@@ -228,8 +228,8 @@ proc packIntoSeq[T](
   for value in values:
     output.write(value)
 
-  result = memoryInput(output.getOutput())
-  output.close()
+  result = unsafeMemoryInput(output.getOutput())
+  #output.close()
 
 proc packIntoSeq[C, T](
   unpacked: InputStream,
@@ -247,7 +247,7 @@ proc pack[T](unpacked: InputStream, rootType: typedesc[T]): InputStream =
       var inst: T
       enumInstanceSerializedFields(inst, fieldName, fieldVar):
         when T.getCustomPragmaFixed(fieldName, fieldNumber) is int:
-          if T.getCustomPragmaFixed(fieldName, fieldNumber) ==  key.number:
+          if T.getCustomPragmaFixed(fieldName, fieldNumber) == key.number:
             when fieldVar is not (seq or array or set or HashSet):
               output.encodeVarInt(
                 PInt((int32(key.number) shl 3) or int32(
@@ -267,13 +267,21 @@ proc pack[T](unpacked: InputStream, rootType: typedesc[T]): InputStream =
                     LengthDelimited
                 ))
               )
-              output.write(unpacked.extractFieldAsBytes(key))
             else:
-              discard
+              output.encodeVarInt(PInt((int32(key.number) shl 3) or int32(key.wire)))
+
+            var cursor = output.delayVarSizeWrite(10)
+            let startPos = output.pos
+            output.write(unpacked.extractFieldAsBytes(key))
+            if key.wire == LengthDelimited:
+              cursor.finalWrite(encodeVarInt(PInt(int32(output.pos - startPos))))
+            else:
+              cursor.finalWrite([])
         else:
           {.fatal: "Field didn't have the field number pragma attached.".}
-    result = memoryInput(output.getOutput())
-    output.close()
+
+    result = unsafeMemoryInput(output.getOutput())
+    #output.close()
   else:
     result = unpacked
 

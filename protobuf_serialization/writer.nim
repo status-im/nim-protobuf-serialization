@@ -81,7 +81,7 @@ proc writeLengthDelimited[T](
     {.fatal: "Tried to write a Length Delimited type which wasn't actually Length Delimited.".}
 
   const singleBuffer = type(flatValue).singleBufferable()
-  if singleBuffer and ((stream.pos != startPos) or (rootType.isPotentiallyNull())):
+  if singleBuffer or ((stream.pos != startPos) or (rootType.isPotentiallyNull())):
     cursor.finalWrite(newProtobufKey(fieldNum, LengthDelimited) & encodeVarInt(PInt(int32(stream.pos - startPos))))
   else:
     cursor.finalWrite([])
@@ -122,7 +122,7 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
     return
   let flattened = flattenedOption.get()
 
-  when flatType(value).isStdlib():
+  when type(flattened).isStdlib():
     stream.writeFieldInternal(1, flattened, type(value), "")
   elif flattened is (object or tuple):
     enumInstanceSerializedFields(flattened, fieldName, fieldVal):
