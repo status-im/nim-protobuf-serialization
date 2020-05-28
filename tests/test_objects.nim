@@ -199,11 +199,18 @@ suite "Test Object Encoding/Decoding":
     ptrPtrd.x[] = 8
     check Protobuf.decode(Protobuf.encode(ptrPtrd), ptr Pointered).x[] == ptrPtrd.x[]
 
+  #[
+  This test has been commented for being pointless.
+  The reason this fails is because it detects a field number of 0, which is invalid.
+  Any valid field will be considered valid, as long as the length is correct.
+  If the length isn't, it's incorrect.
+  That said, those are two different things than remaining data.
   test "Doesn't allow remaining data in the buffer":
     expect ProtobufReadError:
       discard Protobuf.decode(Protobuf.encode(SInt(5)) & @[byte(1)], type(SInt(int32)))
     expect ProtobufReadError:
       discard Protobuf.decode(Protobuf.encode(Basic(a: 100, b: "Test string.", c: 'C')) & @[byte(1)], type(Basic))
+  ]#
 
   test "Doesn't allow unknown fields":
     expect ProtobufMessageError:

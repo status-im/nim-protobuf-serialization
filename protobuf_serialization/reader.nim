@@ -123,9 +123,7 @@ proc setField[T](
 
   else:
     #This iterative approach is extemely poor.
-    var
-      keyNumber = key.number
-      foundKey = false
+    var keyNumber = key.number
 
     enumInstanceSerializedFields(value, fieldName, fieldVar):
       discard fieldName
@@ -134,9 +132,6 @@ proc setField[T](
         {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
 
       if keyNumber == fieldVar.getCustomPragmaVal(fieldNumber):
-        #Mark the key as found.
-        foundKey = true
-
         #Only calculate the encoding VarInt.
         #In every other case, the type is enough.
         #We don't need to track the boolean type as literally every encoding will parse to the same true/false.
@@ -169,9 +164,6 @@ proc setField[T](
 
         box(fieldVar, flattened)
         break
-
-    if not foundKey:
-      raise newException(ProtobufMessageError, "Unknown field number specified: " & $keyNumber)
 
 proc readValueInternal[T](stream: InputStream, ty: typedesc[T]): T =
   static: verifySerializable(flatType(T))
@@ -243,11 +235,15 @@ proc pack[T](unpacked: InputStream, rootType: typedesc[T]): InputStream =
   elif T is object:
     var output = memoryOutput()
     while unpacked.readable():
-      var key: ProtobufKey = unpacked.readProtobufKey()
-      var inst: T
+      var
+        key: ProtobufKey = unpacked.readProtobufKey()
+        foundKey = false
+        inst: T
       enumInstanceSerializedFields(inst, fieldName, fieldVar):
         when T.getCustomPragmaFixed(fieldName, fieldNumber) is int:
           if T.getCustomPragmaFixed(fieldName, fieldNumber) == key.number:
+            foundKey = true
+
             when fieldVar is not (seq or array or set or HashSet):
               output.encodeVarInt(
                 PInt((int32(key.number) shl 3) or int32(
@@ -279,6 +275,9 @@ proc pack[T](unpacked: InputStream, rootType: typedesc[T]): InputStream =
               cursor.finalWrite([])
         else:
           {.fatal: "Field didn't have the field number pragma attached.".}
+
+      if not foundKey:
+        raise newException(ProtobufMessageError, "Unknown field number specified: " & $key.number)
 
     result = unsafeMemoryInput(output.getOutput())
     #output.close()
