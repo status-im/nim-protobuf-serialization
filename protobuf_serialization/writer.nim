@@ -56,6 +56,8 @@ proc writeLengthDelimited[T](
   fieldName: static string,
   flatValue: LengthDelimitedTypes
 ) =
+  const stdlib = type(flatValue).isStdlib()
+
   var cursor = stream.delayVarSizeWrite(10)
   let startPos = stream.pos
 
@@ -66,7 +68,7 @@ proc writeLengthDelimited[T](
     stream.write(cast[seq[byte]](flatValue))
 
   #Standard lib types which use custom converters, instead of encoding the literal Nim representation.
-  elif type(flatValue).isStdlib():
+  elif stdlib:
     stream.stdlibToProtobuf(rootType, fieldName, fieldNum, flatValue)
 
   #Nested object which even if the sub-value is empty, should be encoded as long as it exists.
@@ -81,7 +83,20 @@ proc writeLengthDelimited[T](
     {.fatal: "Tried to write a Length Delimited type which wasn't actually Length Delimited.".}
 
   const singleBuffer = type(flatValue).singleBufferable()
-  if singleBuffer or ((stream.pos != startPos) or (rootType.isPotentiallyNull())):
+  if (
+    (
+      #The underlying type of the standard library container is packable.
+      singleBuffer or (
+        #This is a object, not a seq or something converted to a seq (stdlib type).
+        (not stdlib) and (flatValue is (object or tuple))
+      )
+    ) and (
+      #The length changed, meaning this object is empty.
+      (stream.pos != startPos) or
+      #The object is empty, yet it exists, which is important as it can not exist.
+      rootType.isPotentiallyNull()
+    )
+  ):
     cursor.finalWrite(newProtobufKey(fieldNum, LengthDelimited) & encodeVarInt(PInt(int32(stream.pos - startPos))))
   else:
     cursor.finalWrite([])
