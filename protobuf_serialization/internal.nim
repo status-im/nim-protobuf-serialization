@@ -5,9 +5,11 @@ import sets
 import tables
 
 import stew/shims/macros
-#I did try use getCustomPragmaFixed.
-#Unfortunately, I couldn't due to fieldNumber resolution errors.
-export getCustomPragmaVal
+#Depending on the situation, one of these two are used.
+#Sometimes, one works where the other doesn't.
+#It all comes down to bugs in Nim and managing them.
+export getCustomPragmaVal, getCustomPragmaFixed
+export hasCustomPragmaFixed
 import serialization
 
 import numbers/varint
@@ -16,12 +18,14 @@ export varint
 import numbers/fixed
 export fixed
 
+const WIRE_TYPE_MASK = 0b0000_0111'i32
+
 type
   ProtobufWireType* = enum
     VarInt, Fixed64, LengthDelimited, StartGroup, EndGroup, Fixed32
 
   ProtobufKey* = object
-    number*: uint32
+    number*: int
     wire*: ProtobufWireType
 
   #Number types which are platform-dependent and therefore unsafe.
@@ -233,3 +237,31 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
         if fieldNumberSet.contains(thisFieldNumber):
           raise newException(Exception, "Field number was used twice on two different fields.")
         fieldNumberSet.incl(thisFieldNumber)
+
+proc newProtobufKey*(number: int, wire: ProtobufWireType): seq[byte] =
+  result = newSeq[byte](10)
+  var viLen = 0
+  doAssert encodeVarInt(
+    result,
+    viLen,
+    PInt((int32(number) shl 3) or int32(wire))
+  ) == VarIntStatus.Success
+  result.setLen(viLen)
+
+proc writeProtobufKey*(
+  stream: OutputStream,
+  number: int,
+  wire: ProtobufWireType
+) {.inline.} =
+  stream.write(newProtobufKey(number, wire))
+
+proc readProtobufKey*(
+  stream: InputStream
+): ProtobufKey =
+  let
+    varint = stream.decodeVarInt(int, PInt(int32))
+    wire = byte(varint and WIRE_TYPE_MASK)
+  if (wire < byte(low(ProtobufWireType))) or (byte(high(ProtobufWireType)) < wire):
+    raise newException(ProtobufMessageError, "Protobuf key had an invalid wire type.")
+  result.wire = ProtobufWireType(wire)
+  result.number = varint shr 3

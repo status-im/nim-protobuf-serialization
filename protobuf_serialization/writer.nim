@@ -9,23 +9,6 @@ import serialization
 import internal
 import types
 
-proc newProtobufKey(number: int, wire: ProtobufWireType): seq[byte] =
-  result = newSeq[byte](10)
-  var viLen = 0
-  doAssert encodeVarInt(
-    result,
-    viLen,
-    PInt((int32(number) shl 3) or int32(wire))
-  ) == VarIntStatus.Success
-  result.setLen(viLen)
-
-proc writeProtobufKey(
-  stream: OutputStream,
-  number: int,
-  wire: ProtobufWireType
-) {.inline.} =
-  stream.write(newProtobufKey(number, wire))
-
 proc writeVarInt(stream: OutputStream, fieldNum: int, value: VarIntWrapped) =
   let bytes = encodeVarInt(value)
   if (bytes.len == 1) and (bytes[0] == 0):

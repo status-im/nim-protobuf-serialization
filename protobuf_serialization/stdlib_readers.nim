@@ -106,6 +106,7 @@ proc stdlibFromProtobuf[R, T](
 
       stream.withReadableRange(len, substream):
         ProtobufReader.init(substream, closeAfter = false).readValue(seqInstance[^1])
+
     else:
       {.fatal: "Tried to decode an unrecognized object used in a stdlib type.".}
     #---
