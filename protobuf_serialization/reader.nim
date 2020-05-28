@@ -9,20 +9,7 @@ import serialization
 import internal
 import types
 
-const WIRE_TYPE_MASK = 0b0000_0111'u32
-
-proc readProtobufKey(
-  stream: InputStream
-): ProtobufKey =
-  let
-    varint = stream.decodeVarInt(uint32, PInt(uint32))
-    wire = byte(varint and WIRE_TYPE_MASK)
-  if (wire < byte(low(ProtobufWireType))) or (byte(high(ProtobufWireType)) < wire):
-    raise newException(ProtobufMessageError, "Protobuf key had an invalid wire type.")
-  result.wire = ProtobufWireType(wire)
-  result.number = varint shr 3
-
-proc readVarInt[B; E](
+proc readVarInt[B, E](
   stream: InputStream,
   fieldVar: var B,
   encoding: E,
@@ -108,6 +95,40 @@ proc setField[T](
   when T is (ref or ptr or Option):
     {.fatal: "Ref or Ptr or Option made it to setField. This should never happen.".}
 
+  elif T is (seq or set or HashSet):
+    template merge[I](
+      stdlib: var (seq[I] or set[I] or HashSet[I]),
+      value: I
+    ) =
+      when stdlib is seq:
+        stdlib.add(value)
+      else:
+        stdlib.incl(value)
+
+    type U = value.getUnderlyingType()
+    #Unpacked seq of numbers.
+    if key.wire != LengthDelimited:
+      var next: U
+      when flatType(U) is VarIntWrapped:
+        stream.readVarInt(next, next, key)
+      elif flatType(U) is FixedWrapped:
+        stream.readFixed(next, key)
+      else:
+        if true:
+          raise newException(ProtobufMessageError, "Reading into an unpacked seq yet value is a number.")
+      merge(value, next)
+    #Packed seq of numbers/unpacked seq of objects.
+    else:
+      when flatType(U) is (VarIntWrapped or FixedWrapped):
+        var newValues: seq[U]
+        stream.readLengthDelimited(type(value), "", newValues, key)
+        for newValue in newValues:
+          merge(value, newValue)
+      else:
+        var next: U
+        stream.readLengthDelimited(U, "", next, key)
+        merge(value, next)
+
   elif T is not (object or tuple):
     when T is VarIntWrapped:
       stream.readVarInt(value, value, key)
@@ -118,14 +139,11 @@ proc setField[T](
     else:
       stream.readLengthDelimited(type(value), "", value, key)
 
-  elif T.isStdlib():
-    stream.readLengthDelimited(type(value), "", value, key)
-
   else:
     #This iterative approach is extemely poor.
     var
       keyNumber = key.number
-      foundKey = false
+      found = false
 
     enumInstanceSerializedFields(value, fieldName, fieldVar):
       discard fieldName
@@ -134,44 +152,73 @@ proc setField[T](
         {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
 
       if keyNumber == fieldVar.getCustomPragmaVal(fieldNumber):
-        #Mark the key as found.
-        foundKey = true
+        found = true
 
-        #Only calculate the encoding VarInt.
-        #In every other case, the type is enough.
-        #We don't need to track the boolean type as literally every encoding will parse to the same true/false.
-        var flattened: flatType(fieldVar)
-        when flattened is VarIntWrapped:
-          stream.readVarInt(flattened, flattened, key)
+        var
+          blank: flatType(fieldVar)
+          flattened = flatMap(fieldVar).get(blank)
+        when blank is (seq or set or HashSet):
+          type U = flattened.getUnderlyingType()
+          when U is (VarIntWrapped or FixedWrapped):
+            var castedVar = flattened
+          elif U is (VarIntTypes or FixedTypes):
+            when T.hasCustomPragmaFixed(fieldName, pint):
+              var
+                pointless: U
+                C = PInt(pointless)
+            elif T.hasCustomPragmaFixed(fieldName, sint):
+              var
+                pointless: U
+                C = SInt(pointless)
+            elif T.hasCustomPragmaFixed(fieldName, lint):
+              var
+                pointless: U
+                C = LInt(pointless)
+            elif T.hasCustomPragmaFixed(fieldName, fixed):
+              var
+                pointless: U
+                C = Fixed(pointless)
 
-        elif flattened is FixedWrapped:
-          stream.readFixed(flattened, key)
-
-        elif flattened is VarIntTypes:
-          const
-            hasPInt = T.hasCustomPragmaFixed(fieldName, pint)
-            hasSInt = T.hasCustomPragmaFixed(fieldName, sint)
-            hasLInt = T.hasCustomPragmaFixed(fieldName, lint)
-            hasFixed = T.hasCustomPragmaFixed(fieldName, fixed)
-          when hasPInt:
-            stream.readVarInt(flattened, PInt(flattened), key)
-          elif hasSInt:
-            stream.readVarInt(flattened, SInt(flattened), key)
-          elif hasLInt:
-            stream.readVarInt(flattened, LInt(flattened), key)
-          elif hasFixed:
-            stream.readFixed(flattened, key)
+            when flattened is seq:
+              var castedVar = cast[seq[type(C)]](flattened)
+            elif flattened is set:
+              var castedVar = cast[set[type(C)]](flattened)
+            elif flattened is HashSet:
+              var castedVar = cast[HashSet[type(C)]](flattened)
           else:
-            {.fatal: "Encoding pragma specified yet no enoding matched. This should never happen.".}
+            var castedVar = flattened
+          castedVar.setField(stream, key)
 
+          flattened = cast[type(flattened)](castedVar)
         else:
-          stream.readLengthDelimited(type(value), fieldName, flattened, key)
+          #Only calculate the encoding for VarInt.
+          #In every other case, the type is enough.
+          when flattened is VarIntWrapped:
+            stream.readVarInt(flattened, flattened, key)
+
+          elif flattened is FixedWrapped:
+            stream.readFixed(flattened, key)
+
+          elif flattened is VarIntTypes:
+            when T.hasCustomPragmaFixed(fieldName, pint):
+              stream.readVarInt(flattened, PInt(flattened), key)
+            elif T.hasCustomPragmaFixed(fieldName, sint):
+              stream.readVarInt(flattened, SInt(flattened), key)
+            elif T.hasCustomPragmaFixed(fieldName, lint):
+              stream.readVarInt(flattened, LInt(flattened), key)
+            elif T.hasCustomPragmaFixed(fieldName, fixed):
+              stream.readFixed(flattened, key)
+            else:
+              {.fatal: "Encoding pragma specified yet no enoding matched. This should never happen.".}
+
+          else:
+            stream.readLengthDelimited(type(value), fieldName, flattened, key)
 
         box(fieldVar, flattened)
         break
 
-    if not foundKey:
-      raise newException(ProtobufMessageError, "Unknown field number specified: " & $keyNumber)
+    if not found:
+      raise newException(ProtobufMessageError, "Message encoded an unknown field number.")
 
 proc readValueInternal[T](stream: InputStream, ty: typedesc[T]): T =
   static: verifySerializable(flatType(T))
@@ -180,16 +227,17 @@ proc readValueInternal[T](stream: InputStream, ty: typedesc[T]): T =
     result.setField(stream, stream.readProtobufKey())
 
 proc readValue*(reader: ProtobufReader, value: var auto) =
-  if not reader.stream.readable():
-    return
-
-  if reader.keyOverride.isNone():
-    box(value, reader.stream.readValueInternal(flatType(type(value))))
-  else:
-    var preResult: flatType(type(value))
-    while reader.stream.readable():
-      preResult.setField(reader.stream, reader.keyOverride.get())
-    box(value, preResult)
-
-  if reader.closeAfter:
-    reader.stream.close()
+  try:
+    if reader.stream.readable():
+      if reader.keyOverride.isNone():
+        box(value, reader.stream.readValueInternal(flatType(type(value))))
+      else:
+        var preResult: flatType(type(value))
+        while reader.stream.readable():
+          preResult.setField(reader.stream, reader.keyOverride.get())
+        box(value, preResult)
+  except Exception as e:
+    raise e
+  finally:
+    if reader.closeAfter:
+      reader.stream.close()

@@ -9,19 +9,6 @@ import serialization
 import internal
 import types
 
-proc newProtobufKey(number: int, wire: ProtobufWireType): seq[byte] =
-  result = newSeq[byte](10)
-  var viLen = 0
-  doAssert encodeVarInt(result, viLen, PInt((number shl 3) or int(wire))) == VarIntStatus.Success
-  result.setLen(viLen)
-
-proc writeProtobufKey(
-  stream: OutputStream,
-  number: int,
-  wire: ProtobufWireType
-) {.inline.} =
-  stream.write(newProtobufKey(number, wire))
-
 proc writeVarInt(stream: OutputStream, fieldNum: int, value: VarIntWrapped) =
   let bytes = encodeVarInt(value)
   if (bytes.len == 1) and (bytes[0] == 0):
@@ -52,6 +39,8 @@ proc writeLengthDelimited[T](
   fieldName: static string,
   flatValue: LengthDelimitedTypes
 ) =
+  const stdlib = type(flatValue).isStdlib()
+
   var cursor = stream.delayVarSizeWrite(10)
   let startPos = stream.pos
 
@@ -62,8 +51,8 @@ proc writeLengthDelimited[T](
     stream.write(cast[seq[byte]](flatValue))
 
   #Standard lib types which use custom converters, instead of encoding the literal Nim representation.
-  elif type(flatValue).isStdlib():
-    stream.stdlibToProtobuf(rootType, fieldName, flatValue)
+  elif stdlib:
+    stream.stdlibToProtobuf(rootType, fieldName, fieldNum, flatValue)
 
   #Nested object which even if the sub-value is empty, should be encoded as long as it exists.
   elif rootType.isPotentiallyNull():
@@ -76,11 +65,24 @@ proc writeLengthDelimited[T](
   else:
     {.fatal: "Tried to write a Length Delimited type which wasn't actually Length Delimited.".}
 
-  if (stream.pos != startPos) or (rootType.isPotentiallyNull()):
+  const singleBuffer = type(flatValue).singleBufferable()
+  if (
+    (
+      #The underlying type of the standard library container is packable.
+      singleBuffer or (
+        #This is a object, not a seq or something converted to a seq (stdlib type).
+        (not stdlib) and (flatValue is (object or tuple))
+      )
+    ) and (
+      #The length changed, meaning this object is empty.
+      (stream.pos != startPos) or
+      #The object is empty, yet it exists, which is important as it can not exist.
+      rootType.isPotentiallyNull()
+    )
+  ):
     cursor.finalWrite(newProtobufKey(fieldNum, LengthDelimited) & encodeVarInt(PInt(int32(stream.pos - startPos))))
   else:
     cursor.finalWrite([])
-
 
 proc writeFieldInternal[T, R](
   stream: OutputStream,
@@ -118,7 +120,7 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
     return
   let flattened = flattenedOption.get()
 
-  when flatType(value).isStdlib():
+  when type(flattened).isStdlib():
     stream.writeFieldInternal(1, flattened, type(value), "")
   elif flattened is (object or tuple):
     enumInstanceSerializedFields(flattened, fieldName, fieldVal):

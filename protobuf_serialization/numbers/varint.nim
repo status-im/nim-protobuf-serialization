@@ -7,7 +7,7 @@ export ProtobufError, ProtobufWriteError
 export ProtobufReadError, ProtobufEOFError, ProtobufMessageError
 
 const
-  VAR_INT_CONTINUATION_MASK: byte = 0b1000_0000
+  VAR_INT_CONTINUATION_MASK*: byte = 0b1000_0000
   VAR_INT_VALUE_MASK: byte = 0b0111_1111
 
 type

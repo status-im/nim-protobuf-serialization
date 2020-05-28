@@ -5,9 +5,11 @@ import sets
 import tables
 
 import stew/shims/macros
-#I did try use getCustomPragmaFixed.
-#Unfortunately, I couldn't due to fieldNumber resolution errors.
-export getCustomPragmaVal
+#Depending on the situation, one of these two are used.
+#Sometimes, one works where the other doesn't.
+#It all comes down to bugs in Nim and managing them.
+export getCustomPragmaVal, getCustomPragmaFixed
+export hasCustomPragmaFixed
 import serialization
 
 import numbers/varint
@@ -16,12 +18,14 @@ export varint
 import numbers/fixed
 export fixed
 
+const WIRE_TYPE_MASK = 0b0000_0111'i32
+
 type
   ProtobufWireType* = enum
     VarInt, Fixed64, LengthDelimited, StartGroup, EndGroup, Fixed32
 
   ProtobufKey* = object
-    number*: uint32
+    number*: int
     wire*: ProtobufWireType
 
   #Number types which are platform-dependent and therefore unsafe.
@@ -35,8 +39,19 @@ type
   #While cstring/array are built-ins, and therefore should have converters provided, but they still need converters.
   LengthDelimitedTypes* = not (VarIntTypes or FixedTypes)
 
+  #Disabled types.
+  Disabled = array or cstring or tuple or Table
+
+const DISABLED_STRING = "Arrays, cstrings, tuples, and Tables are not serializable due to various reasons."
+discard DISABLED_STRING
+
 template isPotentiallyNull*[T](ty: typedesc[T]): bool =
   T is (Option or ref or ptr)
+
+template getUnderlyingType*[I](
+  stdlib: seq[I] or set[I] or HashSet[I]
+): untyped =
+  type(I)
 
 proc flatTypeInternal(value: auto): auto {.compileTime.} =
   when value is Option:
@@ -50,8 +65,11 @@ template flatType*(value: auto): type =
   type(flatTypeInternal(value))
 
 template flatType*[B](ty: typedesc[B]): type =
-  var blank: B
-  type(flatType(blank))
+  when B is openArray:
+    B
+  else:
+    var blank: B
+    type(flatType(blank))
 
 proc flatMapInternal[B, T](value: B, ty: typedesc[T]): Option[T] =
   when value is Option:
@@ -68,8 +86,62 @@ proc flatMapInternal[B, T](value: B, ty: typedesc[T]): Option[T] =
 template flatMap*(value: auto): auto =
   flatMapInternal(value, flatType(value))
 
-template isStdlib*[B](ty: typedesc[B]): bool =
-  flatType(ty) is (cstring or string or seq or array or set or HashSet)
+func isStdlib*[B](_: typedesc[B]): bool {.compileTime.} =
+  flatType(B) is (cstring or string or seq or array or set or HashSet)
+
+func mustUseSingleBuffer*[T](_: typedesc[T]): bool {.compileTime.}
+
+func convertAndCallMustUseSingleBuffer[T](
+  _: typedesc[seq[T] or openArray[T] or set[T] or HashSet[T]]
+): bool {.compileTime.} =
+  when flatType(T).isStdlib():
+    false
+  else:
+    mustUseSingleBuffer(flatType(T))
+
+#[func convertAndCallMustUseSingleBuffer[C, T](
+  _: typedesc[array[C, T]]
+): bool {.compileTime.} =
+  when flatType(T).isStdlib():
+    false
+  else:
+    mustUseSingleBuffer(flatType(T))]#
+
+func mustUseSingleBuffer*[T](_: typedesc[T]): bool {.compileTime.} =
+  when flatType(T) is (cstring or string or seq[byte or char or bool]):
+    true
+  elif flatType(T) is (array or openArray or set or HashSet):
+    flatType(T).convertAndCallMustUseSingleBuffer()
+  else:
+    false
+
+func singleBufferable*[T](_: typedesc[T]): bool {.compileTime.}
+
+func convertAndCallSingleBufferable[T](
+  _: typedesc[seq[T] or openArray[T] or set[T] or HashSet[T]]
+): bool {.compileTime.} =
+  when flatType(T).isStdlib():
+    false
+  else:
+    singleBufferable(flatType(T))
+
+#[func convertAndCallSingleBufferable[C, T](
+  _: typedesc[array[C, T]]
+): bool {.compileTime.} =
+  when flatType(T).isStdlib():
+    false
+  else:
+    singleBufferable(flatType(T))]#
+
+func singleBufferable*[T](_: typedesc[T]): bool {.compileTime.} =
+  when flatType(T).mustUseSingleBuffer():
+    true
+  elif flatType(T) is (VarIntTypes or FixedTypes):
+    true
+  elif flatType(T) is (seq or array or openArray or set or HashSet):
+    flatType(T).convertAndCallSingleBufferable()
+  else:
+    false
 
 template nextType[B](box: B): auto =
   when B is Option:
@@ -113,12 +185,10 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
     {.fatal: "Couldnt serialize the float; all floats need their bits specified with a PFloat32 or PFloat64 call.".}
   elif T is PureTypes:
     {.fatal: "Serializing a number requires specifying the encoding to use.".}
+  elif T is Disabled:
+    {.fatal: DISABLED_STRING & " are not serializable due to various reasons.".}
   elif T.isStdlib():
     discard
-  elif T is tuple:
-    {.fatal: "Tuples aren't serializable due to the lack of being able to attach pragmas.".}
-  elif T is Table:
-    {.fatal: "Support for Tables was never added. For more info, see https://github.com/kayabaNerve/nim-protobuf-serialization/issues/4.".}
   #Tuple inclusion is so in case we can add back support for tuples, we solely have to delete the above case.
   elif T is (object or tuple):
     var
@@ -129,12 +199,8 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
       discard fieldName
       when fieldVar is PlatformDependentTypes:
         {.fatal: "Serializing a number requires specifying the amount of bits via the type.".}
-      elif T is tuple:
-        {.fatal: "Tuples aren't serializable due to the lack of being able to attach pragmas.".}
-      elif T is Table:
-        {.fatal: "Support for Tables was never added. For more info, see https://github.com/kayabaNerve/nim-protobuf-serialization/issues/4.".}
-      elif T is cstring:
-        {.fatal: "Support for cstrings has been disabled due to safety issues.".}
+      elif T is Disabled:
+        {.fatal: DISABLED_STRING & " are not serializable due to various reasons.".}
       elif fieldVar is (VarIntTypes or FixedTypes):
         const
           hasPInt = ty.hasCustomPragmaFixed(fieldName, pint)
@@ -174,3 +240,31 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
         if fieldNumberSet.contains(thisFieldNumber):
           raise newException(Exception, "Field number was used twice on two different fields.")
         fieldNumberSet.incl(thisFieldNumber)
+
+proc newProtobufKey*(number: int, wire: ProtobufWireType): seq[byte] =
+  result = newSeq[byte](10)
+  var viLen = 0
+  doAssert encodeVarInt(
+    result,
+    viLen,
+    PInt((int32(number) shl 3) or int32(wire))
+  ) == VarIntStatus.Success
+  result.setLen(viLen)
+
+proc writeProtobufKey*(
+  stream: OutputStream,
+  number: int,
+  wire: ProtobufWireType
+) {.inline.} =
+  stream.write(newProtobufKey(number, wire))
+
+proc readProtobufKey*(
+  stream: InputStream
+): ProtobufKey =
+  let
+    varint = stream.decodeVarInt(int, PInt(int32))
+    wire = byte(varint and WIRE_TYPE_MASK)
+  if (wire < byte(low(ProtobufWireType))) or (byte(high(ProtobufWireType)) < wire):
+    raise newException(ProtobufMessageError, "Protobuf key had an invalid wire type.")
+  result.wire = ProtobufWireType(wire)
+  result.number = varint shr 3
