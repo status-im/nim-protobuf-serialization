@@ -141,7 +141,9 @@ proc setField[T](
 
   else:
     #This iterative approach is extemely poor.
-    var keyNumber = key.number
+    var
+      keyNumber = key.number
+      found = false
 
     enumInstanceSerializedFields(value, fieldName, fieldVar):
       discard fieldName
@@ -150,6 +152,8 @@ proc setField[T](
         {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
 
       if keyNumber == fieldVar.getCustomPragmaVal(fieldNumber):
+        found = true
+
         var
           blank: flatType(fieldVar)
           flattened = flatMap(fieldVar).get(blank)
@@ -213,6 +217,9 @@ proc setField[T](
 
         box(fieldVar, flattened)
         break
+
+    if not found:
+      raise newException(ProtobufMessageError, "Message encoded an unknown field number.")
 
 proc readValueInternal[T](stream: InputStream, ty: typedesc[T]): T =
   static: verifySerializable(flatType(T))
