@@ -48,6 +48,11 @@ discard DISABLED_STRING
 template isPotentiallyNull*[T](ty: typedesc[T]): bool =
   T is (Option or ref or ptr)
 
+template getUnderlyingType*[I](
+  stdlib: seq[I] or set[I] or HashSet[I]
+): untyped =
+  type(I)
+
 proc flatTypeInternal(value: auto): auto {.compileTime.} =
   when value is Option:
     flatTypeInternal(value.get())

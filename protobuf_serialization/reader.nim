@@ -9,7 +9,7 @@ import serialization
 import internal
 import types
 
-proc readVarInt[B; E](
+proc readVarInt[B, E](
   stream: InputStream,
   fieldVar: var B,
   encoding: E,
@@ -105,8 +105,39 @@ proc setField[T](
     else:
       stream.readLengthDelimited(type(value), "", value, key)
 
-  elif T.isStdlib():
-    stream.readLengthDelimited(type(value), "", value, key)
+  elif T is (seq or set or HashSet):
+    template merge[I](
+      stdlib: var (seq[I] or set[I] or HashSet[I]),
+      value: I
+    ) =
+      when stdlib is seq:
+        stdlib.add(value)
+      else:
+        stdlib.incl(value)
+
+    type U = value.getUnderlyingType()
+    #Unpacked seq of numbers.
+    if key.wire != LengthDelimited:
+      var next: U
+      when flatType(U) is VarIntWrapped:
+        stream.readVarInt(next, flatType(U), key)
+      elif flatType(U) is FixedWrapped:
+        stream.readFixed(next, key)
+      else:
+        if true:
+          raise newException(ProtobufMessageError, "Reading into an unpacked seq yet value is a number.")
+      merge(value, next)
+    #Packed seq of numbers/unpacked seq of objects.
+    else:
+      var newValues: seq[U]
+      when flatType(U) is (VarIntWrapped or FixedWrapped):
+        stream.readLengthDelimited(type(value), "", newValues, key)
+        for newValue in newValues:
+          merge(value, newValue)
+      else:
+        var next: U
+        stream.readLengthDelimited(U, "", next, key)
+        merge(value, next)
 
   else:
     #This iterative approach is extemely poor.
@@ -119,35 +150,66 @@ proc setField[T](
         {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
 
       if keyNumber == fieldVar.getCustomPragmaVal(fieldNumber):
-        #Only calculate the encoding VarInt.
-        #In every other case, the type is enough.
-        #We don't need to track the boolean type as literally every encoding will parse to the same true/false.
-        var flattened: flatType(fieldVar)
-        when flattened is VarIntWrapped:
-          stream.readVarInt(flattened, flattened, key)
+        var
+          blank: flatType(fieldVar)
+          flattened = flatMap(fieldVar).get(blank)
+        when blank is (seq or set or HashSet):
+          static: echo flattened.getUnderlyingType()
+          type U = flattened.getUnderlyingType()
+          when U is (VarIntWrapped or FixedWrapped):
+            var castedVar = flattened
+          elif U is (VarIntTypes or FixedTypes):
+            when T.hasCustomPragmaFixed(fieldName, pint):
+              var
+                pointless: U
+                C = PInt(pointless)
+            elif T.hasCustomPragmaFixed(fieldName, sint):
+              var
+                pointless: U
+                C = SInt(pointless)
+            elif T.hasCustomPragmaFixed(fieldName, lint):
+              var
+                pointless: U
+                C = LInt(pointless)
+            elif T.hasCustomPragmaFixed(fieldName, fixed):
+              var
+                pointless: U
+                C = Fixed(pointless)
 
-        elif flattened is FixedWrapped:
-          stream.readFixed(flattened, key)
-
-        elif flattened is VarIntTypes:
-          const
-            hasPInt = T.hasCustomPragmaFixed(fieldName, pint)
-            hasSInt = T.hasCustomPragmaFixed(fieldName, sint)
-            hasLInt = T.hasCustomPragmaFixed(fieldName, lint)
-            hasFixed = T.hasCustomPragmaFixed(fieldName, fixed)
-          when hasPInt:
-            stream.readVarInt(flattened, PInt(flattened), key)
-          elif hasSInt:
-            stream.readVarInt(flattened, SInt(flattened), key)
-          elif hasLInt:
-            stream.readVarInt(flattened, LInt(flattened), key)
-          elif hasFixed:
-            stream.readFixed(flattened, key)
+            when flattened is seq:
+              var castedVar = cast[seq[type(C)]](flattened)
+            elif flattened is set:
+              var castedVar = cast[set[type(C)]](flattened)
+            elif flattened is HashSet:
+              var castedVar = cast[HashSet[type(C)]](flattened)
           else:
-            {.fatal: "Encoding pragma specified yet no enoding matched. This should never happen.".}
+            var castedVar = flattened
+          castedVar.setField(stream, key)
 
+          flattened = cast[type(flattened)](castedVar)
         else:
-          stream.readLengthDelimited(type(value), fieldName, flattened, key)
+          #Only calculate the encoding for VarInt.
+          #In every other case, the type is enough.
+          when flattened is VarIntWrapped:
+            stream.readVarInt(flattened, flattened, key)
+
+          elif flattened is FixedWrapped:
+            stream.readFixed(flattened, key)
+
+          elif flattened is VarIntTypes:
+            when T.hasCustomPragmaFixed(fieldName, pint):
+              stream.readVarInt(flattened, PInt(flattened), key)
+            elif T.hasCustomPragmaFixed(fieldName, sint):
+              stream.readVarInt(flattened, SInt(flattened), key)
+            elif T.hasCustomPragmaFixed(fieldName, lint):
+              stream.readVarInt(flattened, LInt(flattened), key)
+            elif T.hasCustomPragmaFixed(fieldName, fixed):
+              stream.readFixed(flattened, key)
+            else:
+              {.fatal: "Encoding pragma specified yet no enoding matched. This should never happen.".}
+
+          else:
+            stream.readLengthDelimited(type(value), fieldName, flattened, key)
 
         box(fieldVar, flattened)
         break
