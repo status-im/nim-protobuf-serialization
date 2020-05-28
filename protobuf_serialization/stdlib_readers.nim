@@ -111,6 +111,7 @@ proc stdlibFromProtobuf[R, T](
       {.fatal: "Tried to decode an unrecognized object used in a stdlib type.".}
     #---
 
+#[
 proc stdlibFromProtobuf[R, CRange, T](
   stream: InputStream,
   ty: typedesc[R],
@@ -176,6 +177,7 @@ proc stdlibFromProtobuf[R, CRange, T](
 
   if i != C:
     raise newException(ProtobufMessageError, "Length delimited buffer was missing elements for this array.")
+]#
 
 proc stdlibFromProtobuf[R, T](
   stream: InputStream,
