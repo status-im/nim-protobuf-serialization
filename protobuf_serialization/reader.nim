@@ -95,16 +95,6 @@ proc setField[T](
   when T is (ref or ptr or Option):
     {.fatal: "Ref or Ptr or Option made it to setField. This should never happen.".}
 
-  elif T is not (object or tuple):
-    when T is VarIntWrapped:
-      stream.readVarInt(value, value, key)
-    elif T is FixedWrapped:
-      stream.readFixed(value, key)
-    elif T is (PlatformDependentTypes or VarIntTypes or FixedTypes):
-      {.fatal: "Reading into a number requires specifying both the amount of bits via the type, as well as the encoding format.".}
-    else:
-      stream.readLengthDelimited(type(value), "", value, key)
-
   elif T is (seq or set or HashSet):
     template merge[I](
       stdlib: var (seq[I] or set[I] or HashSet[I]),
@@ -120,7 +110,7 @@ proc setField[T](
     if key.wire != LengthDelimited:
       var next: U
       when flatType(U) is VarIntWrapped:
-        stream.readVarInt(next, flatType(U), key)
+        stream.readVarInt(next, next, key)
       elif flatType(U) is FixedWrapped:
         stream.readFixed(next, key)
       else:
@@ -129,8 +119,8 @@ proc setField[T](
       merge(value, next)
     #Packed seq of numbers/unpacked seq of objects.
     else:
-      var newValues: seq[U]
       when flatType(U) is (VarIntWrapped or FixedWrapped):
+        var newValues: seq[U]
         stream.readLengthDelimited(type(value), "", newValues, key)
         for newValue in newValues:
           merge(value, newValue)
@@ -138,6 +128,16 @@ proc setField[T](
         var next: U
         stream.readLengthDelimited(U, "", next, key)
         merge(value, next)
+
+  elif T is not (object or tuple):
+    when T is VarIntWrapped:
+      stream.readVarInt(value, value, key)
+    elif T is FixedWrapped:
+      stream.readFixed(value, key)
+    elif T is (PlatformDependentTypes or VarIntTypes or FixedTypes):
+      {.fatal: "Reading into a number requires specifying both the amount of bits via the type, as well as the encoding format.".}
+    else:
+      stream.readLengthDelimited(type(value), "", value, key)
 
   else:
     #This iterative approach is extemely poor.
