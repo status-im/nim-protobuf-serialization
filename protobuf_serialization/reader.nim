@@ -296,10 +296,11 @@ proc pack[T](
     unpacked.close()
 
 proc readValue*(reader: ProtobufReader, value: var auto) =
-  var closeAfter = reader.closeAfter
-  reader.stream = reader.stream.pack(flatType(value), closeAfter)
   if not reader.stream.readable():
     return
+
+  var closeAfter = reader.closeAfter
+  reader.stream = reader.stream.pack(flatType(value), closeAfter)
 
   if reader.keyOverride.isNone():
     box(value, reader.stream.readValueInternal(flatType(type(value))))
