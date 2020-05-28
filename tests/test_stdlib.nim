@@ -62,8 +62,8 @@ suite "Test Standard Lib Objects Encoding/Decoding":
   test "Can encode/decode sets":
     let
       trueSet = {true}
-      falseSet = {true}
-      trueFalseSet = {true}
+      falseSet = {false}
+      trueFalseSet = {true, false}
     check Protobuf.decode(Protobuf.encode(trueSet), type(set[bool])) == trueSet
     check Protobuf.decode(Protobuf.encode(falseSet), type(set[bool])) == falseSet
     check Protobuf.decode(Protobuf.encode(trueFalseSet), type(set[bool])) == trueFalseSet

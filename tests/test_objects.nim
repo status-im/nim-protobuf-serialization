@@ -57,19 +57,20 @@ proc `==`*(lhs: Nested, rhs: Nested): bool =
 suite "Test Object Encoding/Decoding":
   #The following three tests don't actually test formal objects.
   #They test user-defined types. This is just the best place for these tests.
-  template enumTest(value: TestEnum, integer: int): untyped =
-    let output = Protobuf.encode(SInt(value))
-    if integer == 0:
-      check output.len == 0
-    else:
-      check output == @[byte(8), byte(integer)]
-    check TestEnum(Protobuf.decode(output, type(SInt(TestEnum)))) == value
+  test "Can encode/decode enums":
+    template enumTest(value: TestEnum, integer: int): untyped =
+      let output = Protobuf.encode(SInt(value))
+      if integer == 0:
+        check output.len == 0
+      else:
+        check output == @[byte(8), byte(integer)]
+      check TestEnum(Protobuf.decode(output, type(SInt(TestEnum)))) == value
 
-  enumTest(NegTwo, 3)
-  enumTest(NegOne, 1)
-  enumTest(Zero, 0)
-  enumTest(One, 2)
-  enumTest(Two, 4)
+    enumTest(NegTwo, 3)
+    enumTest(NegOne, 1)
+    enumTest(Zero, 0)
+    enumTest(One, 2)
+    enumTest(Two, 4)
 
   test "Can encode/decode distinct types":
     let x: DistinctInt = 5.DistinctInt
