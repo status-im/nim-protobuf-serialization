@@ -229,7 +229,12 @@ proc packIntoSeq[C, T](
 ): InputStream =
   unpacked.packIntoSeq(seq[T])
 
-proc pack[T](unpacked: InputStream, rootType: typedesc[T]): InputStream =
+proc pack[T](
+  unpacked: InputStream,
+  rootType: typedesc[T],
+  closeAfter: var bool
+): InputStream =
+  var sourceIsPacked = false
   when T is (array or seq or set or HashSet):
     result = unpacked.packIntoSeq(T)
   elif T is object:
@@ -282,10 +287,17 @@ proc pack[T](unpacked: InputStream, rootType: typedesc[T]): InputStream =
     result = unsafeMemoryInput(output.getOutput())
     #output.close()
   else:
+    sourceIsPacked = true
     result = unpacked
 
+  #Only close the source stream if no parent is relying on it, and we didn't just return it.
+  if (not sourceIsPacked) and closeAfter:
+    closeAfter = false
+    unpacked.close()
+
 proc readValue*(reader: ProtobufReader, value: var auto) =
-  reader.stream = reader.stream.pack(flatType(value))
+  var closeAfter = reader.closeAfter
+  reader.stream = reader.stream.pack(flatType(value), closeAfter)
   if not reader.stream.readable():
     return
 
@@ -297,5 +309,13 @@ proc readValue*(reader: ProtobufReader, value: var auto) =
       preResult.setField(reader.stream, reader.keyOverride.get())
     box(value, preResult)
 
-  if reader.closeAfter:
+  #We only want to close the 'remade' stream if it isn't the source stream.
+  #If it is the source stream, we want to use original closeAfter value.
+  #pack mutates closeAfter to false when we already close it.
+  #We only already close it if we didn't return it and we were supposed to.
+  #So shouldn't close = doesn't close, no mutation.
+  #Should clouse yet no stream mutation, returns stream, doesn't close, no mutation.
+  #The following check actually closes it.
+  #Should close and stream mutaton occurred invalidating the original, automatically closed with mutation to false.
+  if closeAfter:
     reader.stream.close()
