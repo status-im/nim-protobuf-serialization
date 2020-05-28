@@ -179,14 +179,13 @@ proc readValueInternal[T](stream: InputStream, ty: typedesc[T]): T =
   while stream.readable():
     result.setField(stream, stream.readProtobufKey())
 
-proc extractFieldAsBytes[T](
+proc extractFieldAsBytes(
   unpacked: InputStream,
-  ty: typedesc[T],
   key: ProtobufKey
 ): seq[byte] =
   if key.wire == VarInt:
     var next = VAR_INT_CONTINUATION_MASK
-    while next == VAR_INT_CONTINUATION_MASK:
+    while (next and VAR_INT_CONTINUATION_MASK) != 0:
       if not unpacked.readable():
         raise newException(ProtobufEOFError, "Couldn't extract the next VarInt.")
       next = unpacked.read()
@@ -218,7 +217,7 @@ proc packIntoSeq[T](
     output: OutputStream = memoryOutput()
 
   while unpacked.readable():
-    values.add(unpacked.extractFieldAsBytes(T, key))
+    values.add(unpacked.extractFieldAsBytes(key))
     totalLen += values[^1].len
     if unpacked.readable():
       key = unpacked.readProtobufKey()
@@ -245,7 +244,6 @@ proc pack[T](unpacked: InputStream, rootType: typedesc[T]): InputStream =
     var output = memoryOutput()
     while unpacked.readable():
       var key: ProtobufKey = unpacked.readProtobufKey()
-      #var (key, value) = unpacked.extractFieldAsBytes()
       var inst: T
       enumInstanceSerializedFields(inst, fieldName, fieldVar):
         when T.getCustomPragmaFixed(fieldName, fieldNumber) is int:
@@ -269,7 +267,7 @@ proc pack[T](unpacked: InputStream, rootType: typedesc[T]): InputStream =
                     LengthDelimited
                 ))
               )
-              output.write(unpacked.extractFieldAsBytes(type(fieldVar), key))
+              output.write(unpacked.extractFieldAsBytes(key))
             else:
               discard
         else:
