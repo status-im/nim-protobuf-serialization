@@ -37,18 +37,36 @@ macro generateWrapper*(
     template `name`*(value: untyped): untyped =
       when (value is (bool or byte or char)) and (`strLitName` != "PInt"):
         {.fatal: "Byte types are always PInt.".}
-      elif value is not `supported`:
+
+      #If this enum doesn't have negative values, considered it unsigned.
+      when value is enum:
+        when value is type:
+          when ord(low(value)) < 0:
+            type fauxType = int32
+          else:
+            type fauxType = uint32
+        else:
+          when ord(low(type(value))) < 0:
+            type fauxType = int32
+          else:
+            type fauxType = uint32
+      elif value is type:
+        type fauxType = value
+      else:
+        type fauxType = type(value)
+
+      when fauxType is not `supported`:
         {.fatal: `err`.}
-      elif value is `exclusion`:
+      elif fauxType is `exclusion`:
         {.fatal: "Tried to rewrap a wrapped type.".}
 
       when value is type:
-        when value is `uTypes`:
+        when fauxType is `uTypes`:
           when sizeof(value) == 8:
             `uLarger`
           else:
             `uSmaller`
-        elif value is `sTypes`:
+        elif fauxType is `sTypes`:
           when sizeof(value) == 8:
             `sLarger`
           else:
@@ -57,12 +75,12 @@ macro generateWrapper*(
         else:
           value
       else:
-        when value is `uTypes`:
+        when fauxType is `uTypes`:
           when sizeof(value) == 8:
             `uLarger`(value)
           else:
             `uSmaller`(value)
-        elif value is `sTypes`:
+        elif fauxType is `sTypes`:
           when sizeof(value) == 8:
             `sLarger`(value)
           else:
