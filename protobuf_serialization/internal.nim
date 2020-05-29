@@ -176,6 +176,7 @@ proc box*[B](into: var B, value: auto) =
   into = boxInternal(value, into)
 
 template fieldNumber*(num: int) {.pragma.}
+template dontOmit*() {.pragma.}
 
 #Created in response to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/5.
 func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =

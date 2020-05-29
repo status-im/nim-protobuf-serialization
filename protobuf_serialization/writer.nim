@@ -9,20 +9,32 @@ import serialization
 import internal
 import types
 
-proc writeVarInt(stream: OutputStream, fieldNum: int, value: VarIntWrapped) =
+proc writeVarInt(
+  stream: OutputStream,
+  fieldNum: int,
+  value: VarIntWrapped,
+  omittable: static bool
+) =
   let bytes = encodeVarInt(value)
-  if (bytes.len == 1) and (bytes[0] == 0):
-    return
+  when omittable:
+    if (bytes.len == 1) and (bytes[0] == 0):
+      return
   stream.writeProtobufKey(fieldNum, VarInt)
   stream.write(bytes)
 
-proc writeFixed(stream: OutputStream, fieldNum: int, value: auto) =
+proc writeFixed(
+  stream: OutputStream,
+  fieldNum: int,
+  value: auto,
+  omittable: static bool
+) =
   when sizeof(value) == 8:
     let wire = Fixed64
   else:
     let wire = Fixed32
-  if value.unwrap() == 0:
-    return
+  when omittable:
+    if value.unwrap() == 0:
+      return
 
   stream.writeProtobufKey(fieldNum, wire)
   stream.encodeFixed(value)
@@ -37,7 +49,8 @@ proc writeLengthDelimited[T](
   fieldNum: int,
   rootType: typedesc[T],
   fieldName: static string,
-  flatValue: LengthDelimitedTypes
+  flatValue: LengthDelimitedTypes,
+  omittable: static bool
 ) =
   const stdlib = type(flatValue).isStdlib()
 
@@ -82,7 +95,10 @@ proc writeLengthDelimited[T](
   ):
     cursor.finalWrite(newProtobufKey(fieldNum, LengthDelimited) & encodeVarInt(PInt(int32(stream.pos - startPos))))
   else:
-    cursor.finalWrite([])
+    when omittable:
+      cursor.finalWrite([])
+    else:
+      cursor.finalWrite(newProtobufKey(fieldNum, LengthDelimited) & encodeVarInt(PInt(int32(0))))
 
 proc writeFieldInternal[T, R](
   stream: OutputStream,
@@ -98,12 +114,16 @@ proc writeFieldInternal[T, R](
     return
   let flattened = flattenedOption.get()
 
-  when flattened is VarIntWrapped:
-    stream.writeVarInt(fieldNum, flattened)
-  elif flattened is FixedWrapped:
-    stream.writeFixed(fieldNum, flattened)
+  when (flatType(R) is not object) or (fieldName == ""):
+    const omittable = true
   else:
-    stream.writeLengthDelimited(fieldNum, R, fieldName, flattened)
+    const omittable = not flatType(R).hasCustomPragmaFixed(fieldName, dontOmit)
+  when flattened is VarIntWrapped:
+    stream.writeVarInt(fieldNum, flattened, omittable)
+  elif flattened is FixedWrapped:
+    stream.writeFixed(fieldNum, flattened, omittable)
+  else:
+    stream.writeLengthDelimited(fieldNum, R, fieldName, flattened, omittable)
 
 proc writeField*[T](
   writer: ProtobufWriter,

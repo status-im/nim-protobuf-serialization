@@ -8,7 +8,7 @@ import numbers/fixed
 export varint, fixed
 
 import internal
-export fieldNumber
+export fieldNumber, dontOmit
 export ProtobufError, ProtobufWriteError
 export ProtobufReadError, ProtobufEOFError, ProtobufMessageError
 
