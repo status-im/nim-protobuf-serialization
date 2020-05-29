@@ -83,7 +83,7 @@ proc readLengthDelimited[R, B](
       elif preResult is (object or tuple):
         preResult = substream.readValueInternal(type(preResult))
       else:
-        {.fatal: "Tried to read a Length Delimited type which wasn't actually Length Delimited.".}
+        {.fatal: "Tried to read a Length Delimited type which wasn't actually Length Delimited. This should never happen.".}
 
   box(fieldVar, preResult)
 
@@ -125,9 +125,12 @@ proc setField[T](
         for newValue in newValues:
           merge(value, newValue)
       else:
-        var next: U
+        var
+          next: flatType(U)
+          boxed: U
         stream.readLengthDelimited(U, "", next, key)
-        merge(value, next)
+        box(boxed, next)
+        merge(value, boxed)
 
   elif T is not (object or tuple):
     when T is VarIntWrapped:
