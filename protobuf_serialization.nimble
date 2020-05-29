@@ -6,7 +6,6 @@ version       = "0.1.0"
 author        = "Joey Yakimowich-Payne"
 description   = "Protobuf implementation compatible with the nim-serialization framework."
 license       = "MIT"
-srcDir        = "src"
 skipDirs      = @["tests"]
 
 requires "nim >= 1.2.0",
