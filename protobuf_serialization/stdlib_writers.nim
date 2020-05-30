@@ -103,7 +103,7 @@ proc stdlibToProtobuf[R, T](
       if toEncode.len == 0:
         return
       stream.write(encodeVarInt(PInt(toEncode.len)))
-      stream.write(cast[byte](toEncode))
+      stream.write(cast[seq[byte]](toEncode))
 
     elif (fType is (object or tuple)) or fType.isStdlib():
       var cursor = stream.delayVarSizeWrite(10)

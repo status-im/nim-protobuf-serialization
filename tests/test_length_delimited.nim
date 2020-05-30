@@ -20,12 +20,30 @@ suite "Test Length Delimited Encoding/Decoding":
     check output == @[byte(10), byte(charSeq.len), 84, 101, 115, 116, 105, 110, 103, 32, 115, 116, 114, 105, 110, 103, 46, 0]
     check Protobuf.decode(output, type(seq[char])) == charSeq
 
-  test "Can encode/decode uint8 seq":
+  test "Can encode/decode byte seq":
     let
-      uint8Seq = cast[seq[uint8]]("Testing string.\0")
-      output = Protobuf.encode(uint8Seq)
-    check output == @[byte(10), byte(uint8Seq.len), 84, 101, 115, 116, 105, 110, 103, 32, 115, 116, 114, 105, 110, 103, 46, 0]
-    check Protobuf.decode(output, type(seq[uint8])) == uint8Seq
+      byteSeq = cast[seq[byte]]("Testing string.\0")
+      output = Protobuf.encode(byteSeq)
+    check output == @[byte(10), byte(byteSeq.len), 84, 101, 115, 116, 105, 110, 103, 32, 115, 116, 114, 105, 110, 103, 46, 0]
+    check Protobuf.decode(output, type(seq[byte])) == byteSeq
+
+  test "Can encode/decode byte seq seq":
+    let
+      byteSeqSeq = cast[seq[seq[byte]]](@[
+        "Testing string.\0",
+        "Other value!",
+        "Shares nothing@",
+      ])
+      output = Protobuf.encode(byteSeqSeq)
+    check output == @[
+      byte(10), byte(byteSeqSeq[0].len),
+      84, 101, 115, 116, 105, 110, 103, 32, 115, 116, 114, 105, 110, 103, 46, 0,
+      10, byte(byteSeqSeq[1].len),
+      79, 116, 104, 101, 114, 32, 118, 97, 108, 117, 101, 33,
+      10, byte(byteSeqSeq[2].len),
+      83, 104, 97, 114, 101, 115, 32, 110, 111, 116, 104, 105, 110, 103, 64
+    ]
+    check Protobuf.decode(output, type(seq[seq[byte]])) == byteSeqSeq
 
   test "Can encode/decode bool seq":
     let

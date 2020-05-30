@@ -39,10 +39,10 @@ proc writeFixed(
   stream.writeProtobufKey(fieldNum, wire)
   stream.encodeFixed(value)
 
+proc writeValueInternal[T](stream: OutputStream, value: T)
+
 #stdlib types toProtobuf's. inlined as it needs access to the writeValue function.
 include stdlib_writers
-
-proc writeValueInternal[T](stream: OutputStream, value: T)
 
 proc writeLengthDelimited[T](
   stream: OutputStream,
