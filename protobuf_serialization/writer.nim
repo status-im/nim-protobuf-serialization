@@ -60,6 +60,7 @@ proc writeLengthDelimited[T](
   #Byte seqs.
   when flatValue is CastableLengthDelimitedTypes:
     if flatValue.len == 0:
+      cursor.finalWrite([])
       return
     stream.write(cast[seq[byte]](flatValue))
 

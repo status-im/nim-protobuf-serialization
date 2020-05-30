@@ -16,8 +16,6 @@ proc encodeNumber[T](stream: OutputStream, value: T) =
   else:
     {.fatal: "Trying to encode a number which isn't wrapped. This should never happen.".}
 
-proc writeValue*[T](writer: ProtobufWriter, value: T)
-
 proc stdLibToProtobuf[R](
   stream: OutputStream,
   _: typedesc[R],
@@ -111,8 +109,7 @@ proc stdlibToProtobuf[R, T](
       var cursor = stream.delayVarSizeWrite(10)
       let startPos = stream.pos
 
-      var writer = ProtobufWriter.init(stream)
-      writer.writeValue(value)
+      stream.writeValueInternal(value)
 
       cursor.finalWrite(encodeVarInt(PInt(int32(stream.pos - startPos))))
 
