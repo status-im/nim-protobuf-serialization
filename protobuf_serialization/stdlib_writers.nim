@@ -16,7 +16,7 @@ proc encodeNumber[T](stream: OutputStream, value: T) =
   else:
     {.fatal: "Trying to encode a number which isn't wrapped. This should never happen.".}
 
-proc writeValue*[T](writer: ProtobufWriter, value: T) {.inline.}
+proc writeValue*[T](writer: ProtobufWriter, value: T)
 
 proc stdLibToProtobuf[R](
   stream: OutputStream,

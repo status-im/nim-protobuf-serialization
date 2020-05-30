@@ -177,5 +177,44 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
   else:
     stream.writeFieldInternal(1, flattened, type(value), "")
 
-proc writeValue*[T](writer: ProtobufWriter, value: T) {.inline.} =
+proc writeValue*[T](writer: ProtobufWriter, value: T) =
+  var
+    cursor: VarSizeWriteCursor
+    startPos: int
+
+  if (
+    writer.flags.contains(VarIntLengthPrefix) or
+    writer.flags.contains(UIntLELengthPrefix) or
+    writer.flags.contains(UIntBELengthPrefix)
+  ):
+    cursor = writer.stream.delayVarSizeWrite(5)
+    startPos = writer.stream.pos
+
   writer.stream.writeValueInternal(value)
+
+  if (
+    writer.flags.contains(VarIntLengthPrefix) or
+    writer.flags.contains(UIntLELengthPrefix) or
+    writer.flags.contains(UIntBELengthPrefix)
+  ):
+    var len = uint32(writer.stream.pos - startPos)
+    if len == 0:
+      cursor.finalWrite([])
+    elif writer.flags.contains(VarIntLengthPrefix):
+      var viLen = encodeVarInt(LInt(len))
+      if viLen.len == 0:
+        cursor.finalWrite([byte(0)])
+      else:
+        cursor.finalWrite(viLen)
+    elif writer.flags.contains(UIntLELengthPrefix):
+      var temp: array[sizeof(len), byte]
+      for i in 0 ..< sizeof(len):
+        temp[i] = byte(len and LAST_BYTE)
+        len = len shr 8
+      cursor.finalWrite(temp)
+    elif writer.flags.contains(UIntBELengthPrefix):
+      var temp: array[sizeof(len), byte]
+      for i in 0 ..< sizeof(len):
+        temp[i] = byte(len shr ((sizeof(len) - 1) * 8))
+        len = len shl 8
+      cursor.finalWrite(temp)

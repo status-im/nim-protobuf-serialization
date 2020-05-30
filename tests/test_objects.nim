@@ -115,8 +115,20 @@ suite "Test Object Encoding/Decoding":
     check namedRead.e == named.e]#
 
   test "Can encode/decode objects":
-    let obj = Basic(a: 100, b: "Test string.", c: 'C')
-    check Protobuf.decode(Protobuf.encode(obj), Basic) == obj
+    let
+      obj = Basic(a: 100, b: "Test string.", c: 'C')
+      encoded = Protobuf.encode(obj)
+    check Protobuf.decode(encoded, Basic) == obj
+
+    #Test VarInt length prefixing as well.
+    let prefixed = Protobuf.encode(obj, {VarIntLengthPrefix})
+    var
+      inLen: int
+      res: PInt(int32)
+    check prefixed.len > encoded.len
+    check decodeVarInt(prefixed[0 ..< (prefixed.len - encoded.len)], inLen, res) == VarIntStatus.Success
+    check inLen == (prefixed.len - encoded.len)
+    check res.unwrap() == encoded.len
 
   test "Can encode/decode a wrapper object":
     let obj = Wrapped(

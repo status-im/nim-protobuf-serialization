@@ -13,16 +13,26 @@ export ProtobufError, ProtobufWriteError
 export ProtobufReadError, ProtobufEOFError, ProtobufMessageError
 
 type
+  ProtobufFlags* = enum
+    VarIntLengthPrefix,
+    UIntLELengthPrefix,
+    UIntBELengthPrefix
+
   ProtobufWriter* = object
     stream*: OutputStream
+    flags*: set[ProtobufFlags]
 
   ProtobufReader* = ref object
     stream*: InputStream
     keyOverride*: Option[ProtobufKey]
     closeAfter*: bool
 
-func init*(T: type ProtobufWriter, stream: OutputStream): T {.inline.} =
-  T(stream: stream)
+func init*(
+  T: type ProtobufWriter,
+  stream: OutputStream,
+  flags: static set[ProtobufFlags] = {}
+): T {.inline.} =
+  T(stream: stream, flags: flags)
 
 func init*(
   T: type ProtobufReader,

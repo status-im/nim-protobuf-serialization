@@ -5,7 +5,7 @@ export PureTypes
 export ProtobufError, ProtobufWriteError
 export ProtobufReadError, ProtobufEOFError, ProtobufMessageError
 
-const LAST_BYTE = 0b1111_1111
+const LAST_BYTE* = 0b1111_1111
 
 type
   FixedWrapped64  = distinct uint64
