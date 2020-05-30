@@ -155,14 +155,11 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
             const
               hasPInt = flatType(value).hasCustomPragmaFixed(fieldName, pint)
               hasSInt = flatType(value).hasCustomPragmaFixed(fieldName, sint)
-              hasLInt = flatType(value).hasCustomPragmaFixed(fieldName, lint)
               hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
             when hasPInt:
               stream.writeFieldInternal(fieldNum, PInt(flattenedField), type(value), fieldName)
             elif hasSInt:
               stream.writeFieldInternal(fieldNum, SInt(flattenedField), type(value), fieldName)
-            elif hasLInt:
-              stream.writeFieldInternal(fieldNum, LInt(flattenedField), type(value), fieldName)
             elif hasFixed:
               stream.writeFieldInternal(fieldNum, Fixed(flattenedField), type(value), fieldName)
             else:
@@ -202,7 +199,7 @@ proc writeValue*[T](writer: ProtobufWriter, value: T) =
     if len == 0:
       cursor.finalWrite([])
     elif writer.flags.contains(VarIntLengthPrefix):
-      var viLen = encodeVarInt(LInt(len))
+      var viLen = encodeVarInt(PInt(len))
       if viLen.len == 0:
         cursor.finalWrite([byte(0)])
       else:

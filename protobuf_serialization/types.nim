@@ -9,8 +9,7 @@ export varint, fixed
 
 import internal
 export fieldNumber, dontOmit
-export ProtobufError, ProtobufWriteError
-export ProtobufReadError, ProtobufEOFError, ProtobufMessageError
+export ProtobufError, ProtobufReadError, ProtobufEOFError, ProtobufMessageError
 
 type
   ProtobufFlags* = enum

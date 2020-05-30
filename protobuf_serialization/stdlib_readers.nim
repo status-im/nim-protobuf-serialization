@@ -56,10 +56,6 @@ proc stdlibFromProtobuf[R, T](
   while stream.readable():
     seqInstance.add(blank)
 
-    #This code is shared with the below function.
-    #One uses seqInstance[^1], one uses arr[i].
-    #This should really be templated out.
-    #---
     when fType is (VarIntWrapped or FixedWrapped):
       stream.decodeNumber(seqInstance[^1], type(seqInstance[^1]))
 
@@ -71,8 +67,6 @@ proc stdlibFromProtobuf[R, T](
         stream.decodeNumber(seqInstance[^1], PInt(type(seqInstance[^1])))
       elif R.hasCustomPragmaFixed(fieldName, sint):
         stream.decodeNumber(seqInstance[^1], SInt(type(seqInstance[^1])))
-      elif R.hasCustomPragmaFixed(fieldName, lint):
-        stream.decodeNumber(seqInstance[^1], LInt(type(seqInstance[^1])))
       elif R.hasCustomPragmaFixed(fieldName, fixed):
         stream.decodeNumber(seqInstance[^1], Fixed(type(seqInstance[^1])))
 
@@ -109,75 +103,6 @@ proc stdlibFromProtobuf[R, T](
 
     else:
       {.fatal: "Tried to decode an unrecognized object used in a stdlib type.".}
-    #---
-
-#[
-proc stdlibFromProtobuf[R, CRange, T](
-  stream: InputStream,
-  ty: typedesc[R],
-  fieldName: static string,
-  arr: var array[CRange, T]
-) =
-  when CRange is range:
-    const
-      start = low(CRange)
-      C = high(CRange) - low(CRange) + 1
-  else:
-    const
-      start = 0
-      C = CRange
-  when C == 0:
-    {.fatal: "Protobuf was told to decode an array of length 0.".}
-
-  type fType = flatType(T)
-  var i = start
-  while stream.readable():
-    if i >= C:
-      raise newException(ProtobufMessageError, "Length delimited buffer represents an array exceeding this array's length.")
-
-    #---
-    when fType is (VarIntWrapped or FixedWrapped):
-      stream.decodeNumber(arr[i], type(arr[i]))
-
-    elif fType is VarIntTypes:
-      when R.hasCustomPragmaFixed(fieldName, pint):
-        stream.decodeNumber(arr[i], PInt(type(arr[i])))
-      elif R.hasCustomPragmaFixed(fieldName, sint):
-        stream.decodeNumber(arr[i], SInt(type(arr[i])))
-      elif R.hasCustomPragmaFixed(fieldName, lint):
-        stream.decodeNumber(arr[i], LInt(type(arr[i])))
-      elif R.hasCustomPragmaFixed(fieldName, fixed):
-        stream.decodeNumber(arr[i], Fixed(type(arr[i])))
-
-    elif fType is FixedTypes:
-      stream.decodeNumber(arr[i], Fixed(type(arr[i])))
-
-    elif fType is (cstring or string):
-      stream.stdlibFromProtobuf(ty, fieldName, arr[i])
-
-    elif fType is CastableLengthDelimitedTypes:
-      ProtobufReader.init(substream, some(T.wireType), false).readValue(arr[i])
-
-    elif (fType is object) or fType.isStdlib():
-      let len = stream.decodeVarInt(int, PInt(int32))
-      if len < 0:
-        raise newException(ProtobufMessageError, "Length delimited buffer contained more than 2 GB of data.")
-      elif len == 0:
-        continue
-      elif not stream.readable(len):
-        raise newException(ProtobufEOFError, "Length delimited buffer doesn't have enough data to read the next object.")
-
-      stream.withReadableRange(len, substream):
-        ProtobufReader.init(substream, closeAfter = false).readValue(arr[i])
-    else:
-      {.fatal: "Tried to decode an unrecognized object used in a stdlib type.".}
-    #---
-
-    inc(i)
-
-  if i != C:
-    raise newException(ProtobufMessageError, "Length delimited buffer was missing elements for this array.")
-]#
 
 proc stdlibFromProtobuf[R, T](
   stream: InputStream,

@@ -79,8 +79,6 @@ proc stdlibToProtobuf[R, T](
         stream.encodeNumber(PInt(possibleNumber.get(blank)))
       elif R.hasCustomPragmaFixed(fieldName, sint):
         stream.encodeNumber(SInt(possibleNumber.get(blank)))
-      elif R.hasCustomPragmaFixed(fieldName, lint):
-        stream.encodeNumber(LInt(possibleNumber.get(blank)))
       elif R.hasCustomPragmaFixed(fieldName, fixed):
         stream.encodeNumber(Fixed(possibleNumber.get(blank)))
 

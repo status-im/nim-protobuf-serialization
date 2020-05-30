@@ -61,7 +61,7 @@ proc readLengthDelimited[R, B](
 
     #Uses PInt to ensure 31-bits are used, not 32-bits.
     len = stream.decodeVarInt(int, PInt(int32))
-    preResult: B
+    preResult: flatType(B)
   if len < 0:
     raise newException(ProtobufMessageError, "Length delimited buffer contained more than 2 GB of data.")
 
@@ -173,10 +173,6 @@ proc setField[T](
               var
                 pointless: U
                 C = SInt(pointless)
-            elif T.hasCustomPragmaFixed(fieldName, lint):
-              var
-                pointless: U
-                C = LInt(pointless)
             elif T.hasCustomPragmaFixed(fieldName, fixed):
               var
                 pointless: U
@@ -207,8 +203,6 @@ proc setField[T](
               stream.readVarInt(flattened, PInt(flattened), key)
             elif T.hasCustomPragmaFixed(fieldName, sint):
               stream.readVarInt(flattened, SInt(flattened), key)
-            elif T.hasCustomPragmaFixed(fieldName, lint):
-              stream.readVarInt(flattened, LInt(flattened), key)
             elif T.hasCustomPragmaFixed(fieldName, fixed):
               stream.readFixed(flattened, key)
             else:

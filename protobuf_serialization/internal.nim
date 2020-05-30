@@ -40,7 +40,7 @@ type
   LengthDelimitedTypes* = not (VarIntTypes or FixedTypes)
 
   #Disabled types.
-  Disabled = array or cstring or tuple or Table
+  Disabled = LUIntWrapped or array or cstring or tuple or Table
 
 const DISABLED_STRING = "Arrays, cstrings, tuples, and Tables are not serializable due to various reasons."
 discard DISABLED_STRING
@@ -186,6 +186,9 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
     {.fatal: "Couldnt serialize the float; all floats need their bits specified with a PFloat32 or PFloat64 call.".}
   elif T is PureTypes:
     {.fatal: "Serializing a number requires specifying the encoding to use.".}
+  #LUIntWrapped is disabled; provide a better error.
+  elif T is LUIntWrapped:
+    {.fatal: "LibP2P VarInts are only usable directly with encodeVarInt.".}
   elif T is Disabled:
     {.fatal: DISABLED_STRING & " are not serializable due to various reasons.".}
   elif T.isStdlib():
@@ -200,16 +203,17 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
       discard fieldName
       when fieldVar is PlatformDependentTypes:
         {.fatal: "Serializing a number requires specifying the amount of bits via the type.".}
+      elif T is LUIntWrapped:
+        {.fatal: "LibP2P VarInts are only usable directly with encodeVarInt.".}
       elif T is Disabled:
         {.fatal: DISABLED_STRING & " are not serializable due to various reasons.".}
       elif fieldVar is (VarIntTypes or FixedTypes):
         const
           hasPInt = ty.hasCustomPragmaFixed(fieldName, pint)
           hasSInt = ty.hasCustomPragmaFixed(fieldName, sint)
-          hasLInt = ty.hasCustomPragmaFixed(fieldName, lint)
           hasFixed = ty.hasCustomPragmaFixed(fieldName, fixed)
         when fieldVar is (VarIntWrapped or FixedWrapped):
-          when uint(hasPInt) + uint(hasSInt) + uint(hasLInt) + uint(hasFixed) != 0:
+          when uint(hasPInt) + uint(hasSInt) + uint(hasFixed) != 0:
             {.fatal: "Encoding specified for an already wrapped type, or a type which isn't wrappable due to always having one encoding (byte, char, bool, or float).".}
 
           when fieldVar is SomeFloat:
@@ -224,7 +228,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
                 {.fatal: "pfloat64 pragma attached to a 32-bit float.".}
             else:
               {.fatal: "Floats require the pfloat32 or pfloat64 pragma to be attached.".}
-        elif uint(hasPInt) + uint(hasSInt) + uint(hasLInt) + uint(hasFixed) != 1:
+        elif uint(hasPInt) + uint(hasSInt) + uint(hasFixed) != 1:
             {.fatal: "Couldn't write " & fieldName & "; either none or multiple encodings were specified.".}
 
       const thisFieldNumber = fieldVar.getCustomPragmaVal(fieldNumber)

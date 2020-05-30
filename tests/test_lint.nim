@@ -1,4 +1,4 @@
-import unittest
+#[import unittest
 
 import ../protobuf_serialization
 from ../protobuf_serialization/internal import unwrap
@@ -49,3 +49,4 @@ suite "Test LInt Encoding/Decoding":
     testHighLow(SInt, int64)
     check Protobuf.decode(Protobuf.encode(LInt(high(uint32))), LInt(uint32)).unwrap() == high(uint32)
     check Protobuf.decode(Protobuf.encode(LInt(high(uint64) shr 1)), LInt(uint64)).unwrap() == (high(uint64) shr 1)
+]#

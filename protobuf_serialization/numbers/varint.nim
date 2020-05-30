@@ -3,8 +3,7 @@ import faststreams
 
 import common
 export PureTypes
-export ProtobufError, ProtobufWriteError
-export ProtobufReadError, ProtobufEOFError, ProtobufMessageError
+export ProtobufError, ProtobufReadError, ProtobufEOFError, ProtobufMessageError
 
 const
   VAR_INT_CONTINUATION_MASK*: byte = 0b1000_0000
@@ -32,7 +31,7 @@ type
   SIntWrapped  = SIntWrapped32 or SIntWrapped64
   UIntWrapped  = UIntWrapped32 or UIntWrapped64 or
                  byte or char or bool
-  LUIntWrapped = LUIntWrapped32 or LUIntWrapped64
+  LUIntWrapped* = LUIntWrapped32 or LUIntWrapped64
 
   #Any wrapped VarInt types.
   VarIntWrapped* = PIntWrapped or SIntWrapped or
@@ -73,7 +72,6 @@ generateWrapper(
 #Used to specify how to encode/decode fields in an object.
 template pint*() {.pragma.}
 template sint*() {.pragma.}
-template lint*() {.pragma.}
 
 template unwrap*(value: VarIntWrapped): untyped =
   when value is (PIntWrapped32 or SIntWrapped32):
@@ -176,7 +174,7 @@ func encodeVarInt*(value: VarIntWrapped): seq[byte] =
   var outLen: int
   if encodeVarInt(result, outLen, value) != VarIntStatus.Success:
     when value is LUIntWrapped:
-      raise newException(ProtobufWriteError, "Tried to write a VarInt which wasn't valid for the encoding.")
+      {.fatal: "LibP2P VarInts require using the following signature: `encodeVarInt(var openarray[byte], outLen: var int, value: VarIntWrapped): VarIntStatus`.".}
     else:
       doAssert(false)
   result.setLen(outLen)
