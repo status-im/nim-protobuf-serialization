@@ -51,7 +51,7 @@ template isPotentiallyNull*[T](ty: typedesc[T]): bool =
 template getUnderlyingType*[I](
   stdlib: seq[I] or set[I] or HashSet[I]
 ): untyped =
-  type(I)
+  I
 
 proc flatTypeInternal(value: auto): auto {.compileTime.} =
   when value is Option:
@@ -69,7 +69,7 @@ template flatType*[B](ty: typedesc[B]): type =
     B
   else:
     var blank: B
-    type(flatType(blank))
+    flatType(blank)
 
 proc flatMapInternal[B, T](value: B, ty: typedesc[T]): Option[T] =
   when value is Option:
@@ -247,7 +247,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
         fieldNumberSet.incl(thisFieldNumber)
 
 proc newProtobufKey*(number: int, wire: ProtobufWireType): seq[byte] =
-  result = newSeq[byte](10)
+  result = newSeq[byte](5)
   var viLen = 0
   doAssert encodeVarInt(
     result,

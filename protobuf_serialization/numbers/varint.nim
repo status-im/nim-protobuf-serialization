@@ -150,9 +150,7 @@ func encodeVarInt*(
 
   #If this was a positive number (PInt or UInt), or zig-zagged, we only need to write this last byte.
   when value is PIntWrapped:
-    if value.unwrap() >= 0:
-      res[i] = byte(raw)
-    else:
+    if value.unwrap() < 0:
       #[
       To signify this is negative, this should be artifically padded to 10 bytes.
       That said, we have to write the final pending byte left in raw, as well as masks until then.
@@ -166,6 +164,8 @@ func encodeVarInt*(
         res[i] = VAR_INT_CONTINUATION_MASK or byte(raw)
         inc(i)
         raw = 0
+    else:
+      res[i] = byte(raw)
   else:
     res[i] = byte(raw)
 

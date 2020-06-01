@@ -119,6 +119,7 @@ proc writeFieldInternal[T, R](
     const omittable = true
   else:
     const omittable = not flatType(R).hasCustomPragmaFixed(fieldName, dontOmit)
+
   when flattened is VarIntWrapped:
     stream.writeVarInt(fieldNum, flattened, omittable)
   elif flattened is FixedWrapped:

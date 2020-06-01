@@ -91,7 +91,7 @@ proc stdlibToProtobuf[R, T](
       stream.encodeNumber(Fixed(possibleNumber.get(blank)))
 
     elif fType is (cstring or string):
-      var cursor = stream.delayVarSizeWrite(10)
+      var cursor = stream.delayVarSizeWrite(5)
       let startPos = stream.pos
       stream.stdlibToProtobuf(ty, fieldName, fieldNumber, flatMap(value).get(""))
       cursor.finalWrite(encodeVarInt(PInt(int32(stream.pos - startPos))))
@@ -104,7 +104,7 @@ proc stdlibToProtobuf[R, T](
       stream.write(cast[seq[byte]](toEncode))
 
     elif (fType is (object or tuple)) or fType.isStdlib():
-      var cursor = stream.delayVarSizeWrite(10)
+      var cursor = stream.delayVarSizeWrite(5)
       let startPos = stream.pos
 
       stream.writeValueInternal(value)

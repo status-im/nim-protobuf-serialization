@@ -144,6 +144,7 @@ proc setField[T](
 
   else:
     #This iterative approach is extemely poor.
+    #See https://github.com/kayabaNerve/nim-protobuf-serialization/issues/8.
     var
       keyNumber = key.number
       found = false
@@ -166,6 +167,7 @@ proc setField[T](
             var castedVar = flattened
           elif U is (VarIntTypes or FixedTypes):
             when T.hasCustomPragmaFixed(fieldName, pint):
+              #Nim encounters an error when doing `type C = PInt(U)`.
               var
                 pointless: U
                 C = PInt(pointless)
