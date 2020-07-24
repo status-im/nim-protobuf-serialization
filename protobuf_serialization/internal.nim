@@ -13,10 +13,12 @@ export hasCustomPragmaFixed
 import serialization
 
 import numbers/varint
-export varint
-
 import numbers/fixed
+export varint
 export fixed
+
+import pb_option
+export pb_option
 
 const WIRE_TYPE_MASK = 0b0000_0111'i32
 
@@ -46,7 +48,7 @@ const DISABLED_STRING = "Arrays, cstrings, tuples, and Tables are not serializab
 discard DISABLED_STRING
 
 template isPotentiallyNull*[T](ty: typedesc[T]): bool =
-  T is (Option or ref or ptr)
+  T is (Option or PBOption or ref or ptr)
 
 template getUnderlyingType*[I](
   stdlib: seq[I] or set[I] or HashSet[I]
@@ -54,7 +56,7 @@ template getUnderlyingType*[I](
   I
 
 proc flatTypeInternal(value: auto): auto {.compileTime.} =
-  when value is Option:
+  when value is (Option or PBOption):
     flatTypeInternal(value.get())
   elif value is (ref or ptr):
     flatTypeInternal(value[])
@@ -72,7 +74,7 @@ template flatType*[B](ty: typedesc[B]): type =
     flatType(blank)
 
 proc flatMapInternal[B, T](value: B, ty: typedesc[T]): Option[T] =
-  when value is Option:
+  when value is (Option or PBOption):
     if value.isNone():
       return
     flatMapInternal(value.get(), ty)
@@ -144,7 +146,7 @@ func singleBufferable*[T](_: typedesc[T]): bool {.compileTime.} =
     false
 
 template nextType[B](box: B): auto =
-  when B is Option:
+  when B is (Option or PBOption):
     box.get()
   elif B is (ref or ptr):
     box[]
@@ -154,7 +156,7 @@ template nextType[B](box: B): auto =
 proc boxInternal[C, B](value: C, into: B): B =
   when value is B:
     value
-  elif into is Option:
+  elif into is (Option or PBOption):
     var blank: type(nextType(into))
     #We never access this pointer.
     #Ever.
@@ -164,7 +166,10 @@ proc boxInternal[C, B](value: C, into: B): B =
     elif blank is ptr:
       blank = cast[type(blank)](1)
     let temp = some(blank)
-    some(boxInternal(value, nextType(temp)))
+    when into is Option:
+      some(boxInternal(value, nextType(temp)))
+    else:
+      pbSome(boxInternal(value, nextType(temp)))
   elif into is ref:
     new(result)
     result[] = boxInternal(value, nextType(result))
@@ -175,8 +180,11 @@ proc boxInternal[C, B](value: C, into: B): B =
 proc box*[B](into: var B, value: auto) =
   into = boxInternal(value, into)
 
+template protobuf2*() {.pragma.}
+template protobuf3*() {.pragma.}
 template fieldNumber*(num: int) {.pragma.}
-template dontOmit*() {.pragma.}
+template required*() {.pragma.}
+template pbDefault*(value: auto) {.pragma.}
 
 #Created in response to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/5.
 func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
@@ -199,8 +207,27 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
       inst: T
       fieldNumberSet = initHashSet[int]()
     discard fieldNumberSet
+
+    const
+      pb2: bool = T.hasCustomPragma(protobuf2)
+      pb3: bool = T.hasCustomPragma(protobuf3)
+    when pb2 == pb3:
+      {.fatal: "Serialized objects must have either the protobuf2 or protobuf3 pragma attached.".}
+
     enumInstanceSerializedFields(inst, fieldName, fieldVar):
-      discard fieldName
+      when pb2 and (not ty.hasCustomPragmaFixed(fieldName, required)):
+        when fieldVar is not (seq or set or HashSet):
+          when not (fieldVar is PBOption):
+            {.fatal: "Protobuf2 requires every field to either have the required pragma attached or be a repeated field/PBOption.".}
+          elif flatType(type(fieldVar.get())) is not object:
+            when fieldVar.getCustomPragmaVal(pbDefault) is not tuple:
+              {.fatal: "Protobuf2 requires every optional field, which isn't an object, to have a default supplied via pbDefault.".}
+      when pb3 and (
+        ty.hasCustomPragmaFixed(fieldName, required) or
+        (fieldVar is PBOption)
+      ):
+        {.fatal: "The required pragma/PBOption type can only be used with Protobuf2.".}
+
       when fieldVar is PlatformDependentTypes:
         {.fatal: "Serializing a number requires specifying the amount of bits via the type.".}
       elif T is LUIntWrapped:

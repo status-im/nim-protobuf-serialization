@@ -115,10 +115,16 @@ proc writeFieldInternal[T, R](
     return
   let flattened = flattenedOption.get()
 
-  when (flatType(R) is not object) or (fieldName == ""):
-    const omittable = true
+  when (flatType(R) is not object) or (flatType(R).isStdlib()):
+    const omittable: bool = true
   else:
-    const omittable = not flatType(R).hasCustomPragmaFixed(fieldName, dontOmit)
+    when R is Option:
+      {.fatal: "Can't directly write an Option of an object.".}
+    const omittable: bool = (
+      (fieldName == "") or
+      (flatType(T).isStdlib()) or
+      rootType.hasCustomPragma(protobuf3)
+    )
 
   when flattened is VarIntWrapped:
     stream.writeVarInt(fieldNum, flattened, omittable)

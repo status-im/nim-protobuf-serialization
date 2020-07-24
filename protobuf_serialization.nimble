@@ -2,7 +2,7 @@ import os
 
 mode = ScriptMode.Verbose
 
-version       = "0.1.0"
+version       = "0.2.0"
 author        = "Joey Yakimowich-Payne"
 description   = "Protobuf implementation compatible with the nim-serialization framework."
 license       = "MIT"

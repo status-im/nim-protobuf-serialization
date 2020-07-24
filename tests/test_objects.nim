@@ -8,27 +8,28 @@ type
 
   DistinctInt* = distinct int32
 
-  Basic = object
+  Basic {.protobuf3.} = object
     a {.pint, fieldNumber: 1.}: uint64
     b {.fieldNumber: 2.}: string
     c {.fieldNumber: 3.}: char
 
-  Wrapped = object
+  Wrapped {.protobuf3.} = object
     d {.sint, fieldNumber: 1.}: int32
     e {.sint, fieldNumber: 2.}: int64
     f {.fieldNumber: 3.}: Basic
     g {.fieldNumber: 4.}: string
     h {.fieldNumber: 5.}: bool
 
-  Nested* = ref object
+  Nested* {.protobuf3.} = ref object
     child* {.fieldNumber: 1.}: Nested
     data* {.fieldNumber: 2.}: string
 
-  Circular = ref object
+  Circular {.protobuf3.} = ref object
     child {.fieldNumber: 1.}: Circular
 
-  Pointered = object
+  Pointered {.protobuf3.} = object
     x {.sint, fieldNumber: 1.}: ptr int32
+  PtrPointered {.protobuf3.} = ptr Pointered
 
 discard Protobuf.supports(Basic)
 discard Protobuf.supports(Wrapped)
@@ -207,10 +208,10 @@ suite "Test Object Encoding/Decoding":
     ptrd.x[] = 5
     check Protobuf.decode(Protobuf.encode(ptrd), Pointered).x[] == ptrd.x[]
 
-    var ptrPtrd = addr ptrd
+    var ptrPtrd: PtrPointered = addr ptrd
     ptrPtrd.x = cast[ptr int32](alloc0(sizeof(int32)))
     ptrPtrd.x[] = 8
-    check Protobuf.decode(Protobuf.encode(ptrPtrd), ptr Pointered).x[] == ptrPtrd.x[]
+    check Protobuf.decode(Protobuf.encode(ptrPtrd), PtrPointered).x[] == ptrPtrd.x[]
 
   #[
   This test has been commented for being pointless.
