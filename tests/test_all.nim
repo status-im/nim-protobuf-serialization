@@ -9,9 +9,9 @@ import
   test_length_delimited,
   test_objects,
   test_empty,
-  test_options,
   test_stdlib,
   test_different_types,
+  test_protobuf2,
   test_thirty_three_fields
 
 #Test internal types aren't exported.

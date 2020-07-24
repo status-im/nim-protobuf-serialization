@@ -5,16 +5,16 @@ import ../protobuf_serialization
 from ../protobuf_serialization/internal import unwrap
 
 type
-  Basic = object
+  Basic {.protobuf3.} = object
     x {.pint, fieldNumber: 1.}: int32
     y {.fieldNumber: 2.}: seq[string]
 
-  PragmadStdlib = object
+  PragmadStdlib {.protobuf3.} = object
     x {.sint, fieldNumber: 1.}: seq[int32]
     #y {.pint, fieldNumber: 2.}: array[5, uint32]
     z {.pfloat32, fieldNumber: 3.}: HashSet[float32]
 
-  BooldStdlib = object
+  BooldStdlib {.protobuf3.} = object
     x {.fieldNumber: 1.}: seq[bool]
     #y {.fieldNumber: 2.}: array[3, bool]
 

@@ -40,7 +40,7 @@ proc readFixed[B](stream: InputStream, fieldVar: var B, key: ProtobufKey) =
 
 include stdlib_readers
 
-proc readValueInternal[T](stream: InputStream, ty: typedesc[T]): T
+proc readValueInternal[T](stream: InputStream, ty: typedesc[T], silent: bool = false): T
 
 proc readLengthDelimited[R, B](
   stream: InputStream,
@@ -90,7 +90,8 @@ proc readLengthDelimited[R, B](
 proc setField[T](
   value: var T,
   stream: InputStream,
-  key: ProtobufKey
+  key: ProtobufKey,
+  requiredSets: var HashSet[int]
 ) =
   when T is (ref or ptr or Option):
     {.fatal: "Ref or Ptr or Option made it to setField. This should never happen.".}
@@ -146,17 +147,23 @@ proc setField[T](
     #This iterative approach is extemely poor.
     #See https://github.com/kayabaNerve/nim-protobuf-serialization/issues/8.
     var
-      keyNumber = key.number
-      found = false
+      keyNumber: int = key.number
+      found: bool = false
+    when T.hasCustomPragma(protobuf2):
+      var rSI: int = -1
 
     enumInstanceSerializedFields(value, fieldName, fieldVar):
       discard fieldName
+      when T.hasCustomPragma(protobuf2):
+        inc(rSI)
 
       when fieldVar is PlatformDependentTypes:
         {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
 
       if keyNumber == fieldVar.getCustomPragmaVal(fieldNumber):
         found = true
+        when T.hasCustomPragma(protobuf2):
+          requiredSets.excl(rSI)
 
         var
           blank: flatType(fieldVar)
@@ -188,7 +195,8 @@ proc setField[T](
               var castedVar = cast[HashSet[type(C)]](flattened)
           else:
             var castedVar = flattened
-          castedVar.setField(stream, key)
+          var requiredSets: HashSet[int] = initHashSet[int]()
+          castedVar.setField(stream, key, requiredSets)
 
           flattened = cast[type(flattened)](castedVar)
         else:
@@ -219,13 +227,50 @@ proc setField[T](
     if not found:
       raise newException(ProtobufMessageError, "Message encoded an unknown field number.")
 
-proc readValueInternal[T](stream: InputStream, ty: typedesc[T]): T =
+proc readValueInternal[T](stream: InputStream, ty: typedesc[T], silent: bool = false): T =
   static: verifySerializable(flatType(T))
 
+  var requiredSets: HashSet[int] = initHashSet[int]()
+  when (flatType(result) is object) and (not flatType(result).isStdlib()):
+    when ty.hasCustomPragma(protobuf2):
+      var i: int = -1
+      enumInstanceSerializedFields(result, fieldName, fieldVar):
+        inc(i)
+        when ty.hasCustomPragmaFixed(fieldName, required):
+          requiredSets.incl(i)
+        else:
+          when fieldVar is not (seq or set or HashSet):
+            when type(fieldVar.get()) is object:
+              fieldVar = pbNone(memoryInput(newSeq[char](0)).readValueInternal(type(fieldVar.get()), true))
+            else:
+              fieldVar = pbNone(fieldVar.getCustomPragmaVal(pbDefault)[0])
+
   while stream.readable():
-    result.setField(stream, stream.readProtobufKey())
+    result.setField(stream, stream.readProtobufKey(), requiredSets)
+
+  if (requiredSets.len != 0) and (not silent):
+    raise newException(ProtobufReadError, "Message didn't encode a required field.")
 
 proc readValue*(reader: ProtobufReader, value: var auto) =
+  when value is Option:
+    {.fatal: "Can't decode directly into an Option.".}
+
+  when (flatType(value) is object) and (not flatType(value).isStdlib()):
+    static:
+      for c in $type(value):
+        if c == ' ':
+          raise newException(Exception, "Told to read into an inlined type; every type read into must have a proper type definition: " & $type(value))
+    when type(value).hasCustomPragma(protobuf2):
+      if not reader.stream.readable():
+        enumInstanceSerializedFields(value, fieldName, fieldVar):
+          when type(value).hasCustomPragmaFixed(fieldName, required):
+            raise newException(ProtobufReadError, "Message didn't encode a required field.")
+          else:
+            when fieldVar is not (seq or set or HashSet):
+              when type(fieldVar.get()) is object:
+                fieldVar = pbNone(memoryInput(newSeq[char](0)).readValueInternal(type(fieldVar.get()), true))
+              else:
+                fieldVar = pbNone(fieldVar.getCustomPragmaVal(pbDefault)[0])
   try:
     if reader.stream.readable():
       if reader.keyOverride.isNone():
@@ -233,9 +278,10 @@ proc readValue*(reader: ProtobufReader, value: var auto) =
       else:
         var preResult: flatType(type(value))
         while reader.stream.readable():
-          preResult.setField(reader.stream, reader.keyOverride.get())
+          var requiredSets: HashSet[int] = initHashSet[int]()
+          preResult.setField(reader.stream, reader.keyOverride.get(), requiredSets)
         box(value, preResult)
-  except Exception as e:
+  except ProtobufReadError as e:
     raise e
   finally:
     if reader.closeAfter:

@@ -7,14 +7,11 @@ type DistinctTypeSerialized = SInt(int32)
 DistinctInt.borrowSerialization(DistinctTypeSerialized)
 
 type
-  X = object
-  Y = object
+  X {.protobuf3.} = object
+  Y {.protobuf3.} = object
     a {.pint, fieldNumber: 1.}: int32
-  Z = object
+  Z {.protobuf3.} = object
     b {.dontSerialize.}: string
-
-  DOY = object
-    a {.pint, dontOmit, fieldNumber: 1.}: int32
 
 proc writeEmpty[T](value: T) =
   check Protobuf.encode(value).len == 0
@@ -47,8 +44,6 @@ suite "Test Encoding of Empty Objects/Values":
     writeEmpty(X())
     writeEmpty(Y())
     writeEmpty(Z(b: "abc"))
-
-    check Protobuf.encode(DOY()).len == 2
 
   test "Empty distinct type":
     writeEmpty(DistinctInt(0))

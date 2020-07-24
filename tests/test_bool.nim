@@ -3,16 +3,16 @@ import unittest
 import ../protobuf_serialization
 
 type
-  PIntType = object
+  PIntType {.protobuf3.} = object
     x {.pint, fieldNumber: 1.}: int32
 
-  UIntType = object
+  UIntType {.protobuf3.} = object
     x {.pint, fieldNumber: 1.}: uint32
 
-  SIntType = object
+  SIntType {.protobuf3.} = object
     x {.sint, fieldNumber: 1.}: int32
 
-  BoolType = object
+  BoolType {.protobuf3.} = object
     x {.fieldNumber: 1.}: bool
 
 proc writeRead[W, R](toWrite: W, value: R) =
