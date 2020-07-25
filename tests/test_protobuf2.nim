@@ -1,15 +1,16 @@
+import options
 import unittest
 
 import ../protobuf_serialization
 
 type
   Required {.protobuf2.} = object
-    a {.pint, fieldNumber: 1, pbDefault: 2'i32.}: PBOption[int32]
+    a {.pint, fieldNumber: 1.}: PBOption[2'i32]
     b {.pint, required, fieldNumber: 2.}: int32
 
   FullOfDefaults {.protobuf2.} = object
-    a {.fieldNumber: 1, pbDefault: "abc".}: PBOption[string]
-    b {.fieldNumber: 2.}: PBOption[Required]
+    a {.fieldNumber: 1.}: PBOption["abc"]
+    b {.fieldNumber: 2.}: Option[Required]
 
   SeqContainer {.protobuf2.} = object
     data {.fieldNumber: 1.}: seq[bool]
@@ -22,7 +23,7 @@ suite "Test Encoding of Protobuf 2 Semantics":
     check Protobuf.encode(Required(b: 0'i32)).len == 2
 
   test "Encodes set":
-    check Protobuf.encode(Required(a: pbSome(0'i32), b: 0'i32)).len == 4
+    check Protobuf.encode(Required(a: pbSome(type(Required.a), 0'i32), b: 0'i32)).len == 4
 
   test "Requires required":
     expect ProtobufReadError:
@@ -31,7 +32,7 @@ suite "Test Encoding of Protobuf 2 Semantics":
       discard Protobuf.decode(Protobuf.encode(PInt(0'i32)), Required)
 
   test "Handles default":
-    var fod: FullOfDefaults = FullOfDefaults(b: pbSome(Required(b: 5)))
+    var fod: FullOfDefaults = FullOfDefaults(b: some(Required(b: 5)))
     check:
       Protobuf.decode(Protobuf.encode(Required()), Required).a.isNone()
       Protobuf.decode(Protobuf.encode(Required()), Required).a.get() == 2

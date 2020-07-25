@@ -169,7 +169,7 @@ proc boxInternal[C, B](value: C, into: B): B =
     when into is Option:
       some(boxInternal(value, nextType(temp)))
     else:
-      pbSome(boxInternal(value, nextType(temp)))
+      pbSome(type(into), boxInternal(value, nextType(temp)))
   elif into is ref:
     new(result)
     result[] = boxInternal(value, nextType(result))
@@ -184,7 +184,6 @@ template protobuf2*() {.pragma.}
 template protobuf3*() {.pragma.}
 template fieldNumber*(num: int) {.pragma.}
 template required*() {.pragma.}
-template pbDefault*(value: auto) {.pragma.}
 
 #Created in response to https://github.com/kayabaNerve/nim-protobuf-serialization/issues/5.
 func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
@@ -217,11 +216,8 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
     enumInstanceSerializedFields(inst, fieldName, fieldVar):
       when pb2 and (not ty.hasCustomPragmaFixed(fieldName, required)):
         when fieldVar is not (seq or set or HashSet):
-          when not (fieldVar is PBOption):
-            {.fatal: "Protobuf2 requires every field to either have the required pragma attached or be a repeated field/PBOption.".}
-          elif flatType(type(fieldVar.get())) is not object:
-            when fieldVar.getCustomPragmaVal(pbDefault) is not tuple:
-              {.fatal: "Protobuf2 requires every optional field, which isn't an object, to have a default supplied via pbDefault.".}
+          when fieldVar is not (Option or PBOption):
+            {.fatal: "Protobuf2 requires every field to either have the required pragma attached or be a repeated field/PBOption/Option.".}
       when pb3 and (
         ty.hasCustomPragmaFixed(fieldName, required) or
         (fieldVar is PBOption)

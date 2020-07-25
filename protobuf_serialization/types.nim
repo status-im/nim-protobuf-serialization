@@ -8,8 +8,8 @@ import numbers/fixed
 export varint, fixed
 
 import internal
-export PBOption, isNone, isSome, pbNone, pbSome, get, toValue, toOption
-export protobuf2, protobuf3, fieldNumber, required, pbDefault
+export PBOption, isNone, isSome, pbSome, get, toValue
+export protobuf2, protobuf3, fieldNumber, required
 export ProtobufError, ProtobufReadError, ProtobufEOFError, ProtobufMessageError
 
 type
