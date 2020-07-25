@@ -238,12 +238,6 @@ proc readValueInternal[T](stream: InputStream, ty: typedesc[T], silent: bool = f
         inc(i)
         when ty.hasCustomPragmaFixed(fieldName, required):
           requiredSets.incl(i)
-        else:
-          when fieldVar is not (seq or set or HashSet):
-            when type(fieldVar.get()) is object:
-              fieldVar = pbNone(memoryInput(newSeq[char](0)).readValueInternal(type(fieldVar.get()), true))
-            else:
-              fieldVar = pbNone(fieldVar.getCustomPragmaVal(pbDefault)[0])
 
   while stream.readable():
     result.setField(stream, stream.readProtobufKey(), requiredSets)
@@ -265,12 +259,6 @@ proc readValue*(reader: ProtobufReader, value: var auto) =
         enumInstanceSerializedFields(value, fieldName, fieldVar):
           when type(value).hasCustomPragmaFixed(fieldName, required):
             raise newException(ProtobufReadError, "Message didn't encode a required field.")
-          else:
-            when fieldVar is not (seq or set or HashSet):
-              when type(fieldVar.get()) is object:
-                fieldVar = pbNone(memoryInput(newSeq[char](0)).readValueInternal(type(fieldVar.get()), true))
-              else:
-                fieldVar = pbNone(fieldVar.getCustomPragmaVal(pbDefault)[0])
   try:
     if reader.stream.readable():
       if reader.keyOverride.isNone():

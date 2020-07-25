@@ -1,28 +1,33 @@
-type PBOption*[T] = object
-  some: bool
-  value: T
-  default: T
+{.warning[UnusedImport]: off}
+import sets
 
-proc isNone*[T](opt: PBOption[T]): bool {.inline.} =
+type PBOption*[defaultValue: static[auto]] = object
+  some: bool
+  value: typeof(defaultValue)
+
+proc isNone*(opt: PBOption): bool {.inline.} =
   not opt.some
 
-proc isSome*[T](opt: PBOption[T]): bool {.inline.} =
+proc isSome*(opt: PBOption): bool {.inline.} =
   opt.some
 
-proc get*[T](opt: PBOption[T]): T =
+proc get*(opt: PBOption): auto =
+  when opt.defaultValue is (object or seq or set or HashSet):
+    {.fatal: "PBOption can not be used with objects or repeated types."}
+
   if opt.some:
     result = opt.value
   else:
-    result = opt.default
+    result = opt.defaultValue
 
-proc pbNone*[T](default: T): PBOption[T] {.inline.} =
-  PBOption[T](default: default)
+proc pbSome*[T](optType: typedesc[T], value: auto): T {.inline.} =
+  when value is (object or seq or set or HashSet):
+    {.fatal: "PBOption can not be used with objects or repeated types."}
 
-proc pbSome*[T](value: T): PBOption[T] {.inline.} =
-  PBOption[T](some: true, value: value)
+  T(
+    some: true,
+    value: value
+  )
 
-converter toValue*[T](opt: PBOption[T]): T {.inline.} =
+converter toValue*(opt: PBOption): auto {.inline.} =
   opt.get()
-
-converter toOption*[T](value: T): PBOption[T] {.inline.} =
-  pbSome(value)
