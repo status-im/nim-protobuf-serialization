@@ -19,6 +19,18 @@ type
     data {.fieldNumber: 1.}: seq[string]
 
 suite "Test Encoding of Protobuf 2 Semantics":
+  test "PBOption basics":
+    var opt: PBOption[true]
+    check:
+      pbSome(PBOption[true], false).isSome()
+      pbSome(PBOption[true], false).get() == false
+      opt.get() == true
+
+    opt.init(false)
+    check:
+      opt.isSome() == true
+      opt.get() == false
+
   test "Encodes required":
     check Protobuf.encode(Required(b: 0'i32)).len == 2
 

@@ -8,9 +8,11 @@ import numbers/fixed
 export varint, fixed
 
 import internal
-export PBOption, isNone, isSome, pbSome, get, toValue
 export protobuf2, protobuf3, fieldNumber, required
 export ProtobufError, ProtobufReadError, ProtobufEOFError, ProtobufMessageError
+
+import pb_option
+export pb_option
 
 type
   ProtobufFlags* = enum
