@@ -29,5 +29,9 @@ proc pbSome*[T](optType: typedesc[T], value: auto): T {.inline.} =
     value: value
   )
 
+proc init*(opt: var PBOption, val: auto) =
+  opt.some = true
+  opt.value = val
+
 converter toValue*(opt: PBOption): auto {.inline.} =
   opt.get()
