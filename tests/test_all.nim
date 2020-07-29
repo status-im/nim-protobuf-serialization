@@ -11,8 +11,9 @@ import
   test_empty,
   test_stdlib,
   test_different_types,
-  test_protobuf2,
-  test_thirty_three_fields
+  test_protobuf2_semantics,
+  test_thirty_three_fields,
+  files/test_proto3
 
 #Test internal types aren't exported.
 #There's just not a good place for this to go.

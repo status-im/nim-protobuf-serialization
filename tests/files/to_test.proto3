@@ -1,0 +1,67 @@
+//Contains edge cases which won't work.
+
+syntax = "proto3";
+
+//Import google/protobuf/*. https://github.com/PMunch/protobuf-nim/issues/20.
+//This library does still support any, mapping it to a seq[byte].
+//There is technically a more accurate description of:
+//message Any {
+//  string type_url = 1;
+//  bytes value = 2;
+//}
+import "google/protobuf/any.proto";
+
+//This one doesn't work due to the option statement.
+message MyMessage1 {
+  enum EnumAllowingAlias {
+    option allow_alias = true;
+    UNKNOWN = 0;
+    STARTED = 1;
+    RUNNING = 1;
+  }
+}
+
+//https://github.com/PMunch/protobuf-nim/issues/21.
+message ResultMap {
+  map<string, Result> results = 3;
+}
+
+//Inner messages share a name.
+//As we can't generate namespaces...
+//It is possible to generate OuterMiddleAAInner and OuterMiddleBBInner.
+//That just complicates most nested message names to support an edge case.
+message Outer {
+  message MiddleAA {
+    message Inner {
+      int64 ival = 1;
+      bool  booly = 2;
+    }
+  }
+  message MiddleBB {
+    message Inner {
+      int32 ival = 1;
+      bool  booly = 2;
+    }
+  }
+}
+
+//Again a namespace problem, one defined inner and one defined outer.
+message SearchResponse {
+  message Result {
+    string url = 1;
+    string title = 2;
+    repeated string snippets = 3;
+  }
+  repeated Result results = 1;
+}
+
+message Result {
+  string url = 1;
+  string title = 2;
+  repeated string snippets = 3;
+}
+
+//Qualifier for the inner message type.
+message SomeOtherMessage {
+  SearchResponse.Result result = 1;
+}
