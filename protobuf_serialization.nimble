@@ -11,7 +11,8 @@ skipDirs      = @["tests"]
 requires "nim >= 1.2.0",
          "stew",
          "faststreams",
-         "serialization"
+         "serialization",
+         "combparser"
 
 task test, "Run all tests":
   #Explicitly specify the call depth limit in case the default changes in the future.

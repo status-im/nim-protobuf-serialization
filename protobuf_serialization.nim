@@ -6,6 +6,9 @@ export serialization
 import protobuf_serialization/[internal, types, reader, writer]
 export types, reader, writer
 
+import protobuf_serialization/files/type_generator
+export protoToTypes, import_proto3
+
 serializationFormat Protobuf,
                     Reader = ProtobufReader,
                     Writer = ProtobufWriter,
@@ -24,9 +27,10 @@ func supportsInternal[T](ty: typedesc[T], handled: var HashSet[string]) {.compil
       supportsInternal(flatType(fieldVar), handled)
 
 func supportsCompileTime[T](_: typedesc[T]) =
-  var handled = initHashSet[string]()
   when flatType(T) is (object or tuple):
+    var handled = initHashSet[string]()
     supportsInternal(flatType(T), handled)
 
 func supports*[T](_: type Protobuf, ty: typedesc[T]): bool =
   static: supportsCompileTime(T)
+  true

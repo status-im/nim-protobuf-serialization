@@ -28,7 +28,7 @@ type
 
   #Types which share an encoding.
   PIntWrapped  = PIntWrapped32 or PIntWrapped64
-  SIntWrapped  = SIntWrapped32 or SIntWrapped64
+  SIntWrapped  = SIntWrapped32 or SIntWrapped64 or enum
   UIntWrapped  = UIntWrapped32 or UIntWrapped64 or
                  byte or char or bool
   LUIntWrapped* = LUIntWrapped32 or LUIntWrapped64
@@ -39,8 +39,7 @@ type
 
   #Every signed integer Type.
   SIntegerTypes = PureSIntegerTypes or
-                  PIntWrapped32 or PIntWrapped64 or
-                  SIntWrapped32 or SIntWrapped64
+                  PIntWrapped or SIntWrapped
 
   #Every unsigned integer Type.
   UIntegerTypes = PureUIntegerTypes or UIntWrapped or LUIntWrapped
