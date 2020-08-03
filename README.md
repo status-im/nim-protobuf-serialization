@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 ![Stability: experimental](https://img.shields.io/badge/stability-experimental-orange.svg)
 
-ProtoBuf implementation compatible with the [nim-serialization](https://github.com/status-im/nim-serialization) framework.
+Protobuf implementation compatible with the [nim-serialization](https://github.com/status-im/nim-serialization) framework.
 
 ## Usage
 
@@ -36,9 +36,9 @@ type ExampleMsg {.protobuf3.} = object
 ]#
 
 let x = ExampleMsg(a: 10, b: 20.0)
-let encoded = ProtoBuf.encode(x)
+let encoded = Protobuf.encode(x)
 ...
-let decoded = ProtoBuf.decode(encoded, ExampleMsg)
+let decoded = Protobuf.decode(encoded, ExampleMsg)
 ```
 
 Both Protobuf 2 and Protobuf 3 objects have the following properties:
