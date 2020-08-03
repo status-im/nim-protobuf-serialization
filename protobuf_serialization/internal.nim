@@ -190,7 +190,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
   when T is PlatformDependentTypes:
     {.fatal: "Serializing a number requires specifying the amount of bits via the type.".}
   elif T is SomeFloat:
-    {.fatal: "Couldnt serialize the float; all floats need their bits specified with a PFloat32 or PFloat64 call.".}
+    {.fatal: "Couldnt serialize the float; all floats need their bits specified with a Float32 or Float64 call.".}
   elif T is PureTypes:
     {.fatal: "Serializing a number requires specifying the encoding to use.".}
   #LUIntWrapped is disabled; provide a better error.

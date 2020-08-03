@@ -108,7 +108,15 @@ proc writeFieldInternal[T, R](
   rootType: typedesc[R],
   fieldName: static string
 ) =
-  static: verifySerializable(flatType(T))
+  when flatType(value) is SomeFloat:
+    when rootType.hasCustomPragmaFixed(fieldName, pfloat32):
+      static: verifySerializable(type(Float32(value)))
+    elif rootType.hasCustomPragmaFixed(fieldName, pfloat64):
+      static: verifySerializable(type(Float64(value)))
+    else:
+      {.fatal: "Float in object did not have an encoding pragma attached.".}
+  else:
+    static: verifySerializable(flatType(T))
 
   let flattenedOption = value.flatMap()
   if flattenedOption.isNone():
