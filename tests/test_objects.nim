@@ -31,6 +31,9 @@ type
     x {.sint, fieldNumber: 1.}: ptr int32
   PtrPointered {.protobuf3.} = ptr Pointered
 
+  TestObject {.protobuf3.} = object
+    x {.fieldNumber: 1.}: TestEnum
+    
 discard Protobuf.supports(Basic)
 discard Protobuf.supports(Wrapped)
 discard Protobuf.supports(Nested)
@@ -213,6 +216,21 @@ suite "Test Object Encoding/Decoding":
     ptrPtrd.x[] = 8
     check Protobuf.decode(Protobuf.encode(ptrPtrd), PtrPointered).x[] == ptrPtrd.x[]
 
+  test "Enum in object":
+    var x = TestObject(x: One)
+    check Protobuf.decode(Protobuf.encode(x), TestObject) == x
+    
+    var y = TestObject(x: Two)
+    check Protobuf.decode(Protobuf.encode(y), TestObject) == y
+    
+    var z = TestObject(x: NegOne)
+    check Protobuf.decode(Protobuf.encode(z), TestObject) == z
+    
+    var v = TestObject(x: NegTwo)
+    check Protobuf.decode(Protobuf.encode(v), TestObject) == v
+    
+    var w = TestObject(x: Zero)
+    check Protobuf.decode(Protobuf.encode(w), TestObject) == w
   #[
   This test has been commented for being pointless.
   The reason this fails is because it detects a field number of 0, which is invalid.

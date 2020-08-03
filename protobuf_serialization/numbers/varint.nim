@@ -83,6 +83,8 @@ template unwrap*(value: VarIntWrapped): untyped =
     uint64(value)
   elif value is UIntWrapped:
     value
+  elif value is enum:
+    value
   else:
     {.fatal: "Tried to get the unwrapped value of a non-wrapped type. This should never happen.".}
 
@@ -202,7 +204,10 @@ func decodeBinaryValue[E](
       res = E(value)
 
   elif E is SIntWrapped:
-    type S = type(res.unwrap())
+    when E is enum:
+      type S = int
+    else:
+      type S = type(res.unwrap())
     res = E(S(value shr 1) xor -S(value and 0b0000_0001))
 
   elif E is UIntWrapped:
