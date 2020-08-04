@@ -195,7 +195,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
     {.fatal: "LibP2P VarInts are only usable directly with encodeVarInt.".}
   elif T is Disabled:
     const DISABLED_STRING = "Arrays, cstrings, tuples, and Tables are not serializable due to various reasons."
-    {.fatal: DISABLED_STRING & " are not serializable due to various reasons.".}
+    {.fatal: DISABLED_STRING.}
   elif T.isStdlib():
     discard
   #Tuple inclusion is so in case we can add back support for tuples, we solely have to delete the above case.
