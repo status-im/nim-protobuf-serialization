@@ -44,9 +44,6 @@ type
   #Disabled types.
   Disabled = LUIntWrapped or array or cstring or tuple or Table
 
-const DISABLED_STRING = "Arrays, cstrings, tuples, and Tables are not serializable due to various reasons."
-discard DISABLED_STRING
-
 template isPotentiallyNull*[T](ty: typedesc[T]): bool =
   T is (Option or PBOption or ref or ptr)
 
@@ -197,6 +194,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
   elif T is LUIntWrapped:
     {.fatal: "LibP2P VarInts are only usable directly with encodeVarInt.".}
   elif T is Disabled:
+    const DISABLED_STRING = "Arrays, cstrings, tuples, and Tables are not serializable due to various reasons."
     {.fatal: DISABLED_STRING & " are not serializable due to various reasons.".}
   elif T.isStdlib():
     discard
