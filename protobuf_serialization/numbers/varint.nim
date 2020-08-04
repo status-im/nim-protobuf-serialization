@@ -84,7 +84,7 @@ template unwrap*(value: VarIntWrapped): untyped =
   elif value is UIntWrapped:
     value
   elif value is enum:
-    value
+    int(value)
   else:
     {.fatal: "Tried to get the unwrapped value of a non-wrapped type. This should never happen.".}
 
@@ -183,7 +183,7 @@ func encodeVarInt*(value: VarIntWrapped): seq[byte] =
 proc encodeVarInt*(stream: OutputStream, value: VarIntWrapped) {.inline.} =
   stream.write(encodeVarInt(value))
 
-proc decodeBinaryValue[E](
+func decodeBinaryValue[E](
   res: var E,
   value: uint32 or uint64,
   len: int
@@ -218,7 +218,7 @@ proc decodeBinaryValue[E](
 
   return VarIntStatus.Success
 
-proc decodeVarInt*(
+func decodeVarInt*(
   bytes: openarray[byte],
   inLen: var int,
   res: var VarIntWrapped
