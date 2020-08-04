@@ -27,8 +27,8 @@ type
   LUIntWrapped64 = distinct uint64
 
   #Types which share an encoding.
-  PIntWrapped  = PIntWrapped32 or PIntWrapped64
-  SIntWrapped  = SIntWrapped32 or SIntWrapped64 or enum
+  PIntWrapped  = PIntWrapped32 or PIntWrapped64 or enum
+  SIntWrapped  = SIntWrapped32 or SIntWrapped64
   UIntWrapped  = UIntWrapped32 or UIntWrapped64 or
                  byte or char or bool
   LUIntWrapped* = LUIntWrapped32 or LUIntWrapped64
@@ -183,7 +183,7 @@ func encodeVarInt*(value: VarIntWrapped): seq[byte] =
 proc encodeVarInt*(stream: OutputStream, value: VarIntWrapped) {.inline.} =
   stream.write(encodeVarInt(value))
 
-func decodeBinaryValue[E](
+proc decodeBinaryValue[E](
   res: var E,
   value: uint32 or uint64,
   len: int
@@ -198,16 +198,16 @@ func decodeBinaryValue[E](
 
   elif E is PIntWrapped:
     if len == 10:
-      type S = type(res.unwrap())
+      when E is enum:
+        type S = int
+      else:
+        type S = type(res.unwrap())
       res = E((-S(value)) - 1)
     else:
       res = E(value)
 
   elif E is SIntWrapped:
-    when E is enum:
-      type S = int
-    else:
-      type S = type(res.unwrap())
+    type S = type(res.unwrap())
     res = E(S(value shr 1) xor -S(value and 0b0000_0001))
 
   elif E is UIntWrapped:
@@ -218,7 +218,7 @@ func decodeBinaryValue[E](
 
   return VarIntStatus.Success
 
-func decodeVarInt*(
+proc decodeVarInt*(
   bytes: openarray[byte],
   inLen: var int,
   res: var VarIntWrapped
