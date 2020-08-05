@@ -186,7 +186,10 @@ proc writeValueInternal[T](stream: OutputStream, value: T) =
           else:
             {.fatal: "Attempting to handle an unknown number type. This should never happen.".}
         else:
-          stream.writeFieldInternal(fieldNum, flattenedField, type(value), fieldName)
+          when flattenedField is enum:
+            stream.writeFieldInternal(fieldNum, PInt(flattenedField), type(value), fieldName)
+          else:
+            stream.writeFieldInternal(fieldNum, flattenedField, type(value), fieldName)
   else:
     stream.writeFieldInternal(1, flattened, type(value), "")
 

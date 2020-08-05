@@ -27,8 +27,8 @@ type
   LUIntWrapped64 = distinct uint64
 
   #Types which share an encoding.
-  PIntWrapped  = PIntWrapped32 or PIntWrapped64
-  SIntWrapped  = SIntWrapped32 or SIntWrapped64 or enum
+  PIntWrapped  = PIntWrapped32 or PIntWrapped64 or enum
+  SIntWrapped  = SIntWrapped32 or SIntWrapped64
   UIntWrapped  = UIntWrapped32 or UIntWrapped64 or
                  byte or char or bool
   LUIntWrapped* = LUIntWrapped32 or LUIntWrapped64
@@ -83,6 +83,8 @@ template unwrap*(value: VarIntWrapped): untyped =
     uint64(value)
   elif value is UIntWrapped:
     value
+  elif value is enum:
+    int(value)
   else:
     {.fatal: "Tried to get the unwrapped value of a non-wrapped type. This should never happen.".}
 
@@ -196,7 +198,10 @@ func decodeBinaryValue[E](
 
   elif E is PIntWrapped:
     if len == 10:
-      type S = type(res.unwrap())
+      when E is enum:
+        type S = int
+      else:
+        type S = type(res.unwrap())
       res = E((-S(value)) - 1)
     else:
       res = E(value)

@@ -31,6 +31,21 @@ type
     x {.sint, fieldNumber: 1.}: ptr int32
   PtrPointered {.protobuf3.} = ptr Pointered
 
+  TestObject {.protobuf3.} = object
+    x {.fieldNumber: 1.}: TestEnum
+    y {.fieldNumber: 2.}: Option[TestEnum]
+    z {.fieldNumber: 3.}: Option[seq[TestEnum]]
+
+  FloatOption {.protobuf2.} = object
+    x {.pfloat32, fieldNumber: 1.}: Option[float32]
+    y {.pfloat64, fieldNumber: 2.}: Option[float64]
+
+  FixedOption {.protobuf2.} = object
+    a {.fixed, fieldNumber: 1.}: Option[int32]
+    b {.fixed, fieldNumber: 2.}: Option[int64]
+    c {.fixed, fieldNumber: 3.}: Option[uint32]
+    d {.fixed, fieldNumber: 4.}: Option[uint64]
+
 discard Protobuf.supports(Basic)
 discard Protobuf.supports(Wrapped)
 discard Protobuf.supports(Nested)
@@ -212,6 +227,54 @@ suite "Test Object Encoding/Decoding":
     ptrPtrd.x = cast[ptr int32](alloc0(sizeof(int32)))
     ptrPtrd.x[] = 8
     check Protobuf.decode(Protobuf.encode(ptrPtrd), PtrPointered).x[] == ptrPtrd.x[]
+
+  test "Enum in object":
+    var x = TestObject(x: One)
+    check Protobuf.decode(Protobuf.encode(x), TestObject) == x
+
+    var y = TestObject(x: Two)
+    check Protobuf.decode(Protobuf.encode(y), TestObject) == y
+
+    var z = TestObject(x: NegOne)
+    check Protobuf.decode(Protobuf.encode(z), TestObject) == z
+
+    var v = TestObject(x: NegTwo)
+    check Protobuf.decode(Protobuf.encode(v), TestObject) == v
+
+    var w = TestObject(x: Zero)
+    check Protobuf.decode(Protobuf.encode(w), TestObject) == w
+
+    var a = TestObject(y: some(One))
+    check Protobuf.decode(Protobuf.encode(a), TestObject) == a
+
+    var b = TestObject(z: some(@[One, NegOne, NegTwo, Zero]))
+    check Protobuf.decode(Protobuf.encode(b), TestObject) == b
+
+  test "Option[Float] in object":
+    var x = FloatOption(x: some(1.5'f32))
+    check Protobuf.decode(Protobuf.encode(x), FloatOption) == x
+
+    var y = FloatOption(y: some(1.3'f64))
+    check Protobuf.decode(Protobuf.encode(y), FloatOption) == y
+
+    var z = FloatOption(x: some(1.5'f32), y: some(1.3'f64))
+    check Protobuf.decode(Protobuf.encode(z), FloatOption) == z
+
+    var v = FloatOption()
+    check Protobuf.decode(Protobuf.encode(v), FloatOption) == v
+
+  test "Option[Fixed] in object":
+    var x = FixedOption(a: some(1'i32))
+    check Protobuf.decode(Protobuf.encode(x), FixedOption) == x
+
+    var y = FixedOption(b: some(1'i64))
+    check Protobuf.decode(Protobuf.encode(y), FixedOption) == y
+
+    var z = FixedOption(c: some(1'u32))
+    check Protobuf.decode(Protobuf.encode(z), FixedOption) == z
+
+    var v = FixedOption(d: some(1'u64))
+    check Protobuf.decode(Protobuf.encode(v), FixedOption) == v
 
   #[
   This test has been commented for being pointless.
