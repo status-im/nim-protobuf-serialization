@@ -14,10 +14,19 @@ requires "nim >= 1.2.0",
          "serialization",
          "combparser"
 
+proc test(env, path: string) =
+  # Compilation language is controlled by TEST_LANG
+  var lang = "c"
+  if existsEnv"TEST_LANG":
+    lang = getEnv"TEST_LANG"
+
+  exec "nim " & lang & " " & env &
+    " -r --hints:off --warnings:off " & path
+
 task test, "Run all tests":
   #Explicitly specify the call depth limit in case the default changes in the future.
-  exec "nim c -r --threads:off tests/test_all"
-  exec "nim c -r --threads:on tests/test_all"
+  test "--threads:off", "tests/test_all"
+  test "--threads:on", "tests/test_all"
 
   #Also iterate over every test in tests/fail, and verify they fail to compile.
   echo "\r\n\x1B[0;94m[Suite]\x1B[0;37m Test Fail to Compile"

@@ -5,6 +5,7 @@
 [![License: Apache](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 ![Stability: experimental](https://img.shields.io/badge/stability-experimental-orange.svg)
+![Github action](https://github.com/status-im/nim-protobuf-serialization/workflows/nim-protobuf-serialization%20CI/badge.svg)
 
 Protobuf implementation compatible with the [nim-serialization](https://github.com/status-im/nim-serialization) framework.
 
@@ -45,7 +46,7 @@ Both Protobuf 2 and Protobuf 3 objects have the following properties:
 
 - Every field requires the `fieldNumber` pragma, which takes in an integer of what field number to encode that field with.
 - Every int/uint must have its bits explicitly specified. As the Nim compiler is unable to distinguish between a float with its bits explicitly specified and a float, `pfloat32` or `pfloat64` is required.
-- int/uint fields require their encoding to be specified. `pint` is valid for both, and uses VarInt encoding, which only uses the amount of bytes it needs. `fixed` is also valid for both, and uses the full amount of bytes the number uses, instead of stripping unused bytes. This has performance advantages for large numbers. Finally, `sint` uses zig-zagged VarInt encoding, which is recommended for numbers which are frequently negative, and is only valid for ints. 
+- int/uint fields require their encoding to be specified. `pint` is valid for both, and uses VarInt encoding, which only uses the amount of bytes it needs. `fixed` is also valid for both, and uses the full amount of bytes the number uses, instead of stripping unused bytes. This has performance advantages for large numbers. Finally, `sint` uses zig-zagged VarInt encoding, which is recommended for numbers which are frequently negative, and is only valid for ints.
 
 Protobuf 2 has the additional properties:
 
