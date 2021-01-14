@@ -36,7 +36,7 @@ task test, "Run all tests":
       continue
 
     if gorgeEx("nim c " & path).exitCode != 0:
-      echo "  \x1B[0;92m[OK]\x1B[0;37m ", path.split("/")[^1]
+      echo "  \x1B[0;92m[OK]\x1B[0;37m ", path.split(DirSep)[^1]
     else:
-      echo "  \x1B[0;31m[FAILED]\x1B[0;37m ", path.split("/")[^1]
+      echo "  \x1B[0;31m[FAILED]\x1B[0;37m ", path.split(DirSep)[^1]
       exec "exit 1"
