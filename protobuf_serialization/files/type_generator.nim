@@ -6,9 +6,9 @@ export decldef
 import proto_parser
 
 #Exported for the tests.
-proc protoToTypesInternal*(proto: string): NimNode =
+proc protoToTypesInternal*(filepath: string, proto: string): NimNode =
   var
-    packages: seq[ProtoNode] = parseToDefinition(proto).packages
+    packages: seq[ProtoNode] = parseToDefinition(filepath, proto).packages
     queue: seq[ProtoNode] = @[]
   result = newNimNode(nnkTypeSection)
   for parsed in packages:
@@ -128,8 +128,9 @@ proc protoToTypesInternal*(proto: string): NimNode =
         )
       )
 
-macro protoToTypes*(proto: static[string]): untyped =
-  result = protoToTypesInternal(proto)
+macro protoToTypes*(filepath: static[string], proto: static[string]): untyped =
+  result = protoToTypesInternal(filepath, proto)
 
 template import_proto3*(file: static[string]): untyped =
-  protoToTypes(staticRead(parentDir(instantiationInfo(-1, true).filename) / file))
+  const filepath = parentDir(instantiationInfo(-1, true).filename)
+  protoToTypes(filepath, staticRead(filepath / file))
