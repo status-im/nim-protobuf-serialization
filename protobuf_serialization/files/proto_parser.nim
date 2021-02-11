@@ -20,7 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ]#
 
-import combparser, strutils, sequtils, macros
+import combparser, strutils, sequtils, macros, os
 import decldef
 
 proc combine(list: seq[string], sep: string): string =
@@ -208,24 +208,25 @@ proc protofile*(): StringParser[ProtoNode] = (syntaxline() + optional(package())
           result.package.packageEnums.add message
         else: raise newException(AssertionError, "Unsupported node kind: " & $message.kind)
 )
-macro expandToFullDef(protoParsed: var ProtoNode, stringGetter: untyped): untyped =
+macro expandToFullDef(protoParsed: var ProtoNode, filepath: string, stringGetter: untyped): untyped =
   result = quote do:
     var imports = `protoParsed`.imported
     `protoParsed` = ProtoNode(kind: ProtoDef, packages: @[`protoParsed`.package])
     while imports.len != 0:
-      let imported = parse(protofile(), `stringGetter`(imports[0].filename))
+      let importPath = if imports[0].filename.isAbsolute: imports[0].filename else: filepath / imports[0].filename
+      let imported = parse(protofile(), `stringGetter`(importPath))
       `protoParsed`.packages.add imported.package
       imports = imports[1..imports.high]
       imports.insert imported.imported
 
-proc expandToFullDef(protoParsed: var ProtoNode) =
-  expandToFullDef(protoParsed, readFile)
+proc expandToFullDef(protoParsed: var ProtoNode, filepath: string) =
+  expandToFullDef(protoParsed, filepath, readFile)
 
-proc parseToDefinition*(spec: string): ProtoNode =
+proc parseToDefinition*(filepath: string, spec: string): ProtoNode =
   var protoParseRes = protofile()(spec)
   result = protoParseRes.value[0]
   let shortErr = protoParseRes.getShortError()
   if shortErr.len != 0:
     echo "Errors: \"" & shortErr & "\""
 
-  result.expandToFullDef()
+  result.expandToFullDef(filepath)
