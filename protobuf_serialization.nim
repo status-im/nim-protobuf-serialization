@@ -9,10 +9,10 @@ export types, reader, writer
 import protobuf_serialization/files/type_generator
 export protoToTypes, import_proto3
 
-serializationFormat Protobuf,
-                    Reader = ProtobufReader,
-                    Writer = ProtobufWriter,
-                    PreferedOutput = seq[byte]
+serializationFormat Protobuf
+
+Protobuf.setReader ProtobufReader
+Protobuf.setWriter ProtobufWriter, PreferredOutput = seq[byte]
 
 func supportsInternal[T](ty: typedesc[T], handled: var HashSet[string]) {.compileTime.} =
   if handled.contains($T):
