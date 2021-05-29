@@ -1,4 +1,4 @@
-import os
+import os, strutils
 
 mode = ScriptMode.Verbose
 
@@ -21,7 +21,7 @@ proc test(env, path: string) =
     lang = getEnv"TEST_LANG"
 
   exec "nim " & lang & " " & env &
-    " -r --hints:off --warnings:off " & path
+    " -r --hints:off --skipParentCfg " & path
 
 task test, "Run all tests":
   #Explicitly specify the call depth limit in case the default changes in the future.
