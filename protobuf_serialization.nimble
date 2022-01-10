@@ -14,13 +14,8 @@ requires "nim >= 1.2.0",
          "serialization",
          "combparser"
 
-proc test(env, path: string) =
-  # Compilation language is controlled by TEST_LANG
-  var lang = "c"
-  if existsEnv"TEST_LANG":
-    lang = getEnv"TEST_LANG"
-
-  exec "nim " & lang & " " & env &
+proc test(args, path: string) =
+  exec "nim " & getEnv("TEST_LANG", "c") & " " & getEnv("NIMFLAGS") & " " & args &
     " -r --hints:off --skipParentCfg " & path
 
 task test, "Run all tests":
