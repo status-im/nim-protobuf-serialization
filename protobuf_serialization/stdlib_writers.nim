@@ -16,7 +16,7 @@ proc encodeNumber[T](stream: OutputStream, value: T) =
   else:
     {.fatal: "Trying to encode a number which isn't wrapped. This should never happen.".}
 
-proc stdLibToProtobuf[R](
+proc stdlibToProtobuf[R](
   stream: OutputStream,
   _: typedesc[R],
   unusedFieldName: static string,
@@ -124,7 +124,7 @@ proc stdlibToProtobuf[R, T](
   var seqInstance: seq[T]
   for value in setInstance:
     seqInstance.add(value)
-  stream.stdLibToProtobuf(ty, fieldName, fieldNumber, seqInstance)
+  stream.stdlibToProtobuf(ty, fieldName, fieldNumber, seqInstance)
 
 proc stdlibToProtobuf[R, T](
   stream: OutputStream,
@@ -133,4 +133,4 @@ proc stdlibToProtobuf[R, T](
   fieldNumber: int,
   setInstance: HashSet[T]
 ) {.inline.} =
-  stream.stdLibToProtobuf(ty, fieldName, fieldNumber, setInstance.toSeq())
+  stream.stdlibToProtobuf(ty, fieldName, fieldNumber, setInstance.toSeq())
