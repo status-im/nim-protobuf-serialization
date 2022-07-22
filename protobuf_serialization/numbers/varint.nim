@@ -1,4 +1,4 @@
-import stew/bitops2
+import stew/[bitops2, objects]
 import faststreams
 
 import common
@@ -197,14 +197,20 @@ func decodeBinaryValue[E](
     res = E(value)
 
   elif E is PIntWrapped:
-    if len == 10:
-      when E is enum:
-        type S = int
-      else:
-        type S = type(res.unwrap())
-      res = E((-S(value)) - 1)
+    when E is enum:
+      type S = int
+      let enumValue = if len == 10:
+          (-S(value)) - 1
+        else:
+          S(value)
+      if not checkedEnumAssign(res, enumValue):
+        raise newException(ProtobufMessageError, "Attempted to decode an invalid enum value.")
     else:
-      res = E(value)
+      if len == 10:
+        type S = type(res.unwrap())
+        res = E((-S(value)) - 1)
+      else:
+        res = E(value)
 
   elif E is SIntWrapped:
     type S = type(res.unwrap())

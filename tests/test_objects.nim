@@ -6,6 +6,9 @@ type
   TestEnum = enum
     NegTwo = -2, NegOne, Zero, One, Two
 
+  TestEnumWithHoles = enum
+    A1 = -2, A2 = 0, A3 = 2, A4 = 6
+
   DistinctInt* = distinct int32
 
   Basic {.protobuf3.} = object
@@ -87,6 +90,31 @@ suite "Test Object Encoding/Decoding":
     enumTest(Zero, 0)
     enumTest(One, 2)
     enumTest(Two, 4)
+
+  test "Out of range enum decode":
+    type
+      ObjEnum {.protobuf3.} = object
+        e {.fieldNumber: 1.}: TestEnum
+      ObjEnumWithHoles {.protobuf3.} = object
+        e {.fieldNumber: 1.}: TestEnumWithHoles
+
+    check Protobuf.decode(
+        @[8.byte, 129, 128, 128, 128, 128, 128, 128, 128, 128, 0], # -2
+        type(ObjEnum)) == ObjEnum(e: NegTwo)
+    check Protobuf.decode(@[8.byte, 1], type(ObjEnum)) == ObjEnum(e: One)
+    check Protobuf.decode(@[8.byte, 2], type(ObjEnumWithHoles)) == ObjEnumWithHoles(e: A3)
+
+    expect ProtobufMessageError:
+      discard Protobuf.decode(
+        @[8.byte, 130, 128, 128, 128, 128, 128, 128, 128, 128, 0], # -3
+        type(ObjEnum))
+    expect ProtobufMessageError: discard Protobuf.decode(@[8.byte, 4], type(ObjEnum))
+    expect ProtobufMessageError:
+      discard Protobuf.decode(
+        @[8.byte, 130, 128, 128, 128, 128, 128, 128, 128, 128, 0], # -3
+        type(ObjEnumWithHoles))
+    expect ProtobufMessageError: discard Protobuf.decode(@[8.byte, 4], type(ObjEnumWithHoles))
+    expect ProtobufMessageError: discard Protobuf.decode(@[8.byte, 10], type(ObjEnumWithHoles))
 
   test "Can encode/decode distinct types":
     let x: DistinctInt = 5.DistinctInt
