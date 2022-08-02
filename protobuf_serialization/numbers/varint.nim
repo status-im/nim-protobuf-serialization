@@ -119,7 +119,7 @@ func viSizeof(base: VarIntWrapped, raw: uint32 or uint64): int =
   result = max((log2trunc(raw) + 7) div 7, 1)
 
 func encodeVarInt*(
-  res: var openarray[byte],
+  res: var openArray[byte],
   outLen: var int,
   value: VarIntWrapped
 ): VarIntStatus =
@@ -175,7 +175,7 @@ func encodeVarInt*(value: VarIntWrapped): seq[byte] =
   var outLen: int
   if encodeVarInt(result, outLen, value) != VarIntStatus.Success:
     when value is LUIntWrapped:
-      {.fatal: "LibP2P VarInts require using the following signature: `encodeVarInt(var openarray[byte], outLen: var int, value: VarIntWrapped): VarIntStatus`.".}
+      {.fatal: "LibP2P VarInts require using the following signature: `encodeVarInt(var openArray[byte], outLen: var int, value: VarIntWrapped): VarIntStatus`.".}
     else:
       doAssert(false)
   result.setLen(outLen)
@@ -219,7 +219,7 @@ func decodeBinaryValue[E](
   return VarIntStatus.Success
 
 func decodeVarInt*(
-  bytes: openarray[byte],
+  bytes: openArray[byte],
   inLen: var int,
   res: var VarIntWrapped
 ): VarIntStatus =
