@@ -73,12 +73,12 @@ suite "Test Standard Lib Objects Encoding/Decoding":
     check Protobuf.decode(Protobuf.encode(setInstance), type(HashSet[string])) == setInstance
 
   test "Can encode/decode stdlib fields where a pragma was used to specify encoding":
-    let pragmad = PragmadStdLib(
+    let pragmad = PragmadStdlib(
       x: @[5'i32, -3'i32, 300'i32, -612'i32],
       #y: [6'u32, 4'u32, 301'u32, 613'u32, 216'u32],
       z: @[5.5'f32, 3.2'f32, 925.123].toHashSet()
     )
-    check Protobuf.decode(Protobuf.encode(pragmad), PragmadStdLib) == pragmad
+    check Protobuf.decode(Protobuf.encode(pragmad), PragmadStdlib) == pragmad
 
   test "Can encode boolean seqs": #/arrays":
     let boold = BooldStdlib(
