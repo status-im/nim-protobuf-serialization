@@ -188,7 +188,7 @@ func decodeBinaryValue[E](
   value: uint32 or uint64,
   len: int
 ): VarIntStatus =
-  when (sizeof(E) != sizeof(value)) and (sizeof(E) != 1):
+  when (sizeof(E) != sizeof(value)) and (sizeof(E) notin 1..2):
     {.fatal: "Tried to decode a raw binary value into an encoding with a different size. This should never happen.".}
 
   when E is LUIntWrapped:

@@ -292,3 +292,18 @@ suite "Test Object Encoding/Decoding":
   test "Doesn't allow unknown fields":
     expect ProtobufMessageError:
       discard Protobuf.decode((Protobuf.encode(Basic(a: 100, b: "Test string.", c: 'C')) & @[byte(4 shl 3)]), type(Basic))
+
+
+  test "Enum value greater than 255":
+    type
+      RandomEnum = enum
+        AAA = 0
+        BBB = 256
+
+      RandomObject {.protobuf3.} = object
+        status {.fieldNumber: 1.}: RandomEnum
+
+    var msg = RandomObject(status: AAA)
+    check: msg == Protobuf.decode(Protobuf.encode(msg),  RandomObject)
+    msg = RandomObject(status: BBB)
+    check: msg == Protobuf.decode(Protobuf.encode(msg),  RandomObject)
