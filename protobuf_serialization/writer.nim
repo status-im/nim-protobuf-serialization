@@ -1,236 +1,152 @@
 #Writes the specified type into a buffer using the Protobuf binary wire format.
 
-import options
+import
+  std/typetraits,
+  stew/shims/macros,
+  faststreams/outputs,
+  serialization,
+  "."/[codec, internal, types]
 
-import stew/shims/macros
-import faststreams/outputs
-import serialization
+export outputs, serialization, codec, types
 
-import internal
-import types
+proc writeValue*[T: object](stream: OutputStream, value: T)
 
-proc writeVarInt(
-  stream: OutputStream,
-  fieldNum: int,
-  value: VarIntWrapped,
-  omittable: static bool
-) =
-  let bytes = encodeVarInt(value)
-  when omittable:
-    if (bytes.len == 1) and (bytes[0] == 0):
-      return
-  stream.writeProtobufKey(fieldNum, VarInt)
-  stream.write(bytes)
+proc writeField(
+    stream: OutputStream, fieldNum: int, fieldVal: auto, ProtoType: type UnsupportedType) =
+  # TODO turn this into an extension point
+  unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
-proc writeFixed(
-  stream: OutputStream,
-  fieldNum: int,
-  value: auto,
-  omittable: static bool
-) =
-  when sizeof(value) == 8:
-    let wire = Fixed64
-  else:
-    let wire = Fixed32
-  when omittable:
-    if value.unwrap() == 0:
-      return
+proc writeField*[T: object](stream: OutputStream, fieldNum: int, fieldVal: T) =
+  # TODO https://github.com/status-im/nim-faststreams/pull/32
+  # stream.write(toProtoBytes(FieldHeader.init(fieldNum, WireKind.LengthDelim)))
+  # var cursor = stream.delayVarSizeWrite(10)
+  # let startPos = stream.pos
 
-  stream.writeProtobufKey(fieldNum, wire)
-  stream.encodeFixed(value)
+  # writeField(stream, fieldVal)
 
-proc writeValueInternal[T](stream: OutputStream, value: T)
+  # cursor.finalWrite(toProtoBytes(puint32(stream.pos - startPos)))
 
-#stdlib types toProtobuf's. inlined as it needs access to the writeValue function.
-include stdlib_writers
+  var inner = memoryOutput()
+  inner.writeValue(fieldVal)
+  let bytes = inner.getOutput()
+  stream.writeField(fieldNum, pbytes(bytes))
 
-proc writeLengthDelimited[T](
-  stream: OutputStream,
-  fieldNum: int,
-  rootType: typedesc[T],
-  fieldName: static string,
-  flatValue: LengthDelimitedTypes,
-  omittable: static bool
-) =
-  const stdlib = type(flatValue).isStdlib()
+proc writeField[T: object and not PBOption](
+    stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type) =
+  stream.writeField(fieldNum, fieldVal)
 
-  var cursor = stream.delayVarSizeWrite(10)
-  let startPos = stream.pos
+proc writeField[T: not object](
+    stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type) =
+  stream.writeField(fieldNum, ProtoType(fieldVal))
 
-  #Byte seqs.
-  when flatValue is CastableLengthDelimitedTypes:
-    if flatValue.len == 0:
-      cursor.finalWrite([])
-      return
-    stream.write(cast[seq[byte]](flatValue))
+proc writeField(
+    stream: OutputStream, fieldNum: int, fieldVal: PBOption, ProtoType: type) =
+  if fieldVal.isSome(): # TODO required field checking
+    stream.writeField(fieldNum, fieldVal.get(), ProtoType)
 
-  #Standard lib types which use custom converters, instead of encoding the literal Nim representation.
-  elif stdlib:
-    stream.stdlibToProtobuf(rootType, fieldName, fieldNum, flatValue)
+proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
+    output: OutputStream, field: int, values: openArray[T], _: type ProtoType) =
+  doAssert validFieldNumber(field)
 
-  #Nested object which even if the sub-value is empty, should be encoded as long as it exists.
-  elif rootType.isPotentiallyNull():
-    writeValueInternal(stream, flatValue)
+  # Packed encoding uses a length-delimited field byte length of the sum of the
+  # byte lengths of each field followed by the header-free contents
+  output.write(
+    toProtoBytes(FieldHeader.init(field, WireKind.LengthDelim)))
 
-  #Object which should only be encoded if it has data.
-  elif flatValue is (object or tuple):
-    writeValueInternal(stream, flatValue)
-
-  else:
-    {.fatal: "Tried to write a Length Delimited type which wasn't actually Length Delimited.".}
-
-  const singleBuffer = type(flatValue).singleBufferable()
-  if (
-    (
-      #The underlying type of the standard library container is packable.
-      singleBuffer or (
-        #This is a object, not a seq or something converted to a seq (stdlib type).
-        (not stdlib) and (flatValue is (object or tuple))
-      )
-    ) and (
-      #The length changed, meaning this object is empty.
-      (stream.pos != startPos) or
-      #The object is empty, yet it exists, which is important as it can not exist.
-      rootType.isPotentiallyNull()
-    )
-  ):
-    cursor.finalWrite(newProtobufKey(fieldNum, LengthDelimited) & encodeVarInt(PInt(int32(stream.pos - startPos))))
-  else:
-    when omittable:
-      cursor.finalWrite([])
+  const canCopyMem =
+    ProtoType is SomeFixed32 or ProtoType is SomeFixed64 or ProtoType is pbool
+  var length = 0
+  let dlength =
+    when canCopyMem:
+      values.len() * sizeof(T)
     else:
-      cursor.finalWrite(newProtobufKey(fieldNum, LengthDelimited) & encodeVarInt(PInt(int32(0))))
+      var total = 0
+      for item in values:
+        total += vsizeof(ProtoType(item))
+      total
+  output.write(toProtoBytes(puint64(dlength)))
 
-proc writeFieldInternal[T, R](
-  stream: OutputStream,
-  fieldNum: int,
-  value: T,
-  rootType: typedesc[R],
-  fieldName: static string
-) =
-  when flatType(value) is SomeFloat:
-    when rootType.hasCustomPragmaFixed(fieldName, pfloat32):
-      static: verifySerializable(type(Float32(value)))
-    elif rootType.hasCustomPragmaFixed(fieldName, pfloat64):
-      static: verifySerializable(type(Float64(value)))
-    else:
-      {.fatal: "Float in object did not have an encoding pragma attached.".}
+  when canCopyMem:
+    if values.len > 0:
+      output.write(
+        cast[ptr UncheckedArray[byte]](
+          unsafeAddr values[0]).toOpenArray(0, dlength - 1))
   else:
-    static: verifySerializable(flatType(T))
+    for value in values:
+      output.write(toProtoBytes(ProtoType(value)))
 
-  let flattenedOption = value.flatMap()
-  if flattenedOption.isNone():
-    return
-  let flattened = flattenedOption.get()
+proc writeValue*[T: object](stream: OutputStream, value: T) =
+  const
+    isProto2: bool = T.isProto2()
+    isProto3: bool = T.isProto3()
 
-  when (flatType(R) is not object) or (flatType(R).isStdlib()):
-    const omittable: bool = true
-  else:
-    when R is Option:
-      {.fatal: "Can't directly write an Option of an object.".}
-    const omittable: bool = (
-      (fieldName == "") or
-      (flatType(T).isStdlib()) or
-      rootType.hasCustomPragma(protobuf3)
-    )
+  enumInstanceSerializedFields(value, fieldName, fieldVal):
+    const
+      fieldNum = T.fieldNumberOf(fieldName)
 
-  when flattened is VarIntWrapped:
-    stream.writeVarInt(fieldNum, flattened, omittable)
-  elif flattened is FixedWrapped:
-    stream.writeFixed(fieldNum, flattened, omittable)
-  else:
-    stream.writeLengthDelimited(fieldNum, R, fieldName, flattened, omittable)
+    type
+      FlatType = flatType(fieldVal)
 
-proc writeField*[T](
-  writer: ProtobufWriter,
-  fieldNum: int,
-  value: T
-) {.inline.} =
-  writer.stream.writeFieldInternal(fieldNum, value, type(value), "")
+    protoType(ProtoType, T, FlatType, fieldName)
 
-proc writeValueInternal[T](stream: OutputStream, value: T) =
-  static: verifySerializable(flatType(T))
+    when FlatType is seq and FlatType isnot seq[byte]:
+      type
+        ElemType = typeof(default(FlatType)[0])
 
-  let flattenedOption = value.flatMap()
-  if flattenedOption.isNone():
-    return
-  let flattened = flattenedOption.get()
-
-  when type(flattened).isStdlib():
-    stream.writeFieldInternal(1, flattened, type(value), "")
-  elif flattened is (object or tuple):
-    enumInstanceSerializedFields(flattened, fieldName, fieldVal):
-      discard fieldName
-      const fieldNum = getCustomPragmaVal(fieldVal, fieldNumber)
-      let flattenedFieldOption = fieldVal.flatMap()
-      if flattenedFieldOption.isSome():
-        let flattenedField = flattenedFieldOption.get()
-        when flattenedField is ((not (VarIntWrapped or FixedWrapped)) and (VarIntTypes or FixedTypes)):
-          when flattenedField is VarIntTypes:
-            const
-              hasPInt = flatType(value).hasCustomPragmaFixed(fieldName, pint)
-              hasSInt = flatType(value).hasCustomPragmaFixed(fieldName, sint)
-              hasFixed = flatType(value).hasCustomPragmaFixed(fieldName, fixed)
-            when hasPInt:
-              stream.writeFieldInternal(fieldNum, PInt(flattenedField), type(value), fieldName)
-            elif hasSInt:
-              stream.writeFieldInternal(fieldNum, SInt(flattenedField), type(value), fieldName)
-            elif hasFixed:
-              stream.writeFieldInternal(fieldNum, Fixed(flattenedField), type(value), fieldName)
-            else:
-              {.fatal: "Encoding pragma specified yet no enoding matched. This should never happen.".}
-
-          elif flattenedField is FixedTypes:
-            stream.writeFieldInternal(fieldNum, flattenedField, type(value), fieldName)
-
-          else:
-            {.fatal: "Attempting to handle an unknown number type. This should never happen.".}
-        else:
-          when flattenedField is enum:
-            stream.writeFieldInternal(fieldNum, PInt(flattenedField), type(value), fieldName)
-          else:
-            stream.writeFieldInternal(fieldNum, flattenedField, type(value), fieldName)
-  else:
-    stream.writeFieldInternal(1, flattened, type(value), "")
-
-proc writeValue*[T](writer: ProtobufWriter, value: T) =
-  var
-    cursor: VarSizeWriteCursor
-    startPos: int
-
-  if (
-    writer.flags.contains(VarIntLengthPrefix) or
-    writer.flags.contains(UIntLELengthPrefix) or
-    writer.flags.contains(UIntBELengthPrefix)
-  ):
-    cursor = writer.stream.delayVarSizeWrite(5)
-    startPos = writer.stream.pos
-
-  writer.stream.writeValueInternal(value)
-
-  if (
-    writer.flags.contains(VarIntLengthPrefix) or
-    writer.flags.contains(UIntLELengthPrefix) or
-    writer.flags.contains(UIntBELengthPrefix)
-  ):
-    var len = uint32(writer.stream.pos - startPos)
-    if len == 0:
-      cursor.finalWrite([])
-    elif writer.flags.contains(VarIntLengthPrefix):
-      var viLen = encodeVarInt(PInt(len))
-      if viLen.len == 0:
-        cursor.finalWrite([byte(0)])
+      const
+        isPacked =
+          isProto3 or T.isPacked(fieldName) or ProtoType is SomeLengthDelim
+      when isPacked and ProtoType is SomePrimitive:
+        stream.writeFieldPacked(fieldNum, fieldVal, ProtoType)
       else:
-        cursor.finalWrite(viLen)
-    elif writer.flags.contains(UIntLELengthPrefix):
-      var temp: array[sizeof(len), byte]
-      for i in 0 ..< sizeof(len):
-        temp[i] = byte(len and LAST_BYTE)
-        len = len shr 8
-      cursor.finalWrite(temp)
-    elif writer.flags.contains(UIntBELengthPrefix):
-      var temp: array[sizeof(len), byte]
-      for i in 0 ..< sizeof(len):
-        temp[i] = byte(len shr ((sizeof(len) - 1) * 8))
-        len = len shl 8
-      cursor.finalWrite(temp)
+        for i in 0..<fieldVal.len:
+          stream.writeField(fieldNum, fieldVal[i], ProtoType)
+
+    elif FlatType is object:
+      # TODO avoid writing empty objects in proto3
+      stream.writeField(fieldNum, fieldVal, ProtoType)
+    else:
+      when isProto2:
+        static: doAssert not isProto3
+        stream.writeField(fieldNum, fieldVal, ProtoType)
+      else:
+        static: doAssert isProto3
+        if fieldVal != static(default(typeof(fieldVal))): # TODO make this an extension point?
+          stream.writeField(fieldNum, fieldVal, ProtoType)
+
+proc writeValue*[T: object](writer: ProtobufWriter, value: T) =
+  static: verifySerializable(T)
+
+  # TODO cursors broken
+  # var
+  #   cursor: VarSizeWriteCursor
+  #   startPos: int
+
+  # if writer.flags.contains(VarIntLengthPrefix):
+  #   cursor = writer.stream.delayVarSizeWrite(10)
+  #   startPos = writer.stream.pos
+
+  writer.stream.writeValue(value)
+
+  # if writer.flags.contains(VarIntLengthPrefix):
+  #   var len = uint32(writer.stream.pos - startPos)
+  #   if len == 0:
+  #     cursor.finalWrite([])
+  #   elif writer.flags.contains(VarIntLengthPrefix):
+  #     var viLen = encodeVarInt(PInt(len))
+  #     if viLen.len == 0:
+  #       cursor.finalWrite([byte(0)])
+  #     else:
+  #       cursor.finalWrite(viLen)
+  #   elif writer.flags.contains(UIntLELengthPrefix):
+  #     var temp: array[sizeof(len), byte]
+  #     for i in 0 ..< sizeof(len):
+  #       temp[i] = byte(len and LAST_BYTE)
+  #       len = len shr 8
+  #     cursor.finalWrite(temp)
+  #   elif writer.flags.contains(UIntBELengthPrefix):
+  #     var temp: array[sizeof(len), byte]
+  #     for i in 0 ..< sizeof(len):
+  #       temp[i] = byte(len shr ((sizeof(len) - 1) * 8))
+  #       len = len shl 8
+  #     cursor.finalWrite(temp)

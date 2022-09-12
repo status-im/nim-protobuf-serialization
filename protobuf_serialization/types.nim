@@ -1,24 +1,20 @@
 #Types/common data exported for use outside of this library.
 
-import faststreams
-import serialization/errors
+import
+  faststreams,
+  serialization/errors
 
-import numbers/varint
-import numbers/fixed
-export varint, fixed
-
-import internal
-export protobuf2, protobuf3, fieldNumber, required
-export ProtobufError, ProtobufReadError, ProtobufEOFError, ProtobufMessageError
-
-import pb_option
-export pb_option
+export faststreams, errors
 
 type
-  ProtobufFlags* = enum
-    VarIntLengthPrefix,
-    UIntLELengthPrefix,
-    UIntBELengthPrefix
+  ProtobufError* = object of SerializationError
+
+  ProtobufReadError* = object of ProtobufError
+  ProtobufEOFError* = object of ProtobufReadError
+  ProtobufMessageError* = object of ProtobufReadError
+
+  ProtobufFlags* = uint8 # enum
+    # VarIntLengthPrefix, # TODO needs fixing
 
   ProtobufWriter* = object
     stream*: OutputStream
@@ -26,8 +22,23 @@ type
 
   ProtobufReader* = ref object
     stream*: InputStream
-    keyOverride*: Option[ProtobufKey]
     closeAfter*: bool
+
+  PBOption*[defaultValue: static[auto]] = object
+    some: bool
+    value: typeof(defaultValue)
+
+# Message type annotations
+template protobuf2*() {.pragma.}
+template protobuf3*() {.pragma.}
+
+# Field annotations
+template fieldNumber*(num: int) {.pragma.}
+template required*() {.pragma.}
+template packed*() {.pragma.}
+template pint*() {.pragma.} # encode as `intXX`
+template sint*() {.pragma.} # encode as `sintXX`
+template fixed*() {.pragma.} # encode as `fixedXX`
 
 func init*(
   T: type ProtobufWriter,
@@ -39,10 +50,10 @@ func init*(
 func init*(
   T: type ProtobufReader,
   stream: InputStream,
-  key: Option[ProtobufKey] = none(ProtobufKey),
+  # key: Option[ProtobufKey] = none(ProtobufKey),
   closeAfter: bool = true
 ): T {.inline.} =
-  T(stream: stream, keyOverride: key, closeAfter: closeAfter)
+  T(stream: stream, closeAfter: closeAfter)
 
 #This was originally called buffer, and retuned just the output.
 #That said, getting the output purges the stream, and doesn't close it.
@@ -51,3 +62,32 @@ func init*(
 proc finish*(writer: ProtobufWriter): seq[byte] =
   result = writer.stream.getOutput()
   writer.stream.close()
+
+func isNone*(opt: PBOption): bool {.inline.} =
+  not opt.some
+
+func isSome*(opt: PBOption): bool {.inline.} =
+  opt.some
+
+func get*(opt: PBOption): auto =
+  if opt.some:
+    opt.value
+  else:
+    opt.defaultValue
+
+template mget*(opt: var PBOption): untyped =
+  opt.some = true
+  opt.value
+
+func pbSome*[T: PBOption](optType: typedesc[T], value: auto): T {.inline.} =
+  T(
+    some: true,
+    value: value
+  )
+
+func init*(opt: var PBOption, val: auto) =
+  opt.some = true
+  opt.value = val
+
+converter toValue*(opt: PBOption): auto {.inline.} =
+  opt.get()

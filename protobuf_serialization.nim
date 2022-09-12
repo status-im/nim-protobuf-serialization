@@ -6,9 +6,6 @@ export serialization
 import protobuf_serialization/[internal, types, reader, writer]
 export types, reader, writer
 
-import protobuf_serialization/files/type_generator
-export protoToTypes, import_proto3
-
 serializationFormat Protobuf
 
 Protobuf.setReader ProtobufReader
@@ -20,17 +17,13 @@ func supportsInternal[T](ty: typedesc[T], handled: var HashSet[string]) {.compil
   handled.incl($T)
 
   verifySerializable(T)
-  var inst: T
-  enumInstanceSerializedFields(inst, fieldName, fieldVar):
-    discard fieldName
-    when flatType(fieldVar) is (object or tuple):
-      supportsInternal(flatType(fieldVar), handled)
 
 func supportsCompileTime[T](_: typedesc[T]) =
-  when flatType(T) is (object or tuple):
+  when flatType(default(T)) is (object or tuple):
     var handled = initHashSet[string]()
-    supportsInternal(flatType(T), handled)
+    supportsInternal(flatType(default(T)), handled)
 
 func supports*[T](_: type Protobuf, ty: typedesc[T]): bool =
+  # TODO return false when not supporting, instead of crashing compiler
   static: supportsCompileTime(T)
   true

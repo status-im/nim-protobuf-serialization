@@ -3,7 +3,7 @@ import os, strutils
 mode = ScriptMode.Verbose
 
 version       = "0.2.0"
-author        = "Joey Yakimowich-Payne"
+author        = "Status"
 description   = "Protobuf implementation compatible with the nim-serialization framework."
 license       = "MIT"
 skipDirs      = @["tests"]
