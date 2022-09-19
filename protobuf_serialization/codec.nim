@@ -171,7 +171,8 @@ proc writeField*(output: OutputStream, field: int, value: SomeFixed32) =
   output.write(toProtoBytes(value))
 
 proc readVarint*[T: pbool](input: InputStream, _: type T): T =
-  type UlebType = uint8
+  # TODO what size of integer should we read from the wire?
+  type UlebType = uint64
 
   var buf: Leb128Buf[UlebType]
   while buf.len < buf.data.len and input.readable():
@@ -190,7 +191,7 @@ proc readVarint*[T: pbool](input: InputStream, _: type T): T =
   # TODO How should we handle values > 1? protobuf guide seems to suggest that
   #      we should adopt C++ behavior:
   #      https://developers.google.com/protocol-buffers/docs/proto#updating
-  pbool(buf.data[0] != 0)
+  pbool(val != 0)
 
 proc readVarint*[T: SomeVarint and not pbool](input: InputStream, _: type T): T =
   # TODO This is not entirely correct: we should truncate value if it doesn't

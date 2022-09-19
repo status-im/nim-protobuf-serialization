@@ -4,8 +4,6 @@ import unittest
 import ../protobuf_serialization
 from ../protobuf_serialization/internal import VarIntWrapped, FixedWrapped, unwrap, flatType, flatMap
 
-from test_objects import DistinctInt, `==`
-
 type
   Basic = object
     x {.sint, fieldNumber: 1.}: int32

@@ -114,9 +114,6 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
         when T.hasCustomPragmaFixed(fieldName, required):
           requiredSets.incl(i)
 
-  const
-    isProto3 = T.hasCustomPragma(protobuf3)
-
   while stream.readable():
     let header = stream.readHeader()
     var i = -1
@@ -124,7 +121,6 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
       inc i
       const
         fieldNum = T.fieldNumberOf(fieldName)
-        packed = isProto3 or T.isPacked(fieldName)
 
       if header.number() == fieldNum:
         if not silent: requiredSets.excl i

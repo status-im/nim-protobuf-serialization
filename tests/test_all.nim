@@ -4,13 +4,10 @@ import ../protobuf_serialization
 
 import
   test_bool,
-  test_lint,
   test_fixed,
-  test_length_delimited,
   test_objects,
   test_empty,
-  test_stdlib,
-  test_different_types,
+  test_repeated,
   test_protobuf2_semantics,
   test_thirty_three_fields,
   files/test_proto3
