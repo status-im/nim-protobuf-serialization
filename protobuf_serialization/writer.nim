@@ -17,15 +17,8 @@ proc writeField(
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
 proc writeField*[T: object](stream: OutputStream, fieldNum: int, fieldVal: T) =
-  # TODO https://github.com/status-im/nim-faststreams/pull/32
-  # stream.write(toProtoBytes(FieldHeader.init(fieldNum, WireKind.LengthDelim)))
-  # var cursor = stream.delayVarSizeWrite(10)
-  # let startPos = stream.pos
-
-  # writeField(stream, fieldVal)
-
-  # cursor.finalWrite(toProtoBytes(puint32(stream.pos - startPos)))
-
+  # TODO Pre-compute size of inner object then write it without the intermediate
+  #      memory output
   var inner = memoryOutput()
   inner.writeValue(fieldVal)
   let bytes = inner.getOutput()
