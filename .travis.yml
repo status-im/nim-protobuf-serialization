@@ -18,10 +18,11 @@ install:
   # regressions of the fast-paced Nim development while maintaining the
   # flexibility to apply patches
   - curl -O -L -s -S https://raw.githubusercontent.com/status-im/nimbus-build-system/master/scripts/build_nim.sh
+  # latest 1.6
+  - export NIM_COMMIT="d38177b11f628d9675809bfa85356c3ee3a26fea"
   - env MAKE="make -j2" bash build_nim.sh Nim csources dist/nimble NimBinaries
   - export PATH=$PWD/Nim/bin:$PATH
 
 script:
   - nimble install -y
   - nimble test
-
