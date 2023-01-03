@@ -169,3 +169,16 @@ suite "codec test suite":
 
       expect(ValueError):
         discard readValue(memoryInput(data), pbytes)
+
+  test "Truncation":
+    # As reported using `echo "field: 18446744073709551614" | protoc uint.proto --encode | protoc test.proto --decode=Test`
+    # and the various types
+    let
+      data = getVarintEncodedValue(uint64.high - 1)
+    check:
+      memoryInput(data).readValue(puint32).uint32 == 4294967294'u32
+      memoryInput(data).readValue(pint64).int64 == -2
+      memoryInput(data).readValue(pint32).int32 == -2
+      memoryInput(data).readValue(sint64).int64 == 9223372036854775807
+      memoryInput(data).readValue(sint32).int32 == 2147483647
+      memoryInput(data).readValue(pbool).bool

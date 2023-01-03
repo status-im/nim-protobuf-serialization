@@ -118,16 +118,18 @@ template toUleb(x: pint32): uint32 = cast[uint32](x)
 template toUleb(x: pbool): uint8 = cast[uint8](x)
 
 template fromUleb(x: uint64, T: type puint64): T = puint64(x)
-template fromUleb(x: uint32, T: type puint32): T = puint32(x)
+template fromUleb(x: uint64, T: type pbool): T = pbool(x != 0)
+
+template fromUleb(x: uint64, T: type puint64): T = puint64(x)
+template fromUleb(x: uint64, T: type puint32): T = puint32(x)
 
 template fromUleb(x: uint64, T: type sint64): T =
   cast[T]((x shr 1) xor (0 - (x and 1)))
-
-template fromUleb(x: uint32, T: type sint32): T =
-  cast[T]((x shr 1) xor (0 - (x and 1)))
+template fromUleb(x: uint64, T: type sint32): T =
+  cast[T]((uint32(x) shr 1) xor (0 - (uint32(x) and 1)))
 
 template fromUleb(x: uint64, T: type pint64): T = cast[T](x)
-template fromUleb(x: uint32, T: type pint32): T = cast[T](x)
+template fromUleb(x: uint64, T: type pint32): T = cast[T](x)
 
 template toBytes*(x: SomeVarint): openArray[byte] =
   toBytes(toUleb(x), Leb128).toOpenArray()
@@ -174,34 +176,11 @@ proc writeField*(output: OutputStream, field: int, value: SomeScalar) =
   output.write(toBytes(FieldHeader.init(field, wireKind(typeof(value)))))
   output.writeValue(value)
 
-proc readValue*[T: pbool](input: InputStream, _: type T): T =
-  # TODO what size of integer should we read from the wire?
-  type UlebType = uint64
-
-  var buf: Leb128Buf[UlebType]
-  while buf.len < buf.data.len and input.readable():
-    let b = input.read()
-    buf.data[buf.len] = b
-    buf.len += 1
-    if (b and 0x80'u8) == 0:
-      break
-
-  let (val, len) = UlebType.fromBytes(buf)
-  if buf.len == 0 or len != buf.len:
-    raise (ref ValueError)(msg: "Cannot read varint from stream")
-
-  # TODO How should we handle values > 1? protobuf guide seems to suggest that
-  #      we should adopt C++ behavior:
-  #      https://developers.google.com/protocol-buffers/docs/proto#updating
-  pbool(val != 0)
-
-proc readValue*[T: SomeVarint and not pbool](input: InputStream, _: type T): T =
+proc readValue*[T: SomeVarint](input: InputStream, _: type T): T =
   # TODO This is not entirely correct: we should truncate value if it doesn't
   #      fit, according to the docs:
   #      https://developers.google.com/protocol-buffers/docs/proto#updating
-  type UlebType = typeof(default(T).toUleb())
-
-  var buf: Leb128Buf[UlebType]
+  var buf: Leb128Buf[uint64]
   while buf.len < buf.data.len and input.readable():
     let b = input.read()
     buf.data[buf.len] = b
@@ -209,7 +188,7 @@ proc readValue*[T: SomeVarint and not pbool](input: InputStream, _: type T): T =
     if (b and 0x80'u8) == 0:
       break
 
-  let (val, len) = UlebType.fromBytes(buf)
+  let (val, len) = uint64.fromBytes(buf)
   if buf.len == 0 or len != buf.len:
     raise (ref ValueError)(msg: "Cannot read varint from stream")
 
