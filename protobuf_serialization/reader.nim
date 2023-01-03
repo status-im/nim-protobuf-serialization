@@ -50,16 +50,16 @@ proc readFieldInto[T: not object and (seq[byte] or not seq)](
 ) =
   when ProtoType is SomeVarint:
     header.requireKind(WireKind.Varint)
-    assign(value, T(stream.readVarint(ProtoType)))
+    assign(value, T(stream.readValue(ProtoType)))
   elif ProtoType is SomeFixed64:
     header.requireKind(WireKind.Fixed64)
-    assign(value, T(stream.readFixed(ProtoType)))
+    assign(value, T(stream.readValue(ProtoType)))
   elif ProtoType is SomeLengthDelim:
     header.requireKind(WireKind.LengthDelim)
-    assign(value, T(stream.readLengthDelim(ProtoType)))
+    assign(value, T(stream.readValue(ProtoType)))
   elif ProtoType is SomeFixed32:
     header.requireKind(WireKind.Fixed32)
-    assign(value, T(stream.readFixed(ProtoType)))
+    assign(value, T(stream.readValue(ProtoType)))
   else:
     static: unsupported(ProtoType)
 
@@ -88,7 +88,7 @@ proc readFieldPackedInto[T](
 ) =
   # TODO make more efficient
   var
-    bytes = seq[byte](stream.readLengthDelim(pbytes))
+    bytes = seq[byte](stream.readValue(pbytes))
     inner = memoryInput(bytes)
   while inner.readable():
     value.add(default(T))

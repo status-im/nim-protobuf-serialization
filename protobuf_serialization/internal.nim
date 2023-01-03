@@ -121,7 +121,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
       ):
         {.fatal: "The required pragma/PBOption type can only be used with Protobuf2.".}
 
-      protoType(ProtoType, T, typeof(fieldVar), fieldName) # Ensure we can form a ProtoType
+      protoType(ProtoType {.used.}, T, typeof(fieldVar), fieldName) # Ensure we can form a ProtoType
 
       const fieldNum = T.fieldNumberOf(fieldName)
       when fieldNum is NimNode:

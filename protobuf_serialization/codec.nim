@@ -18,7 +18,7 @@
 #   {.push raises: [].}
 
 import
-  std/typetraits,
+  std/[typetraits, unicode],
   faststreams,
   stew/[leb128, endians2]
 
@@ -33,7 +33,8 @@ type
 
   FieldHeader* = distinct uint32
 
-  # Primitive types used in `.proto` files
+  # Scalar types used in `.proto` files
+  # https://developers.google.com/protocol-buffers/docs/proto3#scalar
   pdouble* = distinct float64
   pfloat* = distinct float32
 
@@ -58,14 +59,14 @@ type
   pbytes* = distinct seq[byte] ## byte sequence
 
   SomeScalar* =
-    pint32 | pint64 | puint32 | puint64 | sint32 | sint64 | pbool | enum |
+    pint32 | pint64 | puint32 | puint64 | sint32 | sint64 | pbool |
     fixed64 | sfixed64 | pdouble |
     pstring | pbytes |
     fixed32 | sfixed32 | pfloat
 
   # Mappings of proto type to wire type
   SomeVarint* =
-    pint32 | pint64 | puint32 | puint64 | sint32 | sint64 | pbool | enum
+    pint32 | pint64 | puint32 | puint64 | sint32 | sint64 | pbool
   SomeFixed64* = fixed64 | sfixed64 | pdouble
   SomeLengthDelim* = pstring | pbytes # Also messages and packed repeated fields
   SomeFixed32* = fixed32 | sfixed32 | pfloat
@@ -81,12 +82,18 @@ const
     uint8(WireKind.Fixed32)
   }
 
+template wireKind*(T: type SomeVarint): WireKind = WireKind.Varint
+template wireKind*(T: type SomeFixed64): WireKind = WireKind.Fixed64
+template wireKind*(T: type SomeLengthDelim): WireKind = WireKind.LengthDelim
+template wireKind*(T: type SomeFixed32): WireKind = WireKind.Fixed32
+
 template validFieldNumber*(i: int, strict: bool = false): bool =
+  # https://developers.google.com/protocol-buffers/docs/proto#assigning
+  # Field numbers in the 19k range are reserved for the protobuf implementation
   (i > 0 and i < (1 shl 29)) and (not strict or not(i >= 19000 and i <= 19999))
 
 template init*(_: type FieldHeader, index: int, wire: WireKind): FieldHeader =
   ## Get protobuf's field header integer for ``index`` and ``wire``.
-  doAssert validFieldNumber(index)
   FieldHeader((uint32(index) shl 3) or uint32(wire))
 
 template number*(p: FieldHeader): int =
@@ -122,55 +129,52 @@ template fromUleb(x: uint32, T: type sint32): T =
 template fromUleb(x: uint64, T: type pint64): T = cast[T](x)
 template fromUleb(x: uint32, T: type pint32): T = cast[T](x)
 
-template toProtoBytes*(x: SomeVarint): openArray[byte] =
+template toBytes*(x: SomeVarint): openArray[byte] =
   toBytes(toUleb(x), Leb128).toOpenArray()
 
-template toProtoBytes*(x: fixed32 | fixed64): openArray[byte] =
+template toBytes*(x: fixed32 | fixed64): openArray[byte] =
   type Base = distinctBase(typeof(x))
   toBytesLE(Base(x))
 
-template toProtoBytes*(x: sfixed32): openArray[byte] =
-  toProtoBytes(fixed32(x))
-template toProtoBytes*(x: sfixed64): openArray[byte] =
-  toProtoBytes(fixed64(x))
+template toBytes*(x: sfixed32): openArray[byte] =
+  toBytes(fixed32(x))
+template toBytes*(x: sfixed64): openArray[byte] =
+  toBytes(fixed64(x))
 
-template toProtoBytes*(x: pdouble): openArray[byte] =
+template toBytes*(x: pdouble): openArray[byte] =
   cast[array[8, byte]](x)
-template toProtoBytes*(x: pfloat): openArray[byte] =
+template toBytes*(x: pfloat): openArray[byte] =
   cast[array[4, byte]](x)
 
-template toProtoBytes*(header: FieldHeader): openArray[byte] =
+template toBytes*(header: FieldHeader): openArray[byte] =
   toBytes(uint32(header), Leb128).toOpenArray()
 
 proc vsizeof*(x: SomeVarint): int =
   ## Returns number of bytes required to encode integer ``x`` as varint.
   Leb128.len(toUleb(x))
 
-proc writeField*(output: OutputStream, field: int, value: SomeVarint) =
-  output.write(toProtoBytes(FieldHeader.init(field, WireKind.Varint)))
-  output.write(toProtoBytes(value))
+proc writeValue*(output: OutputStream, value: SomeVarint) =
+  output.write(toBytes(value))
 
-proc writeField*(output: OutputStream, field: int, value: SomeFixed64) =
-  output.write(toProtoBytes(FieldHeader.init(field, WireKind.Fixed64)))
-  output.write(toProtoBytes(value))
+proc writeValue*(output: OutputStream, value: SomeFixed64) =
+  output.write(toBytes(value))
 
-proc writeField*(output: OutputStream, field: int, value: SomeLengthDelim) =
-  output.write(toProtoBytes(FieldHeader.init(field,WireKind.LengthDelim)))
+proc writeValue*(output: OutputStream, value: pstring) =
+  output.write(toBytes(puint64(string(value).len())))
+  output.write(string(value).toOpenArrayByte(0, string(value).high()))
 
-  when value is pstring:
-    output.write(toProtoBytes(puint64(string(value).len())))
-    output.write(string(value).toOpenArrayByte(0, string(value).high()))
-  else:
-    output.write(toProtoBytes(puint64(seq[byte](value).len())))
-    output.write(seq[byte](value))
+proc writeValue*(output: OutputStream, value: pbytes) =
+  output.write(toBytes(puint64(seq[byte](value).len())))
+  output.write(seq[byte](value))
 
-proc writeField*(output: OutputStream, field: int, value: SomeFixed32) =
-  doAssert validFieldNumber(field)
+proc writeValue*(output: OutputStream, value: SomeFixed32) =
+  output.write(toBytes(value))
 
-  output.write(toProtoBytes(FieldHeader.init(field, WireKind.Fixed32)))
-  output.write(toProtoBytes(value))
+proc writeField*(output: OutputStream, field: int, value: SomeScalar) =
+  output.write(toBytes(FieldHeader.init(field, wireKind(typeof(value)))))
+  output.writeValue(value)
 
-proc readVarint*[T: pbool](input: InputStream, _: type T): T =
+proc readValue*[T: pbool](input: InputStream, _: type T): T =
   # TODO what size of integer should we read from the wire?
   type UlebType = uint64
 
@@ -182,10 +186,8 @@ proc readVarint*[T: pbool](input: InputStream, _: type T): T =
     if (b and 0x80'u8) == 0:
       break
 
-  # if buf.len == buf.data.len:
-  #   raise (ref ValueError)(msg: "Varint overflow")
   let (val, len) = UlebType.fromBytes(buf)
-  if len != buf.len:
+  if buf.len == 0 or len != buf.len:
     raise (ref ValueError)(msg: "Cannot read varint from stream")
 
   # TODO How should we handle values > 1? protobuf guide seems to suggest that
@@ -193,11 +195,10 @@ proc readVarint*[T: pbool](input: InputStream, _: type T): T =
   #      https://developers.google.com/protocol-buffers/docs/proto#updating
   pbool(val != 0)
 
-proc readVarint*[T: SomeVarint and not pbool](input: InputStream, _: type T): T =
+proc readValue*[T: SomeVarint and not pbool](input: InputStream, _: type T): T =
   # TODO This is not entirely correct: we should truncate value if it doesn't
   #      fit, according to the docs:
   #      https://developers.google.com/protocol-buffers/docs/proto#updating
-
   type UlebType = typeof(default(T).toUleb())
 
   var buf: Leb128Buf[UlebType]
@@ -209,33 +210,37 @@ proc readVarint*[T: SomeVarint and not pbool](input: InputStream, _: type T): T 
       break
 
   let (val, len) = UlebType.fromBytes(buf)
-  if len != buf.len:
+  if buf.len == 0 or len != buf.len:
     raise (ref ValueError)(msg: "Cannot read varint from stream")
 
   fromUleb(val, T)
 
-proc readFixed*[T: SomeFixed32 | SomeFixed64](input: InputStream, _: type T): T =
+proc readValue*[T: SomeFixed32 | SomeFixed64](input: InputStream, _: type T): T =
   var tmp {.noinit.}: array[sizeof(T), byte]
   if not input.readInto(tmp):
     raise (ref ValueError)(msg: "Not enough bytes")
   when T is pdouble | pfloat:
     copyMem(addr result, addr tmp[0], sizeof(result))
   elif sizeof(T) == 8:
-    cast[T](uint64.fromBytesLE(tmp)) # Cast so we don't run into signed touble
+    cast[T](uint64.fromBytesLE(tmp)) # Cast so we don't run into signed trouble
   else:
-    cast[T](uint32.fromBytesLE(tmp)) # Cast so we don't run into signed touble
+    cast[T](uint32.fromBytesLE(tmp)) # Cast so we don't run into signed trouble
 
 proc readLength*(input: InputStream): int =
-  let lenu32 = input.readVarint(puint32)
-  if int64(lenu32) > int.high():
+  let lenu32 = input.readValue(puint32)
+  if uint64(lenu32) > uint64(int.high()):
     raise (ref ValueError)(msg: "Invalid length")
   int(lenu32)
 
-proc readLengthDelim*[T: SomeLengthDelim](input: InputStream, _: type T): T =
+proc readValue*[T: SomeLengthDelim](input: InputStream, _: type T): T =
   let len = input.readLength()
   if len > 0:
     type Base = T.distinctBase()
-    Base(result).setLen(len) # TODO length sanity-check
+    let inputLen = input.len()
+    if inputLen.isSome() and len > inputLen.get():
+        raise (ref ValueError)(msg: "Missing bytes: " & $len)
+
+    Base(result).setLen(len)
     template bytes(): openArray[byte] =
       when Base is seq[byte]:
         Base(result).toOpenArray(0, len - 1)
@@ -244,9 +249,13 @@ proc readLengthDelim*[T: SomeLengthDelim](input: InputStream, _: type T): T =
     if not input.readInto(bytes()):
       raise (ref ValueError)(msg: "Missing bytes: " & $len)
 
+    when T is pstring:
+      if validateUtf8(string(result)) != -1:
+        raise (ref ValueError)(msg: "String not valid UTF-8")
+
 proc readHeader*(input: InputStream): FieldHeader =
   let
-    hdr = uint32(input.readVarint(puint32))
+    hdr = uint32(input.readValue(puint32))
     wire = uint8(hdr and 0x07)
 
   if wire notin SupportedWireKinds:

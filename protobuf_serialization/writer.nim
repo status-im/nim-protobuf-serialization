@@ -44,11 +44,10 @@ proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
   # Packed encoding uses a length-delimited field byte length of the sum of the
   # byte lengths of each field followed by the header-free contents
   output.write(
-    toProtoBytes(FieldHeader.init(field, WireKind.LengthDelim)))
+    toBytes(FieldHeader.init(field, WireKind.LengthDelim)))
 
   const canCopyMem =
     ProtoType is SomeFixed32 or ProtoType is SomeFixed64 or ProtoType is pbool
-  var length = 0
   let dlength =
     when canCopyMem:
       values.len() * sizeof(T)
@@ -57,7 +56,7 @@ proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
       for item in values:
         total += vsizeof(ProtoType(item))
       total
-  output.write(toProtoBytes(puint64(dlength)))
+  output.write(toBytes(puint64(dlength)))
 
   when canCopyMem:
     if values.len > 0:
@@ -66,12 +65,13 @@ proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
           unsafeAddr values[0]).toOpenArray(0, dlength - 1))
   else:
     for value in values:
-      output.write(toProtoBytes(ProtoType(value)))
+      output.write(toBytes(ProtoType(value)))
 
 proc writeValue*[T: object](stream: OutputStream, value: T) =
   const
     isProto2: bool = T.isProto2()
     isProto3: bool = T.isProto3()
+  static: doAssert isProto2 xor isProto3
 
   enumInstanceSerializedFields(value, fieldName, fieldVal):
     const
@@ -83,9 +83,6 @@ proc writeValue*[T: object](stream: OutputStream, value: T) =
     protoType(ProtoType, T, FlatType, fieldName)
 
     when FlatType is seq and FlatType isnot seq[byte]:
-      type
-        ElemType = typeof(default(FlatType)[0])
-
       const
         isPacked =
           isProto3 or T.isPacked(fieldName) or ProtoType is SomeLengthDelim
@@ -100,10 +97,8 @@ proc writeValue*[T: object](stream: OutputStream, value: T) =
       stream.writeField(fieldNum, fieldVal, ProtoType)
     else:
       when isProto2:
-        static: doAssert not isProto3
         stream.writeField(fieldNum, fieldVal, ProtoType)
       else:
-        static: doAssert isProto3
         if fieldVal != static(default(typeof(fieldVal))): # TODO make this an extension point?
           stream.writeField(fieldNum, fieldVal, ProtoType)
 

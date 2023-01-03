@@ -1,5 +1,5 @@
 import sets
-import unittest
+import unittest2
 
 import ../protobuf_serialization
 

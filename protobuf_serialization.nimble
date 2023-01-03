@@ -2,7 +2,7 @@ import os, strutils
 
 mode = ScriptMode.Verbose
 
-version       = "0.2.0"
+version       = "0.3.0"
 author        = "Status"
 description   = "Protobuf implementation compatible with the nim-serialization framework."
 license       = "MIT"
@@ -12,7 +12,8 @@ requires "nim >= 1.2.0",
          "stew",
          "faststreams",
          "serialization",
-         "combparser"
+         "combparser",
+         "unittest2"
 
 const styleCheckStyle =
   if (NimMajor, NimMinor) < (1, 6):

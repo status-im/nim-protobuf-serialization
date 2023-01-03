@@ -1,6 +1,5 @@
 import unittest2
 
-import stew/byteutils
 import ../protobuf_serialization
 
 type
