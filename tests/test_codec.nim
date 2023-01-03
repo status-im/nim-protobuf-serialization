@@ -54,34 +54,6 @@ suite "codec test suite":
     "", "a", "ab", "abcd", "abcdefgh"
   ]
 
-  const FieldHeaders = ["08", "09", "0a", "0d"] # Field 1, for each WireKind
-
-  ## This vector values was tested with `protoc` and related proto file.
-
-  ## syntax = "proto2";
-  ## message testmsg {
-  ##   repeated uint64 d = 1 [packed=true];
-  ##   repeated uint64 d = 2 [packed=true];
-  ## }
-  const PackedVarintVector =
-    "0a1f0001ffffffff07ffffffff0fffffffffffffffff7fffffffffffffffffff0112020001"
-  ## syntax = "proto2";
-  ## message testmsg {
-  ##   repeated sfixed32 d = 1 [packed=true];
-  ##   repeated sfixed32 d = 2 [packed=true];
-  ## }
-  const PackedFixed32Vector =
-    "0a140000000001000000ffffff7fddccbbaaffffffff12080000000001000000"
-  ## syntax = "proto2";
-  ## message testmsg {
-  ##   repeated sfixed64 d = 1 [packed=true];
-  ##   repeated sfixed64 d = 2 [packed=true];
-  ## }
-  const PackedFixed64Vector =
-    """0a4000000000000000000100000000000000ffffff7f00000000ddccbbaa00000000
-       ffffffff00000000ffffffffffffff7f9988ffeeddccbbaaffffffffffffffff1210
-       00000000000000000100000000000000"""
-
   proc getVarintEncodedValue(value: uint64): seq[byte] =
     let
       output = memoryOutput()
