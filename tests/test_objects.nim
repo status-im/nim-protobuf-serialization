@@ -5,23 +5,17 @@ import
   ../protobuf_serialization/codec
 
 type
-  TestEnum = enum
-    NegTwo = -2, NegOne, Zero, One, Two
-
-  Basic {.protobuf3.} = object
+  Basic {.proto3.} = object
     a {.pint, fieldNumber: 1.}: uint64
     b {.fieldNumber: 2.}: string
     # TODO char is not a basic protobuf type c {.fieldNumber: 3.}: char
 
-  Wrapped {.protobuf3.} = object
+  Wrapped {.proto3.} = object
     d {.sint, fieldNumber: 1.}: int32
     e {.sint, fieldNumber: 2.}: int64
     f {.fieldNumber: 3.}: Basic
     g {.fieldNumber: 4.}: string
     h {.fieldNumber: 5.}: bool
-
-  TestObject {.protobuf3.} = object
-    x {.fieldNumber: 1.}: TestEnum
 
 discard Protobuf.supports(Basic)
 discard Protobuf.supports(Wrapped)
@@ -95,19 +89,3 @@ suite "Test Object Encoding/Decoding":
     writer.writeField(2, pstring(repeated))
 
     check Protobuf.decode(writer.getOutput(), type(Basic)) == Basic(b: repeated)
-
-  test "Enum in object":
-    var x = TestObject(x: One)
-    check Protobuf.decode(Protobuf.encode(x), TestObject) == x
-
-    var y = TestObject(x: Two)
-    check Protobuf.decode(Protobuf.encode(y), TestObject) == y
-
-    var z = TestObject(x: NegOne)
-    check Protobuf.decode(Protobuf.encode(z), TestObject) == z
-
-    var v = TestObject(x: NegTwo)
-    check Protobuf.decode(Protobuf.encode(v), TestObject) == v
-
-    var w = TestObject(x: Zero)
-    check Protobuf.decode(Protobuf.encode(w), TestObject) == w

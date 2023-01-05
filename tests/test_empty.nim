@@ -3,10 +3,10 @@ import unittest2
 import ../protobuf_serialization
 
 type
-  X {.protobuf3.} = object
-  Y {.protobuf3.} = object
+  X {.proto3.} = object
+  Y {.proto3.} = object
     a {.pint, fieldNumber: 1.}: int32
-  Z {.protobuf3.} = object
+  Z {.proto3.} = object
     b {.fieldNumber: 1.}: string
 
 proc writeEmpty[T](value: T) =

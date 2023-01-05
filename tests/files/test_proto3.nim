@@ -10,23 +10,23 @@ macro test() =
     parsed: NimNode = protoToTypesInternal("./", staticRead("test.proto3"))
     vector: NimNode = quote do:
       type
-        TestEnum* {.protobuf3.} = enum
+        TestEnum* {.proto3.} = enum
           UNKNOWN = 0
           STARTED = 1
 
-        ErrorStatus* {.protobuf3.} = object
+        ErrorStatus* {.proto3.} = object
           message* {.fieldNumber: 1.}: string
           details* {.fieldNumber: 2.}: seq[seq[byte]]
 
-        Result* {.protobuf3.} = object
+        Result* {.proto3.} = object
           url* {.fieldNumber: 1.}: string
           title* {.fieldNumber: 2.}: string
           snippets* {.fieldNumber: 3.}: seq[string]
 
-        SearchResponse* {.protobuf3.} = object
+        SearchResponse* {.proto3.} = object
           results* {.fieldNumber: 1.}: seq[Result]
 
-        Corpus* {.protobuf3.} = enum
+        Corpus* {.proto3.} = enum
           UNIVERSAL = 0
           WEB = 1
           IMAGES = 2
@@ -35,13 +35,13 @@ macro test() =
           PRODUCTS = 5
           VIDEO = 6
 
-        SearchRequest* {.protobuf3.} = object
+        SearchRequest* {.proto3.} = object
           query* {.fieldNumber: 1.}: string
           page_number* {.fieldNumber: 2, pint.}: int32
           result_per_page* {.fieldNumber: 3, pint.}: int32
           corpus* {.fieldNumber: 4.}: Corpus
 
-        Foo* {.protobuf3.} = object
+        Foo* {.proto3.} = object
 
   proc convertFromSym(parent: NimNode, i: int) =
     if parent[i].kind == nnkSym:

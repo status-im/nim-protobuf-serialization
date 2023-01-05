@@ -28,8 +28,8 @@ macro unsupportedProtoType*(FieldType, RootType, fieldName: typed): untyped =
   # TODO fix RootType printing
   error "Serializing " & humaneTypeName(FieldType) & " as field type is not supported: " & humaneTypeName(RootType) & "." & repr(fieldName)
 
-proc isProto2*(T: type): bool {.compileTime.} = T.hasCustomPragma(protobuf2)
-proc isProto3*(T: type): bool {.compileTime.} = T.hasCustomPragma(protobuf3)
+proc isProto2*(T: type): bool {.compileTime.} = T.hasCustomPragma(proto2)
+proc isProto3*(T: type): bool {.compileTime.} = T.hasCustomPragma(proto3)
 
 proc isPacked*(T: type, fieldName: static string): Option[bool] {.compileTime.} =
   if T.hasCustomPragmaFixed(fieldName, packed):
@@ -114,18 +114,18 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
       isProto2 = T.isProto2()
       isProto3 = T.isProto3()
     when isProto2 == isProto3:
-      {.fatal: "Serialized objects must have either the protobuf2 or protobuf3 pragma attached.".}
+      {.fatal: "Serialized objects must have either the proto2 or proto3 pragma attached.".}
 
     enumInstanceSerializedFields(inst, fieldName, fieldVar):
       when isProto2 and not T.isRequired(fieldName):
         when fieldVar is not seq:
           when fieldVar is not PBOption:
-            {.fatal: "Protobuf2 requires every field to either have the required pragma attached or be a repeated field/PBOption.".}
+            {.fatal: "proto2 requires every field to either have the required pragma attached or be a repeated field/PBOption.".}
       when isProto3 and (
         T.hasCustomPragmaFixed(fieldName, required) or
         (fieldVar is PBOption)
       ):
-        {.fatal: "The required pragma/PBOption type can only be used with Protobuf2.".}
+        {.fatal: "The required pragma/PBOption type can only be used with proto2.".}
 
       protoType(ProtoType {.used.}, T, typeof(fieldVar), fieldName) # Ensure we can form a ProtoType
 

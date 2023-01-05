@@ -3,10 +3,10 @@ import unittest2
 import ../protobuf_serialization
 
 type
-  Float2Object {.protobuf2.} = object
+  Float2Object {.proto2.} = object
     a {.fieldNumber: 1.}: PBOption[1'f64]
 
-  Float3Object {.protobuf3.} = object
+  Float3Object {.proto3.} = object
     a {.fieldNumber: 1.}: float32
 
 suite "Test Fixed Encoding/Decoding":

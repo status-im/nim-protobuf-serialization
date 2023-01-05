@@ -29,8 +29,8 @@ type
     value: typeof(defaultValue)
 
 # Message type annotations
-template protobuf2*() {.pragma.}
-template protobuf3*() {.pragma.}
+template proto2*() {.pragma.}
+template proto3*() {.pragma.}
 
 # Field annotations
 template fieldNumber*(num: int) {.pragma.}

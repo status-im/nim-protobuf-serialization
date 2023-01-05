@@ -5,12 +5,12 @@ import ../protobuf_serialization
 
 type
   # Keep in sync with test_repeated.proto
-  Sequences {.protobuf3.} = object
+  Sequences {.proto3.} = object
     x {.fieldNumber: 1, sint, packed: false.}: seq[int32]
     y {.fieldNumber: 2, packed: false.}: seq[bool]
     z {.fieldNumber: 3.}: seq[string]
 
-  Packed {.protobuf3.} = object
+  Packed {.proto3.} = object
     x {.fieldNumber: 1, sint, packed: true.}: seq[int32]
     y {.fieldNumber: 2, packed: true.}: seq[bool]
     z {.fieldNumber: 3, fixed, packed: true.}: seq[int32]

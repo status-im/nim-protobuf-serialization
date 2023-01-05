@@ -3,25 +3,25 @@ import unittest2
 import ../protobuf_serialization
 
 type
-  Required {.protobuf2.} = object
+  Required {.proto2.} = object
     a {.pint, fieldNumber: 1.}: PBOption[2'i32]
     b {.pint, required, fieldNumber: 2.}: int32
 
-  FullOfDefaults {.protobuf2.} = object
+  FullOfDefaults {.proto2.} = object
     a {.fieldNumber: 3.}: PBOption["abc"]
     b {.fieldNumber: 4.}: PBOption[default(Required)]
 
-  SeqContainer {.protobuf2.} = object
+  SeqContainer {.proto2.} = object
     data {.fieldNumber: 5.}: seq[bool]
 
-  SeqString {.protobuf2.} = object
+  SeqString {.proto2.} = object
     data {.fieldNumber: 6.}: seq[string]
 
-  FloatOption {.protobuf2.} = object
+  FloatOption {.proto2.} = object
     x {.fieldNumber: 1.}: PBOption[0'f32]
     y {.fieldNumber: 2.}: PBOption[0'f64]
 
-  FixedOption {.protobuf2.} = object
+  FixedOption {.proto2.} = object
     a {.fixed, fieldNumber: 1.}: PBOption[0'i32]
     b {.fixed, fieldNumber: 2.}: PBOption[0'i64]
     c {.fixed, fieldNumber: 3.}: PBOption[0'u32]
