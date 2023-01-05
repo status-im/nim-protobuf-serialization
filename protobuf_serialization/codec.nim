@@ -50,8 +50,8 @@ type
   fixed32* = distinct uint32 ## fixed-width unsigned integer
   fixed64* = distinct uint64 ## fixed-width unsigned integer
 
-  sfixed32* = distinct uint32 ## fixed-width signed integer
-  sfixed64* = distinct uint64 ## fixed-width signed integer
+  sfixed32* = distinct int32 ## fixed-width signed integer
+  sfixed64* = distinct int64 ## fixed-width signed integer
 
   pbool* = distinct bool
 

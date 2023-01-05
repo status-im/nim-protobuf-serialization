@@ -35,7 +35,7 @@ template protobuf3*() {.pragma.}
 # Field annotations
 template fieldNumber*(num: int) {.pragma.}
 template required*() {.pragma.}
-template packed*() {.pragma.}
+template packed*(v: bool) {.pragma.}
 template pint*() {.pragma.} # encode as `intXX`
 template sint*() {.pragma.} # encode as `sintXX`
 template fixed*() {.pragma.} # encode as `fixedXX`

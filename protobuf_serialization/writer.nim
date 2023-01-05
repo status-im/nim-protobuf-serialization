@@ -84,8 +84,7 @@ proc writeValue*[T: object](stream: OutputStream, value: T) =
 
     when FlatType is seq and FlatType isnot seq[byte]:
       const
-        # TODO a way to create non-packed proto3 fields
-        isPacked = isProto3 or T.isPacked(fieldName)
+        isPacked = T.isPacked(fieldName).get(isProto3)
       when isPacked and ProtoType is SomePrimitive:
         stream.writeFieldPacked(fieldNum, fieldVal, ProtoType)
       else:

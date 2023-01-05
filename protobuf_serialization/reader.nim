@@ -104,8 +104,11 @@ proc readFieldPackedInto[T](
     inner.readFieldInto(value[^1], FieldHeader.init(header.number, kind), ProtoType)
 
 proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false) =
-  var requiredSets: HashSet[int]
-  when T.hasCustomPragma(protobuf2):
+  const
+    isProto2: bool = T.isProto2()
+
+  when isProto2:
+    var requiredSets: HashSet[int]
     if not silent:
       var i: int = -1
       enumInstanceSerializedFields(value, fieldName, fieldVar):
@@ -123,7 +126,8 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
         fieldNum = T.fieldNumberOf(fieldName)
 
       if header.number() == fieldNum:
-        if not silent: requiredSets.excl i
+        when isProto2:
+          if not silent: requiredSets.excl i
 
         protoType(ProtoType, T, typeof(fieldVar), fieldName)
 
@@ -136,8 +140,11 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
         else:
           stream.readFieldInto(fieldVar, header, ProtoType)
 
-  if (requiredSets.len != 0):
-    raise newException(ProtobufReadError, "Message didn't encode a required field: " & $requiredSets)
+  when isProto2:
+    if (requiredSets.len != 0):
+      raise newException(
+        ProtobufReadError,
+        "Message didn't encode a required field: " & $requiredSets)
 
 proc readValue*[T: object](reader: ProtobufReader, value: var T) =
   static: verifySerializable(T)

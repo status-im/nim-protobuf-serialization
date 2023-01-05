@@ -1,6 +1,6 @@
 #Variables needed by the Reader and Writer which should NOT be exported outside of this library.
 
-import std/sets
+import std/[options, sets]
 import stew/shims/macros
 #Depending on the situation, one of these two are used.
 #Sometimes, one works where the other doesn't.
@@ -31,8 +31,16 @@ macro unsupportedProtoType*(FieldType, RootType, fieldName: typed): untyped =
 proc isProto2*(T: type): bool {.compileTime.} = T.hasCustomPragma(protobuf2)
 proc isProto3*(T: type): bool {.compileTime.} = T.hasCustomPragma(protobuf3)
 
-proc isPacked*(T: type, fieldName: static string): bool {.compileTime.} =
-  T.hasCustomPragmaFixed(fieldName, packed)
+proc isPacked*(T: type, fieldName: static string): Option[bool] {.compileTime.} =
+  if T.hasCustomPragmaFixed(fieldName, packed):
+    const p = T.getCustomPragmaFixed(fieldName, packed)
+    when p is NimNode:
+      none(bool)
+    else:
+      some(p)
+  else:
+    none(bool)
+
 proc isRequired*(T: type, fieldName: static string): bool {.compileTime.} =
   T.hasCustomPragmaFixed(fieldName, required)
 
@@ -85,8 +93,6 @@ template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped)
     type InnerType = pbytes
   elif FlatType is object:
     type InnerType = FieldType
-  elif FlatType is enum:
-    type InnerType = pint64
   else:
     type InnerType = UnsupportedType[FieldType, RootType, fieldName]
 
@@ -127,7 +133,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
       when fieldNum is NimNode:
         {.fatal: "No field number specified on serialized field.".}
       else:
-        when not validFieldNumber(fieldNum):
+        when not validFieldNumber(fieldNum, strict = true):
           {.fatal: "Field numbers must be in the range [1..2^29-1]".}
 
         if fieldNumberSet.containsOrIncl(fieldNum):
