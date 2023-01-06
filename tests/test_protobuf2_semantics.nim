@@ -4,8 +4,8 @@ import ../protobuf_serialization
 
 type
   Required {.proto2.} = object
-    a {.pint, fieldNumber: 1.}: PBOption[2'i32]
-    b {.pint, required, fieldNumber: 2.}: int32
+    a {.fieldNumber: 1, pint .}: PBOption[2'i32]
+    b {.fieldNumber: 2, pint, required.}: int32
 
   FullOfDefaults {.proto2.} = object
     a {.fieldNumber: 3.}: PBOption["abc"]
@@ -22,10 +22,10 @@ type
     y {.fieldNumber: 2.}: PBOption[0'f64]
 
   FixedOption {.proto2.} = object
-    a {.fixed, fieldNumber: 1.}: PBOption[0'i32]
-    b {.fixed, fieldNumber: 2.}: PBOption[0'i64]
-    c {.fixed, fieldNumber: 3.}: PBOption[0'u32]
-    d {.fixed, fieldNumber: 4.}: PBOption[0'u64]
+    a {.fieldNumber: 1, fixed.}: PBOption[0'i32]
+    b {.fieldNumber: 2, fixed.}: PBOption[0'i64]
+    c {.fieldNumber: 3, fixed.}: PBOption[0'u32]
+    d {.fieldNumber: 4, fixed.}: PBOption[0'u64]
 
 suite "Test Encoding of Protobuf 2 Semantics":
   test "PBOption basics":

@@ -13,7 +13,9 @@ Protobuf implementation compatible with the [nim-serialization](https://github.c
 
 Messages in protobuf are serialized according to a schema found in `.proto` files. The library requires that types are annotated with schema information - this can be done either directly in Nim or, for some `proto3` files, generated using the `import_proto3` macro.
 
-Both Protobuf 2 and Protobuf 3 semantics are supported. When declaring an object, add either the `protobuf2` or `protobuf3` pragma to declare which to use. When using Protobuf 3, a `import_proto3` macro is available. Taking in a file path, it can directly parse a Protobuf 3 spec file and generate the matching Nim types:
+Both Protobuf 2 and Protobuf 3 semantics are supported. When declaring an object, add either the `proto2` or `proto3` pragma to declare which to use, as seen in the `syntax` element in protobuf.
+
+When using Protobuf 3, a `import_proto3` macro is available. Taking in a file path, it can directly parse a Protobuf 3 spec file and generate the matching Nim types, same as if they had been written manually.
 
 ### Annotating objects
 
@@ -22,6 +24,8 @@ The protobuf schema can be declared using annotations similar to what is found i
 **my_protocol.proto3**:
 
 ```proto3
+syntax = "proto3";
+
 message ExampleMsg {
   int32 a = 1;
   float b = 2;
@@ -31,8 +35,8 @@ message ExampleMsg {
 **Annotated Nim code**
 
 ```nim
-type ExampleMsg {.protobuf3.} = object
-  a {.pint, fieldNumber: 1.}: int32
+type ExampleMsg {.proto3.} = object
+  a {.fieldNumber: 1, pint.}: int32
   b {.fieldNumber: 2.}: float32
 ```
 
@@ -69,14 +73,14 @@ Here is an example demonstrating how the various pragmas can be combined:
 
 ```nim
 type
-  X {.protobuf3.} = object
-    a {.pint, fieldNumber: 1.}: int32
+  X {.proto3.} = object
+    a {.fieldNumber: 1, pint.}: int32
     b {.fieldNumber: 2.}: float32
 
-  Y {.protobuf2.} = object
+  Y {.proto2.} = object
     a {.fieldNumber: 1.}: seq[string]
-    b {.pint, fieldNumber: 2.}: PBOption[int32(2)]
-    c {.required, sint, fieldNumber: 3.}: int32
+    b {.fieldNumber: 2, pint.}: PBOption[int32(2)]
+    c {.fieldNumber: 3, required, sint.}: int32
 ```
 
 ## License

@@ -6,13 +6,13 @@ import
 
 type
   Basic {.proto3.} = object
-    a {.pint, fieldNumber: 1.}: uint64
+    a {.fieldNumber: 1, pint.}: uint64
     b {.fieldNumber: 2.}: string
     # TODO char is not a basic protobuf type c {.fieldNumber: 3.}: char
 
   Wrapped {.proto3.} = object
-    d {.sint, fieldNumber: 1.}: int32
-    e {.sint, fieldNumber: 2.}: int64
+    d {.fieldNumber: 1, sint.}: int32
+    e {.fieldNumber: 2, sint.}: int64
     f {.fieldNumber: 3.}: Basic
     g {.fieldNumber: 4.}: string
     h {.fieldNumber: 5.}: bool

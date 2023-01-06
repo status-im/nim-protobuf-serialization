@@ -4,13 +4,13 @@ import ../protobuf_serialization
 
 type
   PIntType {.proto3.} = object
-    x {.pint, fieldNumber: 1.}: int32
+    x {.fieldNumber: 1, pint.}: int32
 
   UIntType {.proto3.} = object
-    x {.pint, fieldNumber: 1.}: uint32
+    x {.fieldNumber: 1, pint.}: uint32
 
   SIntType {.proto3.} = object
-    x {.sint, fieldNumber: 1.}: int32
+    x {.fieldNumber: 1, sint.}: int32
 
   BoolType {.proto3.} = object
     x {.fieldNumber: 1.}: bool

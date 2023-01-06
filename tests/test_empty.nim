@@ -5,7 +5,7 @@ import ../protobuf_serialization
 type
   X {.proto3.} = object
   Y {.proto3.} = object
-    a {.pint, fieldNumber: 1.}: int32
+    a {.fieldNumber: 1, pint.}: int32
   Z {.proto3.} = object
     b {.fieldNumber: 1.}: string
 
