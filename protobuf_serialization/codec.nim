@@ -214,7 +214,7 @@ proc readLength*(input: InputStream): int =
 proc readValue*[T: SomeLengthDelim](input: InputStream, _: type T): T =
   let len = input.readLength()
   if len > 0:
-    type Base = T.distinctBase()
+    type Base = typetraits.distinctBase(T)
     let inputLen = input.len()
     if inputLen.isSome() and len > inputLen.get():
         raise (ref ValueError)(msg: "Missing bytes: " & $len)
