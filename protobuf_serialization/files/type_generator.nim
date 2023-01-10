@@ -121,7 +121,7 @@ proc protoToTypesInternal*(filepath: string, proto: string): NimNode =
         newNimNode(nnkTypeDef).add(
           newNimNode(nnkPragmaExpr).add(
             newNimNode(nnkPostfix).add(ident("*"), ident(name)),
-            newNimNode(nnkPragma).add(ident("protobuf3"))
+            newNimNode(nnkPragma).add(ident("proto3"))
           ),
           newEmptyNode(),
           value

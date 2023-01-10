@@ -1,8 +1,8 @@
-import unittest
+import unittest2
 
 import ../protobuf_serialization
 
-type X {.protobuf3.} = object
+type X {.proto3.} = object
   x00 {.fieldNumber: 1.}: bool
   x01 {.fieldNumber: 2.}: bool
   x02 {.fieldNumber: 3.}: bool

@@ -1,276 +1,157 @@
 #Parses the Protobuf binary wire protocol into the specified type.
 
-import options
+import
+  std/[typetraits, sets],
+  stew/assign2,
+  stew/shims/macros,
+  faststreams/inputs,
+  serialization,
+  "."/[codec, internal, types]
 
-import stew/shims/macros
-import faststreams/inputs
-import serialization
+export inputs, serialization, codec, types
 
-import internal
-import types
+proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false)
 
-proc readVarInt[B, E](
+macro unsupported(T: typed): untyped =
+  error "Assignment of the type " & humaneTypeName(T) & " is not supported"
+
+template requireKind(header: FieldHeader, expected: WireKind) =
+  mixin number
+  if header.kind() != expected:
+    raise (ref ValueError)(
+      msg: "Unexpected data kind " & $(header.number()) & ": " & $header.kind()  &
+      ", exprected " & $expected)
+
+proc readFieldInto[T: object](
   stream: InputStream,
-  fieldVar: var B,
-  encoding: E,
-  key: ProtobufKey
-) =
-  when E is not VarIntWrapped:
-    {.fatal: "Tried to read a VarInt without a specified encoding. This should never happen.".}
-
-  if key.wire != VarInt:
-    raise newException(ProtobufMessageError, "Invalid wire type for a VarInt.")
-
-  #Box the result back up.
-  box(fieldVar, stream.decodeVarInt(flatType(B), type(E)))
-
-proc readFixed[B](stream: InputStream, fieldVar: var B, key: ProtobufKey) =
-  type T = flatType(B)
-  var value: T
-
-  when sizeof(T) == 8:
-    if key.wire != Fixed64:
-      raise newException(ProtobufMessageError, "Invalid wire type for a Fixed64.")
-  else:
-    if key.wire != Fixed32:
-      raise newException(ProtobufMessageError, "Invalid wire type for a Fixed32.")
-
-  stream.decodeFixed(value)
-  box(fieldVar, value)
-
-include stdlib_readers
-
-proc readValueInternal[T](stream: InputStream, ty: typedesc[T], silent: bool = false): T
-
-proc readLengthDelimited[R, B](
-  stream: InputStream,
-  rootType: typedesc[R],
-  fieldName: static string,
-  fieldVar: var B,
-  key: ProtobufKey
-) =
-  if key.wire != LengthDelimited:
-    raise newException(ProtobufMessageError, "Invalid wire type for a length delimited sequence/object.")
-
-  var
-    #We need to specify a bit quantity for decode to be satisfied.
-    #int64 won't work on int32 systems, as this eventually needs to be casted to int.
-    #We could just use the proper int size for the system.
-    #That said, a 2 GB buffer limit isn't a horrible idea from a security perspective.
-    #If anyone has a valid reason for one, let me know.
-
-    #Uses PInt to ensure 31-bits are used, not 32-bits.
-    len = stream.decodeVarInt(int, PInt(int32))
-    preResult: flatType(B)
-  if len < 0:
-    raise newException(ProtobufMessageError, "Length delimited buffer contained more than 2 GB of data.")
-
-  when preResult is CastableLengthDelimitedTypes:
-    var byteResult: seq[byte] = newSeq[byte](len)
-    if not stream.readInto(byteResult):
-      raise newException(ProtobufEOFError, "Couldn't read the length delimited buffer from this stream.")
-    preResult = cast[type(preResult)](byteResult)
-
-  else:
-    if not stream.readable(len):
-      raise newException(ProtobufEOFError, "Couldn't read the length delimited buffer from this stream despite expecting one.")
-
-    stream.withReadableRange(len, substream):
-      when preResult is not LengthDelimitedTypes:
-        {.fatal: "Tried to read a Length Delimited value which we didn't recognize. This should never happen.".}
-      elif B.isStdlib():
-        substream.stdlibFromProtobuf(rootType, fieldName, preResult)
-      elif preResult is (object or tuple):
-        preResult = substream.readValueInternal(type(preResult))
-      else:
-        {.fatal: "Tried to read a Length Delimited type which wasn't actually Length Delimited. This should never happen.".}
-
-  box(fieldVar, preResult)
-
-proc setField[T](
   value: var T,
-  stream: InputStream,
-  key: ProtobufKey,
-  requiredSets: var HashSet[int]
+  header: FieldHeader,
+  ProtoType: type
 ) =
-  when T is (ref or ptr or Option):
-    {.fatal: "Ref or Ptr or Option made it to setField. This should never happen.".}
+  header.requireKind(WireKind.LengthDelim)
 
-  elif T is (seq or set or HashSet):
-    template merge[I](
-      stdlib: var (seq[I] or set[I] or HashSet[I]),
-      value: I
-    ) =
-      when stdlib is seq:
-        stdlib.add(value)
-      else:
-        stdlib.incl(value)
+  let len = stream.readLength()
+  if len > 0:
+    # TODO: https://github.com/status-im/nim-faststreams/issues/31
+    # TODO: check that all bytes were read
+    # stream.withReadableRange(len, inner):
+    #   inner.readValueInternal(value)
 
-    type U = value.getUnderlyingType()
-    #Unpacked seq of numbers.
-    if key.wire != LengthDelimited:
-      var next: U
-      when flatType(U) is VarIntWrapped:
-        stream.readVarInt(next, next, key)
-      elif flatType(U) is FixedWrapped:
-        stream.readFixed(next, key)
-      else:
-        if true:
-          raise newException(ProtobufMessageError, "Reading into an unpacked seq yet value is a number.")
-      merge(value, next)
-    #Packed seq of numbers/unpacked seq of objects.
-    else:
-      when flatType(U) is (VarIntWrapped or FixedWrapped):
-        var newValues: seq[U]
-        stream.readLengthDelimited(type(value), "", newValues, key)
-        for newValue in newValues:
-          merge(value, newValue)
-      else:
-        var
-          next: flatType(U)
-          boxed: U
-        stream.readLengthDelimited(U, "", next, key)
-        box(boxed, next)
-        merge(value, boxed)
+    var tmp = newSeqUninitialized[byte](len)
+    if not stream.readInto(tmp):
+      raise (ref ValueError)(msg: "not enough bytes")
+    memoryInput(tmp).readValueInternal(value)
 
-  elif T is not (object or tuple):
-    when T is VarIntWrapped:
-      stream.readVarInt(value, value, key)
-    elif T is FixedWrapped:
-      stream.readFixed(value, key)
-    elif T is (PlatformDependentTypes or VarIntTypes or FixedTypes):
-      {.fatal: "Reading into a number requires specifying both the amount of bits via the type, as well as the encoding format.".}
-    else:
-      stream.readLengthDelimited(type(value), "", value, key)
-
+proc readFieldInto[T: not object and (seq[byte] or not seq)](
+  stream: InputStream,
+  value: var T,
+  header: FieldHeader,
+  ProtoType: type
+) =
+  when ProtoType is SomeVarint:
+    header.requireKind(WireKind.Varint)
+    assign(value, T(stream.readValue(ProtoType)))
+  elif ProtoType is SomeFixed64:
+    header.requireKind(WireKind.Fixed64)
+    assign(value, T(stream.readValue(ProtoType)))
+  elif ProtoType is SomeLengthDelim:
+    header.requireKind(WireKind.LengthDelim)
+    assign(value, T(stream.readValue(ProtoType)))
+  elif ProtoType is SomeFixed32:
+    header.requireKind(WireKind.Fixed32)
+    assign(value, T(stream.readValue(ProtoType)))
   else:
-    #This iterative approach is extemely poor.
-    #See https://github.com/kayabaNerve/nim-protobuf-serialization/issues/8.
-    var
-      keyNumber: int = key.number
-      found: bool = false
-    when T.hasCustomPragma(protobuf2):
-      var rSI: int = -1
+    static: unsupported(ProtoType)
 
-    enumInstanceSerializedFields(value, fieldName, fieldVar):
-      discard fieldName
-      when T.hasCustomPragma(protobuf2):
-        inc(rSI)
+proc readFieldInto[T: not byte](
+  stream: InputStream,
+  value: var seq[T],
+  header: FieldHeader,
+  ProtoType: type
+) =
+  value.add(default(T))
+  stream.readFieldInto(value[^1], header, ProtoType)
 
-      when fieldVar is PlatformDependentTypes:
-        {.fatal: "Reading into a number requires specifying the amount of bits via the type.".}
+proc readFieldInto(
+  stream: InputStream,
+  value: var PBOption,
+  header: FieldHeader,
+  ProtoType: type
+) =
+  stream.readFieldInto(value.mget(), header, ProtoType)
 
-      if keyNumber == fieldVar.getCustomPragmaVal(fieldNumber):
-        found = true
-        when T.hasCustomPragma(protobuf2):
-          requiredSets.excl(rSI)
+proc readFieldPackedInto[T](
+  stream: InputStream,
+  value: var seq[T],
+  header: FieldHeader,
+  ProtoType: type
+) =
+  # TODO make more efficient
+  var
+    bytes = seq[byte](stream.readValue(pbytes))
+    inner = memoryInput(bytes)
+  while inner.readable():
+    value.add(default(T))
 
-        var
-          blank: flatType(fieldVar)
-          flattened = flatMap(fieldVar).get(blank)
-        when blank is (seq or set or HashSet):
-          type U = flattened.getUnderlyingType()
-          when U is (VarIntWrapped or FixedWrapped):
-            var castedVar = flattened
-          elif U is (VarIntTypes or FixedTypes):
-            when T.hasCustomPragmaFixed(fieldName, pint):
-              #Nim encounters an error when doing `type C = PInt(U)`.
-              var
-                pointless: U
-                C = PInt(pointless)
-            elif T.hasCustomPragmaFixed(fieldName, sint):
-              var
-                pointless: U
-                C = SInt(pointless)
-            elif T.hasCustomPragmaFixed(fieldName, fixed):
-              var
-                pointless: U
-                C = Fixed(pointless)
+    let kind = when ProtoType is SomeVarint:
+      WireKind.Varint
+    elif ProtoType is SomeFixed32:
+      WireKind.Fixed32
+    else:
+      static: doAssert ProtoType is SomeFixed64
+      ProtoType.SomeFixed64
 
-            when flattened is seq:
-              var castedVar = cast[seq[type(C)]](flattened)
-            elif flattened is set:
-              var castedVar = cast[set[type(C)]](flattened)
-            elif flattened is HashSet:
-              var castedVar = cast[HashSet[type(C)]](flattened)
-          else:
-            var castedVar = flattened
-          var requiredSets: HashSet[int] = initHashSet[int]()
-          castedVar.setField(stream, key, requiredSets)
+    inner.readFieldInto(value[^1], FieldHeader.init(header.number, kind), ProtoType)
 
-          flattened = cast[type(flattened)](castedVar)
-        else:
-          #Only calculate the encoding for VarInt.
-          #In every other case, the type is enough.
-          when flattened is VarIntWrapped:
-            stream.readVarInt(flattened, flattened, key)
+proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false) =
+  const
+    isProto2: bool = T.isProto2()
 
-          elif flattened is FixedWrapped:
-            stream.readFixed(flattened, key)
-
-          elif flattened is VarIntTypes:
-            when T.hasCustomPragmaFixed(fieldName, pint):
-              stream.readVarInt(flattened, PInt(flattened), key)
-            elif T.hasCustomPragmaFixed(fieldName, sint):
-              stream.readVarInt(flattened, SInt(flattened), key)
-            elif T.hasCustomPragmaFixed(fieldName, fixed):
-              stream.readFixed(flattened, key)
-            else:
-              {.fatal: "Encoding pragma specified yet no enoding matched. This should never happen.".}
-
-          else:
-            stream.readLengthDelimited(type(value), fieldName, flattened, key)
-
-        box(fieldVar, flattened)
-        break
-
-    if not found:
-      raise newException(ProtobufMessageError, "Message encoded an unknown field number.")
-
-proc readValueInternal[T](stream: InputStream, ty: typedesc[T], silent: bool = false): T =
-  static: verifySerializable(flatType(T))
-
-  var requiredSets: HashSet[int] = initHashSet[int]()
-  when (flatType(result) is object) and (not flatType(result).isStdlib()):
-    when ty.hasCustomPragma(protobuf2):
+  when isProto2:
+    var requiredSets: HashSet[int]
+    if not silent:
       var i: int = -1
-      enumInstanceSerializedFields(result, fieldName, fieldVar):
+      enumInstanceSerializedFields(value, fieldName, fieldVar):
         inc(i)
-        when ty.hasCustomPragmaFixed(fieldName, required):
+
+        when T.hasCustomPragmaFixed(fieldName, required):
           requiredSets.incl(i)
 
   while stream.readable():
-    result.setField(stream, stream.readProtobufKey(), requiredSets)
+    let header = stream.readHeader()
+    var i = -1
+    enumInstanceSerializedFields(value, fieldName, fieldVar):
+      inc i
+      const
+        fieldNum = T.fieldNumberOf(fieldName)
 
-  if (requiredSets.len != 0) and (not silent):
-    raise newException(ProtobufReadError, "Message didn't encode a required field.")
+      if header.number() == fieldNum:
+        when isProto2:
+          if not silent: requiredSets.excl i
 
-proc readValue*(reader: ProtobufReader, value: var auto) =
-  when value is Option:
-    {.fatal: "Can't decode directly into an Option.".}
+        protoType(ProtoType, T, typeof(fieldVar), fieldName)
 
-  when (flatType(value) is object) and (not flatType(value).isStdlib()):
-    static:
-      for c in $type(value):
-        if c == ' ':
-          raise newException(Exception, "Told to read into an inlined type; every type read into must have a proper type definition: " & $type(value))
-    when type(value).hasCustomPragma(protobuf2):
-      if not reader.stream.readable():
-        enumInstanceSerializedFields(value, fieldName, fieldVar):
-          when type(value).hasCustomPragmaFixed(fieldName, required):
-            raise newException(ProtobufReadError, "Message didn't encode a required field.")
+        # TODO should we allow reading packed fields into non-repeated fields?
+        when ProtoType is SomePrimitive and fieldVar is seq and fieldVar isnot seq[byte]:
+          if header.kind() == WireKind.LengthDelim:
+            stream.readFieldPackedInto(fieldVar, header, ProtoType)
+          else:
+            stream.readFieldInto(fieldVar, header, ProtoType)
+        else:
+          stream.readFieldInto(fieldVar, header, ProtoType)
+
+  when isProto2:
+    if (requiredSets.len != 0):
+      raise newException(
+        ProtobufReadError,
+        "Message didn't encode a required field: " & $requiredSets)
+
+proc readValue*[T: object](reader: ProtobufReader, value: var T) =
+  static: verifySerializable(T)
+
+  # TODO skip length header
   try:
-    if reader.stream.readable():
-      if reader.keyOverride.isNone():
-        box(value, reader.stream.readValueInternal(flatType(type(value))))
-      else:
-        var preResult: flatType(type(value))
-        while reader.stream.readable():
-          var requiredSets: HashSet[int] = initHashSet[int]()
-          preResult.setField(reader.stream, reader.keyOverride.get(), requiredSets)
-        box(value, preResult)
-  except ProtobufReadError as e:
-    raise e
+    reader.stream.readValueInternal(value)
   finally:
     if reader.closeAfter:
       reader.stream.close()

@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+message Sequences {
+  repeated sint32 x = 1 [packed = false];
+  repeated bool y = 2 [packed = false];
+  repeated string z = 3 [packed = false];
+}
+
+message Packed {
+  repeated sint32 x = 1 [packed = true];
+  repeated bool y = 2 [packed = true];
+  repeated sfixed32 z = 3 [packed = true];
+  repeated float a = 4 [packed = true];
+}
