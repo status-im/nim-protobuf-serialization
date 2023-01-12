@@ -34,6 +34,7 @@ z: ["zero", "one", "two"]
         "080a080508d80408c7091001100010011001100010001000100110001a047a65726f1a036f6e651a0374776f")
 
     check:
+      Protobuf.computeSize(v) == encoded.len
       Protobuf.encode(v) == encoded
       Protobuf.decode(encoded, typeof(v)) == v
 
@@ -56,5 +57,6 @@ a: [5, -3, 300, -612]
         "0a060a05d804c70912090100010100000001001a1005000000fdffffff2c0100009cfdffff22100000a040000040c000009643000019c4")
 
     check:
+      Protobuf.computeSize(v) == encoded.len
       Protobuf.encode(v) == encoded
       Protobuf.decode(encoded, typeof(v)) == v

@@ -116,7 +116,7 @@ template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped)
   elif FlatType is seq[byte]:
     type InnerType = pbytes
   elif FlatType is object:
-    type InnerType = FieldType
+    type InnerType = pbytes
   else:
     type InnerType = UnsupportedType[FieldType, RootType, fieldName]
 

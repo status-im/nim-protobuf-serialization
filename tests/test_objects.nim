@@ -50,7 +50,7 @@ suite "Test Object Encoding/Decoding":
       writer = memoryOutput()
 
     writer.writeField(1, sint32(obj.d))
-    writer.writeField(3, obj.f)
+    writer.writeField(3, obj.f, pbytes)
     writer.writeField(4, pstring(obj.g))
 
     let result = Protobuf.decode(writer.getOutput(), type(Wrapped))
@@ -71,7 +71,7 @@ suite "Test Object Encoding/Decoding":
       )
       writer = memoryOutput()
 
-    writer.writeField(3, obj.f)
+    writer.writeField(3, obj.f, pbytes)
     writer.writeField(1, sint64(obj.d))
     writer.writeField(2, sint64(obj.e))
     writer.writeField(5, pbool(obj.h))

@@ -13,8 +13,8 @@ type
   ProtobufEOFError* = object of ProtobufReadError
   ProtobufMessageError* = object of ProtobufReadError
 
-  ProtobufFlags* = uint8 # enum
-    # VarIntLengthPrefix, # TODO needs fixing
+  ProtobufFlags* = enum
+    VarIntLengthPrefix
 
   ProtobufWriter* = object
     stream*: OutputStream
