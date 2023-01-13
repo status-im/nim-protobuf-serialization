@@ -34,6 +34,7 @@ type
       protoType*: string
       name*: string
       repeated*: bool
+      optional*: bool
     of Oneof:
       oneofName*: string
       oneof*: seq[ProtoNode]
