@@ -25,24 +25,31 @@ proc `==`(t: Token, c: char): bool =
 
 proc tokenize(f: string): seq[Token] =
   let lexer = peg(tokens, res: seq[Token]):
-    space    <- +Space
-    comment  <- "//" * *(1 - '\n')
-    comment2 <- "/*" * @"*/"
-    dblstring<- '"' * *(1 - '"') * '"'
-    regstring<- '\'' * *(1 - '\'') * '\''
-    string   <- dblstring | regstring:
+    space     <- +Space
+    comment   <- "//" * *(1 - '\n')
+    comment2  <- "/*" * @"*/"
+
+    octDigit  <- {'0'..'7'}
+    hexDigit  <- {'0'..'9', 'a'..'f', 'A'..'F'}
+    octEscape <- '\\' * octDigit[3]
+    hexEscape <- '\\' * {'x', 'X'} * hexDigit[2]
+    charEscape<- '\\' * {'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '\'', '"'}
+    escapes   <- hexEscape | octEscape | charEscape
+    dblstring <- '"' * *(escapes | 1 - '"') * '"'
+    regstring <- '\'' * *(escapes | 1 - '\'') * '\''
+    string    <- dblstring | regstring:
       res.add Token(typ: String, text: $0)
-    symbol   <- {'=', ';', '{', '}', '[', ']', '<', '>', ','}:
+    symbol    <- {'=', ';', '{', '}', '[', ']', '<', '>', ','}:
       res.add Token(typ: Symbol, text: $0)
     # according to the official syntax, this is correct.
     # but in reality, leading underscores are accepted
     #ident    <- Alpha * *(Alpha | '_' | Digit)
-    ident    <- (Alpha | '_') * *(Alpha | '_' | Digit)
-    fullIdent<- ?'.' * ident * *('.' * ident):
+    ident     <- (Alpha | '_') * *(Alpha | '_' | Digit)
+    fullIdent <- ?'.' * ident * *('.' * ident):
       res.add Token(typ: Ident, text: $0)
-    integer  <- ?('-' | '+') * +(Digit):
+    integer   <- ?('-' | '+') * +(Digit):
       res.add Token(typ: Integer, text: $0)
-    tokens   <- *(comment | comment2 | space | string | symbol | integer | fullIdent)
+    tokens    <- *(comment | comment2 | space | string | symbol | integer | fullIdent)
 
   let
     text = f.readFile()
