@@ -1,4 +1,4 @@
-import npeg, strutils, sequtils, macros, os, options
+import npeg, strutils, sequtils, macros, os, options, sets
 import decldef
 
 type
@@ -9,7 +9,6 @@ type
     typ: TokenType
     text: string
     index: int
-    line: int
 
 proc `$`(t: Token): string =
   $t.typ & ": " & t.text
@@ -23,7 +22,7 @@ proc `==`(t: Token, tt: TokenType): bool =
 proc `==`(t: Token, c: char): bool =
   t.typ == Symbol and t.text[0] == c
 
-proc tokenize(f: string): seq[Token] =
+proc tokenize(text: string): seq[Token] =
   let lexer = peg(tokens, res: seq[Token]):
     space     <- +Space
     comment   <- "//" * *(1 - '\n')
@@ -35,11 +34,12 @@ proc tokenize(f: string): seq[Token] =
     hexEscape <- '\\' * {'x', 'X'} * hexDigit[2]
     charEscape<- '\\' * {'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '\'', '"'}
     escapes   <- hexEscape | octEscape | charEscape
-    dblstring <- '"' * *(escapes | 1 - '"') * '"'
-    regstring <- '\'' * *(escapes | 1 - '\'') * '\''
-    string    <- dblstring | regstring:
-      res.add Token(typ: String, text: $0)
-    symbol    <- {'=', ';', '{', '}', '[', ']', '<', '>', ','}:
+    dblstring <- '"' * *(escapes | 1 - '"') * '"':
+      res.add Token(typ: String, text: ($0).unescape)
+    regstring <- '\'' * *(escapes | 1 - '\'') * '\'':
+      res.add Token(typ: String, text: ($0).unescape(prefix = "'", suffix = "'"))
+    string    <- dblstring | regstring
+    sym       <- {'=', ';', '{', '}', '[', ']', '<', '>', ','}:
       res.add Token(typ: Symbol, text: $0)
     # according to the official syntax, this is correct.
     # but in reality, leading underscores are accepted
@@ -47,12 +47,11 @@ proc tokenize(f: string): seq[Token] =
     ident     <- (Alpha | '_') * *(Alpha | '_' | Digit)
     fullIdent <- ?'.' * ident * *('.' * ident):
       res.add Token(typ: Ident, text: $0)
-    integer   <- ?('-' | '+') * +(Digit):
+    int       <- ?('-' | '+') * +(Digit):
       res.add Token(typ: Integer, text: $0)
-    tokens    <- *(comment | comment2 | space | string | symbol | integer | fullIdent)
+    tokens    <- *(comment | comment2 | space | string | sym | int | fullIdent)
 
   let
-    text = f.readFile()
     match = lexer.match(text, result)
 
   for index, tok in result:
@@ -69,6 +68,7 @@ type
   ParseState = ref object
     currentPackage: ProtoNode
     nodes: seq[ProtoNode]
+    imports: seq[ProtoNode]
     idents: seq[Token]
     fields: seq[(Token, ProtoNode)]
     messages: seq[(Token, ProtoNode)]
@@ -85,8 +85,8 @@ proc extract(x: var seq[(Token, ProtoNode)], s: Token): seq[ProtoNode] =
 proc clearAfter(ps: ParseState, t: Token) =
   ps.idents.keepItIf(it.index < t.index)
 
-proc parseProtobuf(f: string): seq[ProtoNode] =
-  let tokens = f.tokenize
+proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
+  let tokens = file.readFile.tokenize
 
   let parser = peg(g, Token, ps: ParseState):
     ident      <- [Ident]:
@@ -95,7 +95,7 @@ proc parseProtobuf(f: string): seq[ProtoNode] =
       ps.idents.add $0
     int        <- [Integer]:
       ps.idents.add $0
-    package    <- ["package"] * ident * [';']:
+    pkg        <- ["package"] * ident * [';']:
       ps.currentPackage = ProtoNode(kind: Package, packageName: ps.idents[^1].text)
       ps.clearAfter($0)
     option     <- ["option"] * ident * ['='] * (ident | string) * [';']:
@@ -103,7 +103,7 @@ proc parseProtobuf(f: string): seq[ProtoNode] =
     syntax     <- ["syntax"] * ['='] * string * [';']:
       ps.clearAfter($0)
     impor      <- ["import"] * string * [';']:
-      ps.nodes.add ProtoNode(kind: Imported, filename: ps.idents[^1].text)
+      ps.imports.add ProtoNode(kind: Imported, filename: ps.idents[^1].text)
       ps.clearAfter($0)
     fieldopt   <- ident * ['='] * ident:
       ps.clearAfter($0)
@@ -120,7 +120,7 @@ proc parseProtobuf(f: string): seq[ProtoNode] =
           protoType: fieldType,
           name: fieldName)))
       ps.clearAfter($0)
-    oneof      <- ["oneof"] * ident * ['{'] * *(option | oneoffield) * ['}']:
+    oneof2     <- ["oneof"] * ident * ['{'] * *(option | oneoffield) * ['}']:
       let startIndex = ($0).index
       ps.fields.add(($0, ProtoNode(
         oneofName: tokens[startIndex + 1].text,
@@ -129,14 +129,14 @@ proc parseProtobuf(f: string): seq[ProtoNode] =
       )))
       ps.clearAfter($0)
 
-    rangemax   <- int | ["max"]:
+    rangeMax   <- int | ["max"]:
       if $0 == "max":
         ps.rangeMax = some(536870911)
       else:
         ps.rangeMax = some(parseInt(ps.idents[^1].text))
       ps.clearAfter($0)
 
-    range      <- int * ?(["to"] * rangemax):
+    irange     <- int * ?(["to"] * rangeMax):
       if ps.rangeMax.isSome:
         ps.reservedValues.add(($0, ProtoNode(
           kind: Reserved,
@@ -150,23 +150,25 @@ proc parseProtobuf(f: string): seq[ProtoNode] =
           intVal: parseInt(ps.idents[^1].text))))
       ps.rangeMax = none(int)
       ps.clearAfter($0)
-    ranges     <- range * *([','] * range)
-    identRange <- ident:
+    ranges     <- irange * *([','] * irange)
+
+    identRange <- string:
       ps.reservedValues.add(($0, ProtoNode(
         kind: Reserved,
         reservedKind: ReservedType.String,
         strVal: ($0).text)))
       ps.clearAfter($0)
+
     idents     <- identRange * *([','] * identRange)
     reserved   <- ["reserved"] * (ranges | idents) * [';']:
       ps.reservedBlocks.add(($0, ProtoNode(
         kind: ReservedBlock,
         resValues: ps.reservedValues.extract($0))))
 
-    multiple   <- (["repeated"] | ["optional"]):
+    multiple   <- (["singular"] | ["repeated"] | ["optional"]):
       if ($0).text == "repeated":
         ps.repeated = true
-      else:
+      elif ($0).text == "optional":
         ps.optional = true
     msgfield   <- ?multiple * ident * ident * ['='] * int * ?fieldopts * [';']:
       let
@@ -194,7 +196,7 @@ proc parseProtobuf(f: string): seq[ProtoNode] =
           protoType: fieldType,
           name: fieldName)))
       ps.clearAfter($0)
-    message    <- ["message"] * ident * ['{'] * *(typedecl | mapfield | oneof | msgfield | reserved) * ['}']:
+    message    <- ["message"] * ident * ['{'] * *(typedecl | mapfield | oneof2 | msgfield | reserved) * ['}']:
       let startIndex = ($0).index
       let fields = ps.fields.extract($0)
       ps.messages.add(($0, ProtoNode(
@@ -226,22 +228,42 @@ proc parseProtobuf(f: string): seq[ProtoNode] =
       )))
       ps.clearAfter($0)
     typedecl   <- (message | enumdecl)
-    onething   <- (package | option | syntax | impor | typedecl)
+    onething   <- (pkg | option | syntax | impor | typedecl)
     g          <- +onething
 
-  var state = ParseState()
+  var state = ParseState(currentPackage: ProtoNode(kind: Package))
   let match = parser.match(tokens, state)
-  state.nodes &= state.messages.mapIt(it[1])
-  state.nodes &= state.enums.mapIt(it[1])
   if match.matchLen != tokens.len:
     echo "Failed to parse around:"
     let
       minToShow = max(0, match.matchMax - 2)
       maxToShow = min(tokens.len, match.matchMax + 2)
     echo tokens[minToShow .. maxToShow]
-  result = state.nodes
 
-let res = parseProtobuf("tests/files/test_messages_proto3.proto")
-echo "----"
-for x in res:
-  echo x
+  result = state.currentPackage
+  result.messages &= state.messages.mapIt(it[1])
+  result.packageEnums &= state.enums.mapIt(it[1])
+
+  for impors in state.imports:
+    const googlePrefix = "google/protobuf/"
+    if impors.filename.startsWith(googlePrefix):
+      # When used at runtime, this won't be portable!
+      let
+        googleFolder = currentSourcePath.parentDir / "google"
+        fixedPath = impors.filename[googlePrefix.len..^1].absolutePath(googleFolder)
+      toImport.incl(fixedPath)
+    else:
+      toImport.incl(impors.filename.absolutePath(file.parentDir))
+
+proc parseProtobuf*(file: string): ProtoNode =
+  doAssert file.isAbsolute
+  var
+    toImport = toHashSet([file])
+    imported: HashSet[string]
+  result = ProtoNode(kind: ProtoDef, packages: @[])
+  while imported.len != toImport.len:
+    for toImp in toImport:
+      if toImp notin imported:
+        result.packages.add(parseProtoPackage(toImp, toImport))
+        imported.incl(toImp)
+        break
