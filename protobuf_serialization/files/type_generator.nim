@@ -65,7 +65,7 @@ proc protoToTypesInternal*(filepath: string): NimNode =
           ))
 
           var repeated: int = 0
-          if field.repeated:
+          if field.presence == Repeated:
             repeated = 1
 
           case value[2][^1][1].strVal:

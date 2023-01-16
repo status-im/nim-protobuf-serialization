@@ -24,32 +24,32 @@ proc `==`(t: Token, c: char): bool =
 
 proc tokenize(text: string): seq[Token] =
   let lexer = peg(tokens, res: seq[Token]):
-    space     <- +Space
-    comment   <- "//" * *(1 - '\n')
-    comment2  <- "/*" * @"*/"
+    space      <- +Space
+    comment    <- "//" * *(1 - '\n')
+    comment2   <- "/*" * @"*/"
 
-    octDigit  <- {'0'..'7'}
-    hexDigit  <- {'0'..'9', 'a'..'f', 'A'..'F'}
-    octEscape <- '\\' * octDigit[3]
-    hexEscape <- '\\' * {'x', 'X'} * hexDigit[2]
-    charEscape<- '\\' * {'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '\'', '"'}
-    escapes   <- hexEscape | octEscape | charEscape
-    dblstring <- '"' * *(escapes | 1 - '"') * '"':
+    octDigit   <- {'0'..'7'}
+    hexDigit   <- {'0'..'9', 'a'..'f', 'A'..'F'}
+    octEscape  <- '\\' * octDigit[3]
+    hexEscape  <- '\\' * {'x', 'X'} * hexDigit[2]
+    charEscape <- '\\' * {'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '\'', '"'}
+    escapes    <- hexEscape | octEscape | charEscape
+    dblstring  <- '"' * *(escapes | 1 - '"') * '"':
       res.add Token(typ: String, text: ($0).unescape)
-    regstring <- '\'' * *(escapes | 1 - '\'') * '\'':
+    regstring  <- '\'' * *(escapes | 1 - '\'') * '\'':
       res.add Token(typ: String, text: ($0).unescape(prefix = "'", suffix = "'"))
-    string    <- dblstring | regstring
-    sym       <- {'=', ';', '{', '}', '[', ']', '<', '>', ','}:
+    string     <- dblstring | regstring
+    sym        <- {'=', ';', '{', '}', '[', ']', '<', '>', ','}:
       res.add Token(typ: Symbol, text: $0)
     # according to the official syntax, this is correct.
     # but in reality, leading underscores are accepted
-    #ident    <- Alpha * *(Alpha | '_' | Digit)
-    ident     <- (Alpha | '_') * *(Alpha | '_' | Digit)
-    fullIdent <- ?'.' * ident * *('.' * ident):
+    #ident     <- Alpha * *(Alpha | '_' | Digit)
+    ident      <- (Alpha | '_') * *(Alpha | '_' | Digit)
+    fullIdent  <- ?'.' * ident * *('.' * ident):
       res.add Token(typ: Ident, text: $0)
-    int       <- ?('-' | '+') * +(Digit):
+    int        <- ?('-' | '+') * +(Digit):
       res.add Token(typ: Integer, text: $0)
-    tokens    <- *(comment | comment2 | space | string | sym | int | fullIdent)
+    tokens     <- *(comment | comment2 | space | string | sym | int | fullIdent)
 
   let
     match = lexer.match(text, result)
@@ -58,187 +58,172 @@ proc tokenize(text: string): seq[Token] =
     tok.index = index
 
   if match.matchLen != text.len:
-    echo "Failed to lex around:"
+    var msg = "Failed to lex: '" & text[match.matchMax] & "'\n"
     let
-      minToShow = max(0, match.matchLen - 20)
-      maxToShow = min(text.len, match.matchLen + 20)
-    echo text[minToShow .. maxToShow]
+      minToShow = max(0, match.matchMax - 20)
+      maxToShow = min(text.len, match.matchMax + 20)
+    msg &= text[minToShow .. maxToShow]
+    raise newException(CatchableError, msg)
 
 type
   ParseState = ref object
     currentPackage: ProtoNode
-    nodes: seq[ProtoNode]
     imports: seq[ProtoNode]
-    idents: seq[Token]
     fields: seq[(Token, ProtoNode)]
     messages: seq[(Token, ProtoNode)]
     enums: seq[(Token, ProtoNode)]
-    repeated, optional: bool
-    reservedValues: seq[(Token, ProtoNode)]
+    reservedValues: seq[ProtoNode]
     reservedBlocks: seq[(Token, ProtoNode)]
-    rangeMax: Option[int]
 
 proc extract(x: var seq[(Token, ProtoNode)], s: Token): seq[ProtoNode] =
+  # The "extract mechanism" is used to handle this case:
+  # message xx {
+  #   int a = 1;
+  #   message yy {}
+  #   int b = 2;
+  # }
+  #
+  # When matching "yy", we want to leave `a` in the list for when `xx` will be finished.
+  # To do so, we will get every `field` with index >= to the first match of `yy`,
+  # and leave the rest to be matched later.
+  #
+  # This is a bit ugly, but I'm not aware of a better solution with npeg.
   result = x.filterIt(it[0].index >= s.index).mapIt(it[1])
   x.keepItIf(it[0].index < s.index)
-
-proc clearAfter(ps: ParseState, t: Token) =
-  ps.idents.keepItIf(it.index < t.index)
 
 proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
   let tokens = file.readFile.tokenize
 
   let parser = peg(g, Token, ps: ParseState):
-    ident      <- [Ident]:
-      ps.idents.add $0
-    string     <- [String]:
-      ps.idents.add $0
-    int        <- [Integer]:
-      ps.idents.add $0
-    pkg        <- ["package"] * ident * [';']:
-      ps.currentPackage = ProtoNode(kind: Package, packageName: ps.idents[^1].text)
-      ps.clearAfter($0)
-    option     <- ["option"] * ident * ['='] * (ident | string) * [';']:
-      ps.clearAfter($0)
-    syntax     <- ["syntax"] * ['='] * string * [';']:
-      ps.clearAfter($0)
-    impor      <- ["import"] * string * [';']:
-      ps.imports.add ProtoNode(kind: Imported, filename: ps.idents[^1].text)
-      ps.clearAfter($0)
-    fieldopt   <- ident * ['='] * ident:
-      ps.clearAfter($0)
+    ident      <- [Ident]
+    string     <- [String]
+    int        <- [Integer]
+
+    pkg        <- ["package"] * >ident * [';']:
+      ps.currentPackage = ProtoNode(kind: Package, packageName: ($1).text)
+    option     <- ["option"] * ident * ['='] * (ident | string) * [';']
+    syntax     <- ["syntax"] * ['='] * string * [';']
+    impor      <- ["import"] * >string * [';']:
+      ps.imports.add ProtoNode(kind: Imported, filename: ($1).text)
+
+    fieldopt   <- ident * ['='] * ident
     fieldopts  <- ['['] * fieldopt * *([','] * fieldopt) * [']']
 
-    oneoffield <- ident * ident * ['='] * int * ?fieldopts * [';']:
+    oneoffield <- >ident * >ident * ['='] * >int * ?fieldopts * [';']:
       let
-        fieldType = ps.idents[^3].text
-        fieldName = ps.idents[^2].text
-        fieldValue = ps.idents[^1].text
+        fieldType = ($1).text
+        fieldName = ($2).text
+        fieldValue = ($3).text
       ps.fields.add (($0, ProtoNode(
           kind: Field,
           number: parseInt(fieldValue),
           protoType: fieldType,
           name: fieldName)))
-      ps.clearAfter($0)
-    oneof2     <- ["oneof"] * ident * ['{'] * *(option | oneoffield) * ['}']:
-      let startIndex = ($0).index
+    oneof2     <- ["oneof"] * >ident * ['{'] * *(option | oneoffield) * ['}']:
       ps.fields.add(($0, ProtoNode(
-        oneofName: tokens[startIndex + 1].text,
+        oneofName: ($1).text,
         kind: Oneof,
         oneof: ps.fields.extract($0)
       )))
-      ps.clearAfter($0)
 
-    rangeMax   <- int | ["max"]:
-      if $0 == "max":
-        ps.rangeMax = some(536870911)
-      else:
-        ps.rangeMax = some(parseInt(ps.idents[^1].text))
-      ps.clearAfter($0)
-
-    irange     <- int * ?(["to"] * rangeMax):
-      if ps.rangeMax.isSome:
-        ps.reservedValues.add(($0, ProtoNode(
+    rangeMax   <- int | ["max"]
+    irange     <- int * ?(["to"] * >rangeMax):
+      if capture.len > 1:
+        ps.reservedValues.add(ProtoNode(
           kind: Reserved,
           reservedKind: Range,
-          startVal: parseInt(ps.idents[^1].text),
-          endVal: ps.rangeMax.get())))
+          startVal: parseInt(($0).text),
+          endVal:
+            if $1 == "max":
+              536870911
+            else:
+              parseInt(($1).text)
+          ))
       else:
-        ps.reservedValues.add(($0, ProtoNode(
+        ps.reservedValues.add(ProtoNode(
           kind: Reserved,
           reservedKind: Number,
-          intVal: parseInt(ps.idents[^1].text))))
-      ps.rangeMax = none(int)
-      ps.clearAfter($0)
+          intVal: parseInt(($0).text)))
     ranges     <- irange * *([','] * irange)
 
     identRange <- string:
-      ps.reservedValues.add(($0, ProtoNode(
+      ps.reservedValues.add(ProtoNode(
         kind: Reserved,
         reservedKind: ReservedType.String,
-        strVal: ($0).text)))
-      ps.clearAfter($0)
+        strVal: ($0).text))
 
     idents     <- identRange * *([','] * identRange)
     reserved   <- ["reserved"] * (ranges | idents) * [';']:
       ps.reservedBlocks.add(($0, ProtoNode(
         kind: ReservedBlock,
-        resValues: ps.reservedValues.extract($0))))
+        resValues: ps.reservedValues)))
+      ps.reservedValues = newSeq[ProtoNode]()
 
-    multiple   <- (["singular"] | ["repeated"] | ["optional"]):
-      if ($0).text == "repeated":
-        ps.repeated = true
-      elif ($0).text == "optional":
-        ps.optional = true
-    msgfield   <- ?multiple * ident * ident * ['='] * int * ?fieldopts * [';']:
+    extensions <- ["extensions"] * (ranges | idents) * [';']:
+      ps.reservedValues = newSeq[ProtoNode]()
+
+    multiple   <- (["singular"] | ["repeated"] | ["optional"] | ["required"])
+    msgfield   <- >?multiple * >ident * >ident * ['='] * >int * ?fieldopts * [';']:
       let
-        fieldType = ps.idents[^3].text
-        fieldName = ps.idents[^2].text
-        fieldValue = ps.idents[^1].text
-      ps.fields.add (($0, ProtoNode(
+        fieldType = ($2).text
+        fieldName = ($3).text
+        fieldValue = ($4).text
+      let node = ProtoNode(
           kind: Field,
           number: parseInt(fieldValue),
           protoType: fieldType,
-          name: fieldName,
-          repeated: ps.repeated,
-          optional: ps.optional)))
-      ps.repeated = false
-      ps.optional = false
-      ps.clearAfter($0)
-    mapfield   <- ["map"] * ['<'] * ident * [','] * ident * ['>'] * * ident * ['='] * int * ?fieldopts * [';']:
+          name: fieldName)
+      if @1 != @2:
+        node.presence = parseEnum[Presence](($1).text.toUpper)
+      ps.fields.add (($0, node))
+    mapfield   <- ["map"] * ['<'] * >ident * [','] * >ident * ['>'] * * >ident * ['='] * >int * ?fieldopts * [';']:
       let
-        fieldType = "map<" & ps.idents[^4].text & ", " & ps.idents[^3].text & ">"
-        fieldName = ps.idents[^2].text
-        fieldValue = ps.idents[^1].text
+        fieldType = "map<" & ($1).text & ", " & ($2).text & ">"
+        fieldName = ($3).text
+        fieldValue = ($4).text
       ps.fields.add (($0, ProtoNode(
           kind: Field,
           number: parseInt(fieldValue),
           protoType: fieldType,
           name: fieldName)))
-      ps.clearAfter($0)
-    message    <- ["message"] * ident * ['{'] * *(typedecl | mapfield | oneof2 | msgfield | reserved) * ['}']:
-      let startIndex = ($0).index
+    msg        <- ["message"] * >ident * ['{'] * *(typedecl | mapfield | oneof2 | msgfield | reserved | extensions) * ['}']:
       let fields = ps.fields.extract($0)
       ps.messages.add(($0, ProtoNode(
-        messageName: tokens[startIndex + 1].text,
+        messageName: ($1).text,
         kind: Message,
         nested: ps.messages.extract($0),
         definedEnums: ps.enums.extract($0),
         reserved: ps.reservedBlocks.extract($0),
         fields: fields
       )))
-      ps.clearAfter($0)
 
-    enumfield  <- ident * ['='] * int * [';']:
+    enumfield  <- >ident * ['='] * >int * [';']:
       let
-        fieldName = ps.idents[^2].text
-        fieldValue = ps.idents[^1].text
+        fieldName = ($1).text
+        fieldValue = ($2).text
       ps.fields.add (($0, ProtoNode(
           kind: EnumVal,
           num: parseInt(fieldValue),
           fieldName: fieldName)))
-      ps.clearAfter($0)
-    enumdecl   <- ["enum"] * ident * ['{'] * *(option | enumfield) * ['}']:
-      let startIndex = ($0).index
-      let fields = ps.fields.extract($0)
+    enumdecl   <- ["enum"] * >ident * ['{'] * *(option | enumfield) * ['}']:
       ps.enums.add(($0, ProtoNode(
-        enumName: tokens[startIndex + 1].text,
+        enumName: ($1).text,
         kind: Enum,
-        values: fields
+        values: ps.fields.extract($0)
       )))
-      ps.clearAfter($0)
-    typedecl   <- (message | enumdecl)
+    typedecl   <- (msg | enumdecl)
     onething   <- (pkg | option | syntax | impor | typedecl)
     g          <- +onething
 
   var state = ParseState(currentPackage: ProtoNode(kind: Package))
   let match = parser.match(tokens, state)
   if match.matchLen != tokens.len:
-    echo "Failed to parse around:"
+    var msg = "Failed to parse: '" & tokens[match.matchMax].text & "'\n"
     let
       minToShow = max(0, match.matchMax - 2)
       maxToShow = min(tokens.len, match.matchMax + 2)
-    echo tokens[minToShow .. maxToShow]
+    msg &= tokens[minToShow .. maxToShow].mapIt(it.text).join(" ")
+    raise newException(CatchableError, msg)
 
   result = state.currentPackage
   result.messages &= state.messages.mapIt(it[1])
