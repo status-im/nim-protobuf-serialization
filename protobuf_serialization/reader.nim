@@ -49,6 +49,8 @@ proc readFieldInto[T: enum](
   header: FieldHeader,
   ProtoType: type
 ) =
+  when 0 notin T:
+    {.fatal: $T & " definition must contain a constant that maps to zero".}
   header.requireKind(WireKind.Varint)
   let enumValue = stream.readValue(ProtoType)
   if not checkedEnumAssign(value, enumValue.int32):

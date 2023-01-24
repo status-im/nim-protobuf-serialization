@@ -39,6 +39,8 @@ proc writeField(
 
 proc writeField[T: enum](
     stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type) =
+  when 0 notin T:
+    {.fatal: $T & " definition must contain a constant that maps to zero".}
   stream.writeField(fieldNum, pint32(fieldVal.ord()))
 
 proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
