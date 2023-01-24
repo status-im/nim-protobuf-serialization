@@ -13,7 +13,7 @@ requires "nim >= 1.2.0",
          "stew",
          "faststreams",
          "serialization",
-         "npeg",
+         "npeg#22449099", # waiting for this to be in a release
          "unittest2"
 
 let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
