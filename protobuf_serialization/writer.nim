@@ -3,6 +3,7 @@
 import
   std/typetraits,
   stew/shims/macros,
+  stew/objects,
   faststreams/outputs,
   serialization,
   "."/[codec, internal, types]
