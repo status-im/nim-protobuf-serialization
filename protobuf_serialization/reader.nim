@@ -3,6 +3,7 @@
 import
   std/[typetraits, sets],
   stew/assign2,
+  stew/objects,
   stew/shims/macros,
   faststreams/inputs,
   serialization,
@@ -42,7 +43,18 @@ proc readFieldInto[T: object](
       raise (ref ValueError)(msg: "not enough bytes")
     memoryInput(tmp).readValueInternal(value)
 
-proc readFieldInto[T: not object and (seq[byte] or not seq)](
+proc readFieldInto[T: enum](
+  stream: InputStream,
+  value: var T,
+  header: FieldHeader,
+  ProtoType: type
+) =
+  header.requireKind(WireKind.Varint)
+  let enumValue = stream.readValue(ProtoType)
+  if not checkedEnumAssign(value, enumValue.int32):
+    raise (ref ValueError)(msg: "Attempted to decode an invalid enum value")
+
+proc readFieldInto[T: not object and not enum and (seq[byte] or not seq)](
   stream: InputStream,
   value: var T,
   header: FieldHeader,

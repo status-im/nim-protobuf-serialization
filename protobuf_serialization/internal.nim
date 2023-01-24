@@ -91,6 +91,8 @@ template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped)
     type InnerType = pstring
   elif FlatType is seq[byte]:
     type InnerType = pbytes
+  elif FlatType is enum:
+    type InnerType = penum
   elif FlatType is object:
     type InnerType = FieldType
   else:
