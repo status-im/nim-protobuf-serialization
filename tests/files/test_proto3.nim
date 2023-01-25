@@ -1,4 +1,4 @@
-import macros
+import macros, os
 
 import strutils
 
@@ -7,7 +7,7 @@ import ../../protobuf_serialization/files/type_generator
 
 macro test() =
   var
-    parsed: NimNode = protoToTypesInternal("./", staticRead("test.proto3"))
+    parsed: NimNode = protoToTypesInternal(currentSourcePath.parentDir / "test.proto3")
     vector: NimNode = quote do:
       type
         TestEnum* {.proto3.} = enum

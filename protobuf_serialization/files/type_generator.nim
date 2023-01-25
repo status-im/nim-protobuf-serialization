@@ -6,9 +6,9 @@ export decldef
 import proto_parser
 
 #Exported for the tests.
-proc protoToTypesInternal*(filepath: string, proto: string): NimNode =
+proc protoToTypesInternal*(filepath: string): NimNode =
   var
-    packages: seq[ProtoNode] = parseToDefinition(filepath, proto).packages
+    packages: seq[ProtoNode] = parseProtobuf(filepath).packages
     queue: seq[ProtoNode] = @[]
   result = newNimNode(nnkTypeSection)
   for parsed in packages:
@@ -65,7 +65,7 @@ proc protoToTypesInternal*(filepath: string, proto: string): NimNode =
           ))
 
           var repeated: int = 0
-          if field.repeated:
+          if field.presence == Repeated:
             repeated = 1
 
           case value[2][^1][1].strVal:
@@ -128,9 +128,9 @@ proc protoToTypesInternal*(filepath: string, proto: string): NimNode =
         )
       )
 
-macro protoToTypes*(filepath: static[string], proto: static[string]): untyped =
-  result = protoToTypesInternal(filepath, proto)
+macro protoToTypes*(filepath: static[string]): untyped =
+  result = protoToTypesInternal(filepath)
 
 template import_proto3*(file: static[string]): untyped =
-  const filepath = parentDir(instantiationInfo(-1, true).filename)
-  protoToTypes(filepath, staticRead(filepath / file))
+  const filepath = parentDir(instantiationInfo(-1, true).filename) / file
+  protoToTypes(filepath)
