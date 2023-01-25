@@ -1,6 +1,6 @@
 import ../../protobuf_serialization
 
-type NoFieldNumber = object
+type NoFieldNumber {.proto3.} = object
   x: bool
 
 discard Protobuf.encode(NoFieldNumber())

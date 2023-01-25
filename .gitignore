@@ -1,2 +1,4 @@
 nimcache/
 *.exe
+build/
+nimbus-build-system.paths

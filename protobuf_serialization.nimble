@@ -2,6 +2,7 @@ import os, strutils
 
 mode = ScriptMode.Verbose
 
+packageName   = "protobuf_serialization"
 version       = "0.3.0"
 author        = "Status"
 description   = "Protobuf implementation compatible with the nim-serialization framework."
@@ -12,23 +13,29 @@ requires "nim >= 1.2.0",
          "stew",
          "faststreams",
          "serialization",
-         "combparser",
+         "npeg#22449099", # waiting for this to be in a release
          "unittest2"
 
-const styleCheckStyle =
-  if (NimMajor, NimMinor) < (1, 6):
-    "hint"
-  else:
-    "error"
+let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
+let lang = getEnv("NIMLANG", "c") # Which backend (c/cpp/js)
+let flags = getEnv("NIMFLAGS", "") # Extra flags for the compiler
+let verbose = getEnv("V", "") notin ["", "0"]
 
-proc test(args, path: string) =
-  exec "nim " & getEnv("TEST_LANG", "c") & " " & getEnv("NIMFLAGS") & " " & args &
-    " -r --hints:off --skipParentCfg --styleCheck:usages --styleCheck:" & styleCheckStyle & " " & path
+let styleCheckStyle = if (NimMajor, NimMinor) < (1, 6): "hint" else: "error"
+let cfg =
+  " --styleCheck:usages --styleCheck:" & styleCheckStyle &
+  (if verbose: "" else: " --verbosity:0 --hints:off") &
+  " --skipParentCfg --skipUserCfg --outdir:build --nimcache:build/nimcache -f"
+
+proc build(args, path: string) =
+  exec nimc & " " & lang & " " & cfg & " " & flags & " " & args & " " & path
+
+proc run(args, path: string) =
+  build args & " -r", path
 
 task test, "Run all tests":
-  #Explicitly specify the call depth limit in case the default changes in the future.
-  test "--threads:off", "tests/test_all"
-  test "--threads:on", "tests/test_all"
+  for threads in ["--threads:off", "--threads:on"]:
+    run threads, "tests/test_all"
 
   #Also iterate over every test in tests/fail, and verify they fail to compile.
   echo "\r\n\x1B[0;94m[Suite]\x1B[0;37m Test Fail to Compile"
@@ -37,8 +44,9 @@ task test, "Run all tests":
     if path.split(".")[^1] != "nim":
       continue
 
-    if gorgeEx("nim c " & path).exitCode != 0:
+    if gorgeEx(nimc & " c " & path).exitCode != 0:
       echo "  \x1B[0;92m[OK]\x1B[0;37m ", path.split(DirSep)[^1]
     else:
       echo "  \x1B[0;31m[FAILED]\x1B[0;37m ", path.split(DirSep)[^1]
       exec "exit 1"
+

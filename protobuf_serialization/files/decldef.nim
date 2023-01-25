@@ -27,13 +27,15 @@ type
     String, Number, Range
   ProtoType* = enum
     Field, Enum, EnumVal, ReservedBlock, Reserved, Message, File, Imported, Oneof, Package, ProtoDef
+  Presence* = enum
+    Singular, Repeated, Optional, Required
   ProtoNode* = ref object
     case kind*: ProtoType
     of Field:
       number*: int
       protoType*: string
       name*: string
-      repeated*: bool
+      presence*: Presence
     of Oneof:
       oneofName*: string
       oneof*: seq[ProtoNode]
@@ -77,12 +79,11 @@ type
 proc `$`*(node: ProtoNode): string =
   case node.kind:
     of Field:
-      result = "Field $1 of type $2 with index $3".format(
+      result = "$1 field $2 of type $3 with index $4".format(
+        $node.presence,
         node.name,
         node.protoType,
         node.number)
-      if node.repeated:
-        result &= " is repeated"
     of Oneof:
       result = "One-of named $1, with one of these fields:\n".format(
         node.oneofName)
