@@ -3,6 +3,7 @@
 import
   std/typetraits,
   stew/shims/macros,
+  stew/objects,
   faststreams/outputs,
   serialization,
   "."/[codec, internal, types]
@@ -28,7 +29,7 @@ proc writeField[T: object and not PBOption](
     stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type) =
   stream.writeField(fieldNum, fieldVal)
 
-proc writeField[T: not object](
+proc writeField[T: not object and not enum](
     stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type) =
   stream.writeField(fieldNum, ProtoType(fieldVal))
 
@@ -36,6 +37,12 @@ proc writeField(
     stream: OutputStream, fieldNum: int, fieldVal: PBOption, ProtoType: type) =
   if fieldVal.isSome(): # TODO required field checking
     stream.writeField(fieldNum, fieldVal.get(), ProtoType)
+
+proc writeField[T: enum](
+    stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type) =
+  when 0 notin T:
+    {.fatal: $T & " definition must contain a constant that maps to zero".}
+  stream.writeField(fieldNum, pint32(fieldVal.ord()))
 
 proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
     output: OutputStream, field: int, values: openArray[T], _: type ProtoType) =
