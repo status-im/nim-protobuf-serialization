@@ -29,6 +29,7 @@ proc tokenize(filename, text: string): seq[Token] =
     comment    <- "//" * *(1 - '\n')
     comment2   <- "/*" * @"*/"
 
+    decDigit   <- {'0'..'9'}
     octDigit   <- {'0'..'7'}
     hexDigit   <- {'0'..'9', 'a'..'f', 'A'..'F'}
     octEscape  <- '\\' * octDigit[3]
@@ -48,9 +49,14 @@ proc tokenize(filename, text: string): seq[Token] =
     ident      <- (Alpha | '_') * *(Alpha | '_' | Digit)
     fullIdent  <- ?'.' * ident * *('.' * ident):
       res.add Token(typ: Ident, text: $0, filePos: @0)
+
+    decimals   <- +decDigit
+    exponent   <- {'e', 'E'} * ?('+' | '-') * decimals
+    floatLit   <- "inf" | "nan" | ((decimals * '.' * ?decimals * ?exponent) | (decimals * exponent) | ('.' * decimals * ?exponent)):
+      res.add Token(typ: Float, text: $0, filePos: @0)
     int        <- ?('-' | '+') * +(Digit):
       res.add Token(typ: Integer, text: $0, filePos: @0)
-    tokens     <- *(comment | comment2 | space | string | sym | int | fullIdent)
+    tokens     <- *(comment | comment2 | space | string | sym | floatLit | int | fullIdent)
 
   let
     match = lexer.match(text, result)
@@ -104,15 +110,16 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
     ident      <- [Ident]
     string     <- [String]
     int        <- [Integer]
+    float      <- [Float]
 
     pkg        <- ["package"] * >ident * [';']:
       ps.currentPackage = ProtoNode(kind: Package, packageName: ($1).text)
-    option     <- ["option"] * ident * ['='] * (ident | string) * [';']
+    option     <- ["option"] * ident * ['='] * (ident | string | int | float) * [';']
     syntax     <- ["syntax"] * ['='] * string * [';']
     impor      <- ["import"] * >string * [';']:
       ps.imports.add ProtoNode(kind: Imported, filename: ($1).text)
 
-    fieldopt   <- ident * ['='] * ident
+    fieldopt   <- ident * ['='] * (ident | int | string | float)
     fieldopts  <- ['['] * fieldopt * *([','] * fieldopt) * [']']
 
     oneoffield <- >ident * >ident * ['='] * >int * ?fieldopts * [';']:
@@ -192,7 +199,42 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
           number: parseInt(fieldValue),
           protoType: fieldType,
           name: fieldName)))
-    msg        <- ["message"] * >ident * ['{'] * *(typedecl | mapfield | oneof2 | msgfield | reserved | extensions) * ['}']:
+
+    # protobuf2
+    groupfield <- ?multiple * >["group"] * >ident * ['='] * >int * msgbody:
+      let fields = ps.fields.extract($0)
+      ps.messages.add(($0, ProtoNode(
+        messageName: ($2).text,
+        kind: Message,
+        nested: ps.messages.extract($0),
+        definedEnums: ps.enums.extract($0),
+        reserved: ps.reservedBlocks.extract($0),
+        fields: fields
+      )))
+
+      let
+        fieldType = ($2).text
+        fieldName = ($2).text
+        fieldValue = ($3).text
+      let node = ProtoNode(
+          kind: Field,
+          number: parseInt(fieldValue),
+          protoType: fieldType,
+          name: fieldName)
+      if @1 != @2:
+        node.presence = parseEnum[Presence](($0).text.toUpper)
+      ps.fields.add (($0, node))
+
+    extend     <- ["extend"] * >ident * msgbody:
+      let fields = ps.fields.extract($0)
+      ps.messages.add(($0, ProtoNode(
+        extending: ($1).text,
+        kind: Extend,
+        extendedFields: fields
+      )))
+
+    msgbody    <- ['{'] * *(typedecl | mapfield | oneof2 | msgfield | reserved | extensions | groupfield | option | extend) * ['}']
+    msg        <- ["message"] * >ident * msgbody:
       let fields = ps.fields.extract($0)
       ps.messages.add(($0, ProtoNode(
         messageName: ($1).text,
@@ -202,6 +244,7 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
         reserved: ps.reservedBlocks.extract($0),
         fields: fields
       )))
+
 
     enumfield  <- >ident * ['='] * >int * [';']:
       let
@@ -218,7 +261,7 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
         values: ps.fields.extract($0)
       )))
     typedecl   <- (msg | enumdecl)
-    onething   <- (pkg | option | syntax | impor | typedecl)
+    onething   <- (pkg | option | syntax | impor | typedecl | extend)
     g          <- +onething
 
   var state = ParseState(currentPackage: ProtoNode(kind: Package))

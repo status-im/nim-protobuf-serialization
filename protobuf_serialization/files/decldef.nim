@@ -26,7 +26,7 @@ type
   ReservedType* = enum
     String, Number, Range
   ProtoType* = enum
-    Field, Enum, EnumVal, ReservedBlock, Reserved, Message, File, Imported, Oneof, Package, ProtoDef
+    Field, Enum, EnumVal, ReservedBlock, Reserved, Message, File, Imported, Oneof, Package, ProtoDef, Extend
   Presence* = enum
     Singular, Repeated, Optional, Required
   ProtoNode* = ref object
@@ -62,6 +62,9 @@ type
       definedEnums*: seq[ProtoNode]
       fields*: seq[ProtoNode]
       nested*: seq[ProtoNode]
+    of Extend:
+      extending*: string
+      extendedFields*: seq[ProtoNode]
     of Package:
       packageName*: string
       messages*: seq[ProtoNode]
@@ -147,6 +150,14 @@ proc `$`*(node: ProtoNode): string =
         for message in node.nested:
           messages &= $message & "\n"
         data &= messages[0..^2].indent(1, "  ")
+      result &= data.indent(1, "  ")
+    of Extend:
+      result = "Extension of $1 with fields:".format(node.extending)
+      var data = ""
+      var fields = "\n"
+      for field in node.extendedFields:
+        fields &= $field & "\n"
+      data &= fields[0..^2].indent(1, "  ")
       result &= data.indent(1, "  ")
     of File:
       result = "Protobuf file with syntax $1\n".format(
