@@ -9,6 +9,7 @@ type
     typ: TokenType
     text: string
     index: int
+    filePos: int
 
 proc `$`(t: Token): string =
   $t.typ & ": " & t.text
@@ -22,7 +23,7 @@ proc `==`(t: Token, tt: TokenType): bool =
 proc `==`(t: Token, c: char): bool =
   t.typ == Symbol and t.text[0] == c
 
-proc tokenize(text: string): seq[Token] =
+proc tokenize(filename, text: string): seq[Token] =
   let lexer = peg(tokens, res: seq[Token]):
     space      <- +Space
     comment    <- "//" * *(1 - '\n')
@@ -35,20 +36,20 @@ proc tokenize(text: string): seq[Token] =
     charEscape <- '\\' * {'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '\'', '"'}
     escapes    <- hexEscape | octEscape | charEscape
     dblstring  <- '"' * *(escapes | 1 - '"') * '"':
-      res.add Token(typ: String, text: ($0).unescape)
+      res.add Token(typ: String, text: ($0).unescape, filePos: @0)
     regstring  <- '\'' * *(escapes | 1 - '\'') * '\'':
-      res.add Token(typ: String, text: ($0).unescape(prefix = "'", suffix = "'"))
+      res.add Token(typ: String, text: ($0).unescape(prefix = "'", suffix = "'"), filePos: @0)
     string     <- dblstring | regstring
     sym        <- {'=', ';', '{', '}', '[', ']', '<', '>', ','}:
-      res.add Token(typ: Symbol, text: $0)
+      res.add Token(typ: Symbol, text: $0, filePos: @0)
     # according to the official syntax, this is correct.
     # but in reality, leading underscores are accepted
     #ident     <- Alpha * *(Alpha | '_' | Digit)
     ident      <- (Alpha | '_') * *(Alpha | '_' | Digit)
     fullIdent  <- ?'.' * ident * *('.' * ident):
-      res.add Token(typ: Ident, text: $0)
+      res.add Token(typ: Ident, text: $0, filePos: @0)
     int        <- ?('-' | '+') * +(Digit):
-      res.add Token(typ: Integer, text: $0)
+      res.add Token(typ: Integer, text: $0, filePos: @0)
     tokens     <- *(comment | comment2 | space | string | sym | int | fullIdent)
 
   let
@@ -58,11 +59,13 @@ proc tokenize(text: string): seq[Token] =
     tok.index = index
 
   if match.matchLen != text.len:
-    var msg = "Failed to lex: '" & text[match.matchMax] & "'\n"
-    let
-      minToShow = max(0, match.matchMax - 20)
-      maxToShow = min(text.len, match.matchMax + 20)
-    msg &= text[minToShow .. maxToShow]
+    let line = text[0..<match.matchMax].count('\n') + 1
+    var msg = filename & ":" & $line & " Failed to lex '" & text[match.matchMax] & "'\n"
+    var
+      minToShow = text.rfind('\n', 0, match.matchMax) + 1
+      maxToShow = text.find('\n', match.matchMax)
+    if maxToShow == -1: maxToShow = text.len
+    msg &= text[minToShow ..< maxToShow]
     raise newException(CatchableError, msg)
 
 type
@@ -92,7 +95,10 @@ proc extract(x: var seq[(Token, ProtoNode)], s: Token): seq[ProtoNode] =
   x.keepItIf(it[0].index < s.index)
 
 proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
-  let tokens = file.readFile.tokenize
+  let
+    fileContent = file.readFile
+    fileName = file.extractFilename
+    tokens = tokenize(fileName, fileContent)
 
   let parser = peg(g, Token, ps: ParseState):
     ident      <- [Ident]
@@ -218,11 +224,15 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
   var state = ParseState(currentPackage: ProtoNode(kind: Package))
   let match = parser.match(tokens, state)
   if match.matchLen != tokens.len:
-    var msg = "Failed to parse: '" & tokens[match.matchMax].text & "'\n"
     let
-      minToShow = max(0, match.matchMax - 2)
-      maxToShow = min(tokens.len, match.matchMax + 2)
-    msg &= tokens[minToShow .. maxToShow].mapIt(it.text).join(" ")
+      tokenPos = tokens[match.matchMax].filePos
+      line = fileContent[0..<tokenPos].count('\n') + 1
+    var msg = filename & ":" & $line & " Failed to parse: '" & tokens[match.matchMax].text & "'\n"
+    var
+      minToShow = fileContent.rfind('\n', 0, tokenPos) + 1
+      maxToShow = fileContent.find('\n', tokenPos)
+    if maxToShow == -1: maxToShow = msg.len
+    msg &= fileContent[minToShow ..< maxToShow]
     raise newException(CatchableError, msg)
 
   result = state.currentPackage
