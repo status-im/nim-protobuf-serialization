@@ -52,7 +52,8 @@ proc tokenize(filename, text: string): seq[Token] =
 
     decimals   <- +decDigit
     exponent   <- {'e', 'E'} * ?('+' | '-') * decimals
-    floatLit   <- "inf" | "nan" | ((decimals * '.' * ?decimals * ?exponent) | (decimals * exponent) | ('.' * decimals * ?exponent)):
+    floatLit   <- ((decimals * '.' * ?decimals * ?exponent) | (decimals * exponent) | ('.' * decimals * ?exponent)):
+      # TODO: find a way to add "inf" and "nan", currently if a Field name starts with nan or inf, it will fail to parse
       res.add Token(typ: Float, text: $0, filePos: @0)
     int        <- ?('-' | '+') * +(Digit):
       res.add Token(typ: Integer, text: $0, filePos: @0)
@@ -191,7 +192,7 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
       ps.fields.add (($0, node))
     mapfield   <- ["map"] * ['<'] * >ident * [','] * >ident * ['>'] * * >ident * ['='] * >int * ?fieldopts * [';']:
       let
-        fieldType = "map<" & ($1).text & ", " & ($2).text & ">"
+        fieldType = "map<" & ($1).text & "," & ($2).text & ">"
         fieldName = ($3).text
         fieldValue = ($4).text
       ps.fields.add (($0, ProtoNode(
@@ -225,7 +226,7 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
         node.presence = parseEnum[Presence](($0).text.toUpper)
       ps.fields.add (($0, node))
 
-    extend     <- ["extend"] * >ident * msgbody:
+    extend2    <- ["extend"] * >ident * msgbody:
       let fields = ps.fields.extract($0)
       ps.messages.add(($0, ProtoNode(
         extending: ($1).text,
@@ -233,7 +234,7 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
         extendedFields: fields
       )))
 
-    msgbody    <- ['{'] * *(typedecl | mapfield | oneof2 | msgfield | reserved | extensions | groupfield | option | extend) * ['}']
+    msgbody    <- ['{'] * *(typedecl | mapfield | oneof2 | msgfield | reserved | extensions | groupfield | option | extend2) * ['}']
     msg        <- ["message"] * >ident * msgbody:
       let fields = ps.fields.extract($0)
       ps.messages.add(($0, ProtoNode(
@@ -261,7 +262,7 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
         values: ps.fields.extract($0)
       )))
     typedecl   <- (msg | enumdecl)
-    onething   <- (pkg | option | syntax | impor | typedecl | extend)
+    onething   <- (pkg | option | syntax | impor | typedecl | extend2)
     g          <- +onething
 
   var state = ParseState(currentPackage: ProtoNode(kind: Package))
