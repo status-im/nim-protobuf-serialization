@@ -1,6 +1,6 @@
 #Variables needed by the Reader and Writer which should NOT be exported outside of this library.
 
-import std/[options, sets]
+import std/[options, sets, tables]
 import stew/shims/macros
 #Depending on the situation, one of these two are used.
 #Sometimes, one works where the other doesn't.
@@ -123,6 +123,8 @@ template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped)
     type InnerType = UnsupportedType[FieldType, RootType, fieldName]
 
 template elementType[T](_: type seq[T]): type = typeof(T)
+template elementTypeKey[K, V](_: type Table[K, V]): type = typeof(K)
+template elementTypeVal[K, V](_: type Table[K, V]): type = typeof(V)
 
 func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
   type FlatType = flatType(default(T))
@@ -131,6 +133,9 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
   elif FlatType is seq:
     when FlatType isnot seq[byte]:
       verifySerializable(elementType(FlatType))
+  elif FlatType is Table:
+    verifySerializable(elementTypeKey(FlatType))
+    verifySerializable(elementTypeVal(FlatType))
   elif FlatType is object and T isnot PBOption:
     var
       inst: T

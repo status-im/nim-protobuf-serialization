@@ -104,8 +104,8 @@ proc extract(x: var seq[(Token, ProtoNode)], s: Token): seq[ProtoNode] =
 proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
   let
     fileContent = file.readFile
-    fileName = file.extractFilename
-    tokens = tokenize(fileName, fileContent)
+    filename = file.extractFilename
+    tokens = tokenize(filename, fileContent)
 
   let parser = peg(g, Token, ps: ParseState):
     ident      <- [Ident]

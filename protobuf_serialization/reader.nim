@@ -1,7 +1,7 @@
 #Parses the Protobuf binary wire protocol into the specified type.
 
 import
-  std/[typetraits, sets],
+  std/[typetraits, sets, tables],
   stew/assign2,
   stew/objects,
   stew/shims/macros,
@@ -23,7 +23,7 @@ template requireKind(header: FieldHeader, expected: WireKind) =
       msg: "Unexpected data kind " & $(header.number()) & ": " & $header.kind()  &
       ", exprected " & $expected)
 
-proc readFieldInto[T: object](
+proc readFieldInto[T: object and not Table](
   stream: InputStream,
   value: var T,
   header: FieldHeader,
@@ -42,6 +42,22 @@ proc readFieldInto[T: object](
     if not stream.readInto(tmp):
       raise (ref ValueError)(msg: "not enough bytes")
     memoryInput(tmp).readValueInternal(value)
+
+proc readFieldInto[K, V](
+  stream: InputStream,
+  value: var Table[K, V],
+  header: FieldHeader,
+  ProtoType: type
+) =
+  # TODO: Makes it a proto3 exclusive
+  # This is certainly not the best way to do it, but nobody cares about map
+  type
+    TableObject {.proto3.} = object
+      key {.fieldNumber: 1.}: K
+      value {.fieldNumber: 2.}: V
+  var tmp = default(TableObject)
+  stream.readFieldInto(tmp, header, ProtoType)
+  value[tmp.key] = tmp.value
 
 proc readFieldInto[T: enum](
   stream: InputStream,

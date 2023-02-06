@@ -1,7 +1,7 @@
 #Writes the specified type into a buffer using the Protobuf binary wire format.
 
 import
-  std/typetraits,
+  std/[typetraits, tables],
   stew/shims/macros,
   stew/objects,
   faststreams/outputs,
@@ -73,6 +73,21 @@ proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
   else:
     for value in values:
       output.write(toBytes(ProtoType(value)))
+
+proc writeField*[K, V](
+  stream: OutputStream,
+  fieldNum: int,
+  value: Table[K, V],
+  ProtoType: type
+) =
+  type
+    TableObject {.proto3.} = object
+      key {.fieldNumber: 1.}: K
+      value {.fieldNumber: 2.}: V
+  for k, v in value.pairs():
+    let tmp = TableObject(key: k, value: v)
+    #protoType(p, TableObject, FlatType, "")
+    stream.writeField(fieldNum, tmp, ProtoType)
 
 proc writeValue*[T: object](stream: OutputStream, value: T) =
   const
