@@ -49,12 +49,28 @@ proc readFieldInto[K, V](
   header: FieldHeader,
   ProtoType: type
 ) =
-  # TODO: Makes it a proto3 exclusive
-  # This is certainly not the best way to do it, but nobody cares about map
-  type
-    TableObject {.proto3.} = object
-      key {.fieldNumber: 1.}: K
-      value {.fieldNumber: 2.}: V
+  # I know it's ugly, but I cannot find a clean way to do it
+  # ... And nobody cares about map
+  when K is SomePBInt and V is SomePBInt:
+    type
+      TableObject {.proto3.} = object
+        key {.fieldNumber: 1, pint.}: K
+        value {.fieldNumber: 2, pint.}: V
+  elif K is SomePBInt:
+    type
+      TableObject {.proto3.} = object
+        key {.fieldNumber: 1, pint.}: K
+        value {.fieldNumber: 2.}: V
+  elif V is SomePBInt:
+    type
+      TableObject {.proto3.} = object
+        key {.fieldNumber: 1.}: K
+        value {.fieldNumber: 2, pint.}: V
+  else:
+    type
+      TableObject {.proto3.} = object
+        key {.fieldNumber: 1.}: K
+        value {.fieldNumber: 2.}: V
   var tmp = default(TableObject)
   stream.readFieldInto(tmp, header, ProtoType)
   value[tmp.key] = tmp.value
@@ -129,8 +145,7 @@ proc readFieldPackedInto[T](
     elif ProtoType is SomeFixed32:
       WireKind.Fixed32
     else:
-      static: doAssert ProtoType is SomeFixed64
-      ProtoType.SomeFixed64
+      WireKind.Fixed64
 
     inner.readFieldInto(value[^1], FieldHeader.init(header.number, kind), ProtoType)
 
@@ -168,6 +183,9 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
             stream.readFieldPackedInto(fieldVar, header, ProtoType)
           else:
             stream.readFieldInto(fieldVar, header, ProtoType)
+        elif ProtoType is ref:
+          fieldVar = new ProtoType
+          stream.readFieldInto(fieldVar[], header, ProtoType)
         else:
           stream.readFieldInto(fieldVar, header, ProtoType)
 

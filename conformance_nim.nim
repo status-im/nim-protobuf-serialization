@@ -1,4 +1,4 @@
-import os, sequtils, streams, endians, strutils
+import os
 import protobuf_serialization
 import protobuf_serialization/files/type_generator
 import stew/byteutils
@@ -6,60 +6,42 @@ import_proto3 "conformance.proto", "/tmp/s1.nim"
 import test_proto2
 import test_proto3
 
-var testCount = 0
-let
-  inputStream = newFileStream(stdin)
-  outputStream = newFileStream(stdout)
+proc readIntLE(): int32 =
+  if stdin.readBuffer(addr(result), 4) != 4:
+    raise newException(IOError, "readInt error")
 
-proc readIntLE(s: Stream): int32 =
-  let v = s.readInt32()
-  var x: int32
-  littleEndian32(addr(result), addr(v))
-  bigEndian32(addr(x), addr(v))
+proc writeIntLE(v: int32) =
+  var value = v
+  if stdout.writeBuffer(addr(value), 4) != 4:
+    raise newException(IOError, "writeInt error")
 
-proc writeIntLE(s: Stream, value: int32) =
-  var value = value
-  var buf: int32
-  littleEndian32(addr(buf), addr(value))
-  s.write(buf)
+while true:
+  let length = readIntLE()
 
-proc doTestIO(): bool = 
-  let length = inputStream.readIntLE()
-  var serializedRequestChar = newSeq[char](length)
-  if stdin.readChars(serializedRequestChar) != length:
+  var serializedRequest = newSeq[byte](length)
+  if stdin.readBuffer(addr(serializedRequest[0]), length) != length:
     raise newException(IOError, "IProtobuf./O error")
-  let serializedRequest = serializedRequestChar.mapIt(it.ord().byte)
-#  stderr.writeLine("=> ", length, " <", serializedRequest.foldl(if a == "": toHex(b) else: a & " " & toHex(b), ""), ">")
-#  stderr.writeLine("pouf: ", serializedRequest)
+
   let request = Protobuf.decode(serializedRequest, ConformanceRequest)
-#  stderr.writeLine("decoded => ", request)
+
   var response = ConformanceResponse()
+
   if request.requested_output_format != WireFormat.PROTOBUF or
       request.protobuf_payload.len() == 0:
     response.skipped = "skip not protobuf"
   else:
     try:
-      #if request.message_type == "protobuf_test_messages.proto3.TestAllTypesProto3":
       if request.message_type == "protobuf_test_messages.proto3.TestAllTypesProto3":
-        #stderr.writeLine("TYYYYYPE: ", type(request.protobuf_payload))
-        stderr.writeLine("TADA")
-        let xx: seq[byte] = request.protobuf_payload
-        let payload = Protobuf.decode(xx, TestAllTypesProto3)
-        response.protobuf_payload = Protobuf.encode(payload)
+        let x = Protobuf.decode(request.protobuf_payload, TestAllTypesProto3)
+        response.protobuf_payload = Protobuf.encode(x)
       else:
         response.skipped = "skip"
     except Exception as exc:
-      response.runtime_error = exc.msg
-  let serializedResponse = Protobuf.encode(response)
-  #stderr.writeLine("Output response: " & $response, serializedResponse)
-  outputStream.writeIntLE(serializedResponse.len().int32)
-  outputStream.write(string.fromBytes(serializedResponse))
-  outputStream.flush()
-  testCount.inc()
-  return true
+      response.parse_error = exc.msg
 
-while true:
-  if not doTestIO():
-    stderr.writeLine("conformance_nim: received EOF from test runner after ",
-                     testCount, " tests, exiting")
-    break
+  let serializedResponse = Protobuf.encode(response)
+
+  writeIntLE(serializedResponse.len().int32)
+
+  stdout.write(string.fromBytes(serializedResponse))
+  stdout.flushFile()

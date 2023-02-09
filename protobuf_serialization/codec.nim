@@ -31,6 +31,8 @@ type
     # EndGroup = 4 # Not used
     Fixed32 = 5
 
+  SomePBInt* = int32 | int64 | uint32 | uint64
+
   FieldHeader* = distinct uint32
 
   # Scalar types used in `.proto` files

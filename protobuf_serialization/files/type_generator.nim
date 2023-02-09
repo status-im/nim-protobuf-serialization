@@ -70,7 +70,6 @@ proc isNested(base: string, currentName: string, messages: seq[ProtoNode]): bool
 
 # Exported for the tests.
 proc protoToTypesInternal*(filepath: string, log: string): NimNode {.compileTime.} =
-  echo filepath
   var
     packages: seq[ProtoNode] = parseProtobuf(filepath).packages
     queue: seq[ProtoNode] = @[]

@@ -17,6 +17,14 @@ proc writeField(
   # TODO turn this into an extension point
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
+proc writeField*[T: object](stream: OutputStream, fieldNum: int, fieldVal: ref T) =
+  # TODO Pre-compute size of inner object then write it without the intermediate
+  #      memory output
+  var inner = memoryOutput()
+  inner.writeValue(fieldVal)
+  let bytes = inner.getOutput()
+  stream.writeField(fieldNum, pbytes(bytes))
+
 proc writeField*[T: object](stream: OutputStream, fieldNum: int, fieldVal: T) =
   # TODO Pre-compute size of inner object then write it without the intermediate
   #      memory output
@@ -80,13 +88,28 @@ proc writeField*[K, V](
   value: Table[K, V],
   ProtoType: type
 ) =
-  type
-    TableObject {.proto3.} = object
-      key {.fieldNumber: 1.}: K
-      value {.fieldNumber: 2.}: V
+  when K is SomePBInt and V is SomePBInt:
+    type
+      TableObject {.proto3.} = object
+        key {.fieldNumber: 1, pint.}: K
+        value {.fieldNumber: 2, pint.}: V
+  elif K is SomePBInt:
+    type
+      TableObject {.proto3.} = object
+        key {.fieldNumber: 1, pint.}: K
+        value {.fieldNumber: 2.}: V
+  elif V is SomePBInt:
+    type
+      TableObject {.proto3.} = object
+        key {.fieldNumber: 1.}: K
+        value {.fieldNumber: 2, pint.}: V
+  else:
+    type
+      TableObject {.proto3.} = object
+        key {.fieldNumber: 1.}: K
+        value {.fieldNumber: 2.}: V
   for k, v in value.pairs():
     let tmp = TableObject(key: k, value: v)
-    #protoType(p, TableObject, FlatType, "")
     stream.writeField(fieldNum, tmp, ProtoType)
 
 proc writeValue*[T: object](stream: OutputStream, value: T) =
@@ -116,6 +139,9 @@ proc writeValue*[T: object](stream: OutputStream, value: T) =
     elif FlatType is object:
       # TODO avoid writing empty objects in proto3
       stream.writeField(fieldNum, fieldVal, ProtoType)
+    elif FlatType is ref:
+      if not fieldVal.isNil():
+        stream.writeField(fieldNum, fieldVal[], ProtoType)
     else:
       when isProto2:
         stream.writeField(fieldNum, fieldVal, ProtoType)
