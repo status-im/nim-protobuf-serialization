@@ -1,6 +1,6 @@
 import os
-import protobuf_serialization
-import protobuf_serialization/files/type_generator
+import ../../protobuf_serialization
+import ../../protobuf_serialization/files/type_generator
 import stew/byteutils
 import_proto3 "conformance.proto", "/tmp/s1.nim"
 import test_proto2
