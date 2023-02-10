@@ -55,13 +55,14 @@ task conformance_test, "Run conformance tests":
     pwd = thisDir()
     conformance = pwd / "conformance"
     test = pwd / "tests" / "conformance"
+
   if not dirExists(conformance):
     exec "git clone --recurse-submodules https://github.com/protocolbuffers/protobuf/ " & conformance
-    # exec "git clone --recursive https://github.com/protocolbuffers/protobuf/ " & conformance
-  # exec "bash -c 'cd " & conformance & " && cmake . -Dprotobuf_BUILD_CONFORMANCE=ON && cmake --build .'"
+
   withDir conformance:
     exec "cmake . -Dprotobuf_BUILD_CONFORMANCE=ON"
     exec "make conformance_test_runner"
+
   exec "cp " & conformance / "conformance_test_runner" & " " & test
   exec "nim c " & test /  "conformance_nim.nim"
   exec test / "conformance_test_runner --verbose " & test / "conformance_nim"
