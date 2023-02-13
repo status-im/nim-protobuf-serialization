@@ -34,8 +34,11 @@ while true:
       if request.message_type == "protobuf_test_messages.proto3.TestAllTypesProto3":
         let x = Protobuf.decode(request.protobuf_payload, TestAllTypesProto3)
         response.protobuf_payload = Protobuf.encode(x)
+      elif request.message_type == "protobuf_test_messages.proto2.TestAllTypesProto2":
+        let x = Protobuf.decode(request.protobuf_payload, TestAllTypesProto2)
+        response.protobuf_payload = Protobuf.encode(x)
       else:
-        response.skipped = "skip"
+        response.skipped = "skip unknown message type: " & request.message_type
     except Exception as exc:
       response.parse_error = exc.msg
 
