@@ -10,23 +10,29 @@ macro test() =
     parsed: NimNode = protoToTypesInternal(currentSourcePath.parentDir / "test.proto3")
     vector: NimNode = quote do:
       type
-        TestEnum* {.proto3.} = enum
+        TestEnum* {.pure.} = enum
           UNKNOWN = 0
           STARTED = 1
 
         ErrorStatus* {.proto3.} = object
-          message* {.fieldNumber: 1.}: string
           details* {.fieldNumber: 2.}: seq[seq[byte]]
-
-        Result* {.proto3.} = object
-          url* {.fieldNumber: 1.}: string
-          title* {.fieldNumber: 2.}: string
-          snippets* {.fieldNumber: 3.}: seq[string]
+          message* {.fieldNumber: 1.}: string
 
         SearchResponse* {.proto3.} = object
           results* {.fieldNumber: 1.}: seq[Result]
 
-        Corpus* {.proto3.} = enum
+        Result* {.proto3.} = object
+          snippets* {.fieldNumber: 3.}: seq[string]
+          title* {.fieldNumber: 2.}: string
+          url* {.fieldNumber: 1.}: string
+
+        SearchRequest* {.proto3.} = object
+          corpus* {.fieldNumber: 4.}: Corpus
+          result_per_page* {.fieldNumber: 3, pint.}: int32
+          page_number* {.fieldNumber: 2, pint.}: int32
+          query* {.fieldNumber: 1.}: string
+
+        Corpus* {.pure.} = enum
           UNIVERSAL = 0
           WEB = 1
           IMAGES = 2
@@ -34,12 +40,6 @@ macro test() =
           NEWS = 4
           PRODUCTS = 5
           VIDEO = 6
-
-        SearchRequest* {.proto3.} = object
-          query* {.fieldNumber: 1.}: string
-          page_number* {.fieldNumber: 2, pint.}: int32
-          result_per_page* {.fieldNumber: 3, pint.}: int32
-          corpus* {.fieldNumber: 4.}: Corpus
 
         Foo* {.proto3.} = object
 
