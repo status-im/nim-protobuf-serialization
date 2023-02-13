@@ -146,6 +146,8 @@ jobs:
           if [ "${{ runner.os }}" == "Linux" ]; then
             sudo apt-get install cmake
           elif [ "${{ runner.os }}" == "macOS" ]; then
+            brew update
+            brew upgrade
             brew install cmake
           elif [ "${{ runner.os }}" == "Windows" ]; then
             curl -LO https://github.com/Kitware/CMake/releases/download/v3.19.3/cmake-3.19.3-win64-x64.msi
