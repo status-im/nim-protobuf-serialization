@@ -1,7 +1,7 @@
 name: Conformance Test
 
 on:
-  manual:
+  workflow_dispatch:
     types: [run]
 
 concurrency: # Cancel stale PR builds (but not push builds)
