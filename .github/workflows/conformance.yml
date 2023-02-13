@@ -141,6 +141,17 @@ jobs:
           echo "ncpu=$ncpu" >> $GITHUB_ENV
           echo "MAKE_CMD=${MAKE_CMD}" >> $GITHUB_ENV
 
+      - name: Install CMake
+        run: |
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            sudo apt-get install cmake
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            brew install cmake
+          elif [ "${{ runner.os }}" == "Windows" ]; then
+            curl -LO https://github.com/Kitware/CMake/releases/download/v3.19.3/cmake-3.19.3-win64-x64.msi
+            msiexec /i cmake-3.19.3-win64-x64.msi /quiet
+          fi
+
       - name: Build Nim and Nimble
         run: |
           curl -O -L -s -S https://raw.githubusercontent.com/status-im/nimbus-build-system/master/scripts/build_nim.sh
