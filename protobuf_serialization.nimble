@@ -56,7 +56,7 @@ task conformance_test, "Run conformance tests":
     conformance = pwd / "conformance"
     test = pwd / "tests" / "conformance"
 
-  if not dirExists(conformance):
+  if not system.dirExists(conformance):
     exec "git clone --recurse-submodules https://github.com/protocolbuffers/protobuf/ " & conformance
 
   withDir conformance:
