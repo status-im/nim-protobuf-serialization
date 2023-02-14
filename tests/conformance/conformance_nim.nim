@@ -15,7 +15,7 @@ proc writeIntLE(v: int32) =
   if stdout.writeBuffer(addr(value), 4) != 4:
     raise newException(IOError, "writeInt error")
 
-while true:
+proc doTest() =
   let length = readIntLE()
 
   var serializedRequest = newSeq[byte](length)
@@ -48,3 +48,10 @@ while true:
 
   stdout.write(string.fromBytes(serializedResponse))
   stdout.flushFile()
+
+while true:
+  try:
+    doTest()
+  except IOError as exc:
+    stderr.writeLine(exc.msg)
+    break
