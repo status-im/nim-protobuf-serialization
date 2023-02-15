@@ -69,7 +69,7 @@ proc isNested(base: string, currentName: string, messages: seq[ProtoNode]): bool
           return true
 
 # Exported for the tests.
-proc protoToTypesInternal*(filepath: string): NimNode {.compileTime.} =
+proc protoToTypesInternal*(filepath: string, logFile: string = ""): NimNode {.compileTime.} =
   var
     packages: seq[ProtoNode] = parseProtobuf(filepath).packages
     queue: seq[ProtoNode] = @[]
@@ -179,10 +179,12 @@ proc protoToTypesInternal*(filepath: string): NimNode {.compileTime.} =
           value
         )
       )
+  if logFile != "":
+    logFile.writeFile(repr(result))
 
-macro protoToTypes*(filepath: static[string]): untyped =
-  result = protoToTypesInternal(filepath)
+macro protoToTypes*(filepath: static[string], logFile: static[string] = ""): untyped =
+  result = protoToTypesInternal(filepath, logFile)
 
-template import_proto3*(file: static[string]): untyped =
+template import_proto3*(file: static[string], logFile: static[string] = ""): untyped =
   const filepath = parentDir(instantiationInfo(-1, true).filename) / file
-  protoToTypes(filepath)
+  protoToTypes(filepath, logFile)
