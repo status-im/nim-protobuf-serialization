@@ -17,14 +17,6 @@ proc writeField(
   # TODO turn this into an extension point
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
-proc writeField*[T: object](stream: OutputStream, fieldNum: int, fieldVal: ref T) =
-  # TODO Pre-compute size of inner object then write it without the intermediate
-  #      memory output
-  var inner = memoryOutput()
-  inner.writeValue(fieldVal)
-  let bytes = inner.getOutput()
-  stream.writeField(fieldNum, pbytes(bytes))
-
 proc writeField*[T: object](stream: OutputStream, fieldNum: int, fieldVal: T) =
   # TODO Pre-compute size of inner object then write it without the intermediate
   #      memory output

@@ -86,8 +86,7 @@ proc readFieldInto[T: enum](
     {.fatal: $T & " definition must contain a constant that maps to zero".}
   header.requireKind(WireKind.Varint)
   let enumValue = stream.readValue(ProtoType)
-  if not checkedEnumAssign(value, enumValue.int32) and
-    not checkedEnumAssign(value, 0):
+  if not checkedEnumAssign(value, enumValue.int32):
     raise (ref ValueError)(msg: "Attempted to decode an invalid enum value")
 
 proc readFieldInto[T: not object and not enum and (seq[byte] or not seq)](
