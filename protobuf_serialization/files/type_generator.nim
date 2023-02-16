@@ -117,7 +117,7 @@ proc protoToTypesInternal*(filepath: string, logFile: string = ""): NimNode {.co
         while fieldsQueue.len != 0:
           let field = fieldsQueue.pop()
           if field.kind == Oneof:
-            # TODO: ATM the oneof is ignore. Find a way to make it work
+            # TODO: ATM the oneof is ignored. Find a way to make it work
             for f in field.oneof:
               fieldsQueue.add(f)
             continue

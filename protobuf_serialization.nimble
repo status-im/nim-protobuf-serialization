@@ -65,5 +65,5 @@ task conformance_test, "Run conformance tests":
 
   exec "cp " & conformance / "conformance_test_runner" & " " & test
   withDir test:
-    exec "nim c conformance_nim.nim"
+    exec "nim c -d:ConformanceTest conformance_nim.nim"
     exec "./conformance_test_runner --failure_list failure_list.txt conformance_nim"

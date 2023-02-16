@@ -43,37 +43,38 @@ proc readFieldInto[T: object and not Table](
       raise (ref ValueError)(msg: "not enough bytes")
     memoryInput(tmp).readValueInternal(value)
 
-proc readFieldInto[K, V](
-  stream: InputStream,
-  value: var Table[K, V],
-  header: FieldHeader,
-  ProtoType: type
-) =
-  # I know it's ugly, but I cannot find a clean way to do it
-  # ... And nobody cares about map
-  when K is SomePBInt and V is SomePBInt:
-    type
-      TableObject {.proto3.} = object
-        key {.fieldNumber: 1, pint.}: K
-        value {.fieldNumber: 2, pint.}: V
-  elif K is SomePBInt:
-    type
-      TableObject {.proto3.} = object
-        key {.fieldNumber: 1, pint.}: K
-        value {.fieldNumber: 2.}: V
-  elif V is SomePBInt:
-    type
-      TableObject {.proto3.} = object
-        key {.fieldNumber: 1.}: K
-        value {.fieldNumber: 2, pint.}: V
-  else:
-    type
-      TableObject {.proto3.} = object
-        key {.fieldNumber: 1.}: K
-        value {.fieldNumber: 2.}: V
-  var tmp = default(TableObject)
-  stream.readFieldInto(tmp, header, ProtoType)
-  value[tmp.key] = tmp.value
+when defined(ConformanceTest):
+  proc readFieldInto[K, V](
+    stream: InputStream,
+    value: var Table[K, V],
+    header: FieldHeader,
+    ProtoType: type
+  ) =
+    # I know it's ugly, but I cannot find a clean way to do it
+    # ... And nobody cares about map
+    when K is SomePBInt and V is SomePBInt:
+      type
+        TableObject {.proto3.} = object
+          key {.fieldNumber: 1, pint.}: K
+          value {.fieldNumber: 2, pint.}: V
+    elif K is SomePBInt:
+      type
+        TableObject {.proto3.} = object
+          key {.fieldNumber: 1, pint.}: K
+          value {.fieldNumber: 2.}: V
+    elif V is SomePBInt:
+      type
+        TableObject {.proto3.} = object
+          key {.fieldNumber: 1.}: K
+          value {.fieldNumber: 2, pint.}: V
+    else:
+      type
+        TableObject {.proto3.} = object
+          key {.fieldNumber: 1.}: K
+          value {.fieldNumber: 2.}: V
+    var tmp = default(TableObject)
+    stream.readFieldInto(tmp, header, ProtoType)
+    value[tmp.key] = tmp.value
 
 proc readFieldInto[T: enum](
   stream: InputStream,
@@ -183,7 +184,7 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
             stream.readFieldPackedInto(fieldVar, header, ProtoType)
           else:
             stream.readFieldInto(fieldVar, header, ProtoType)
-        elif ProtoType is ref:
+        elif ProtoType is ref and defined(ConformanceTest):
           fieldVar = new ProtoType
           stream.readFieldInto(fieldVar[], header, ProtoType)
         else:

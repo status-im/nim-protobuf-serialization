@@ -82,35 +82,36 @@ proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
     for value in values:
       output.write(toBytes(ProtoType(value)))
 
-proc writeField*[K, V](
-  stream: OutputStream,
-  fieldNum: int,
-  value: Table[K, V],
-  ProtoType: type
-) =
-  when K is SomePBInt and V is SomePBInt:
-    type
-      TableObject {.proto3.} = object
-        key {.fieldNumber: 1, pint.}: K
-        value {.fieldNumber: 2, pint.}: V
-  elif K is SomePBInt:
-    type
-      TableObject {.proto3.} = object
-        key {.fieldNumber: 1, pint.}: K
-        value {.fieldNumber: 2.}: V
-  elif V is SomePBInt:
-    type
-      TableObject {.proto3.} = object
-        key {.fieldNumber: 1.}: K
-        value {.fieldNumber: 2, pint.}: V
-  else:
-    type
-      TableObject {.proto3.} = object
-        key {.fieldNumber: 1.}: K
-        value {.fieldNumber: 2.}: V
-  for k, v in value.pairs():
-    let tmp = TableObject(key: k, value: v)
-    stream.writeField(fieldNum, tmp, ProtoType)
+when defined(ConformanceTest):
+  proc writeField*[K, V](
+    stream: OutputStream,
+    fieldNum: int,
+    value: Table[K, V],
+    ProtoType: type
+  ) =
+    when K is SomePBInt and V is SomePBInt:
+      type
+        TableObject {.proto3.} = object
+          key {.fieldNumber: 1, pint.}: K
+          value {.fieldNumber: 2, pint.}: V
+    elif K is SomePBInt:
+      type
+        TableObject {.proto3.} = object
+          key {.fieldNumber: 1, pint.}: K
+          value {.fieldNumber: 2.}: V
+    elif V is SomePBInt:
+      type
+        TableObject {.proto3.} = object
+          key {.fieldNumber: 1.}: K
+          value {.fieldNumber: 2, pint.}: V
+    else:
+      type
+        TableObject {.proto3.} = object
+          key {.fieldNumber: 1.}: K
+          value {.fieldNumber: 2.}: V
+    for k, v in value.pairs():
+      let tmp = TableObject(key: k, value: v)
+      stream.writeField(fieldNum, tmp, ProtoType)
 
 proc writeValue*[T: object](stream: OutputStream, value: T) =
   const
@@ -139,7 +140,7 @@ proc writeValue*[T: object](stream: OutputStream, value: T) =
     elif FlatType is object:
       # TODO avoid writing empty objects in proto3
       stream.writeField(fieldNum, fieldVal, ProtoType)
-    elif FlatType is ref:
+    elif FlatType is ref and defined(ConformanceTest):
       if not fieldVal.isNil():
         stream.writeField(fieldNum, fieldVal[], ProtoType)
     else:
