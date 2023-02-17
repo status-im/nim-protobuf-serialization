@@ -57,7 +57,7 @@ task conformance_test, "Run conformance tests":
     test = pwd / "tests" / "conformance"
 
   if not system.dirExists(conformance):
-    exec "git clone --recurse-submodules https://github.com/protocolbuffers/protobuf/ " & conformance
+    exec "git clone -b v22.0 --recurse-submodules https://github.com/protocolbuffers/protobuf/ " & conformance
 
   withDir conformance:
     exec "cmake . -Dprotobuf_BUILD_CONFORMANCE=ON"

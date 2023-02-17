@@ -3,6 +3,7 @@ name: Conformance Test
 on:
   workflow_dispatch:
     types: [run]
+  pull_request:
 
 concurrency: # Cancel stale PR builds (but not push builds)
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
