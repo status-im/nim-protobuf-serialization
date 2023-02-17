@@ -10,7 +10,7 @@ macro test() =
     parsed: NimNode = protoToTypesInternal(currentSourcePath.parentDir / "test.proto3")
     vector: NimNode = quote do:
       type
-        TestEnum* {.pure.} = enum
+        TestEnum* {.pure, proto3.} = enum
           UNKNOWN = 0
           STARTED = 1
 
@@ -32,7 +32,7 @@ macro test() =
           page_number* {.fieldNumber: 2, pint.}: int32
           query* {.fieldNumber: 1.}: string
 
-        Corpus* {.pure.} = enum
+        Corpus* {.pure, proto3.} = enum
           UNIVERSAL = 0
           WEB = 1
           IMAGES = 2

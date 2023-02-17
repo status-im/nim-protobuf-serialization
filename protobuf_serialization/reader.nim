@@ -82,12 +82,13 @@ proc readFieldInto[T: enum](
   header: FieldHeader,
   ProtoType: type
 ) =
-  when 0 notin T:
+  # TODO: This function doesn't work for proto2 edge cases. Make it work
+  when 0 notin T and T.isProto3():
     {.fatal: $T & " definition must contain a constant that maps to zero".}
   header.requireKind(WireKind.Varint)
   let enumValue = stream.readValue(ProtoType)
   if not checkedEnumAssign(value, enumValue.int32):
-    raise (ref ValueError)(msg: "Attempted to decode an invalid enum value")
+    discard checkedEnumAssign(value, 0)
 
 proc readFieldInto[T: not object and not enum and (seq[byte] or not seq)](
   stream: InputStream,

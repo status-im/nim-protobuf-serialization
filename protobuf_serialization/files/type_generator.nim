@@ -171,7 +171,7 @@ proc protoToTypesInternal*(filepath: string, logFile: string = ""): NimNode {.co
           newNimNode(nnkPragmaExpr).add(
             newNimNode(nnkPostfix).add(ident("*"), ident(name)),
             if next.kind == ProtoType.Enum:
-              newNimNode(nnkPragma).add(ident("pure"))
+              newNimNode(nnkPragma).add(ident("pure"), ident("proto3"))
             else:
               newNimNode(nnkPragma).add(ident("proto3"))
           ),
