@@ -1,6 +1,6 @@
 import os, algorithm, strutils, tables
 import macros
-
+import stew/shims/macros as stewmacros
 import decldef
 export decldef, tables
 import proto_parser
@@ -69,7 +69,7 @@ proc isNested(base: string, currentName: string, messages: seq[ProtoNode]): bool
           return true
 
 # Exported for the tests.
-proc protoToTypesInternal*(filepath: string, logFile: string = ""): NimNode {.compileTime.} =
+proc protoToTypesInternal*(filepath: string, log: bool = false): NimNode {.compileTime.} =
   var
     packages: seq[ProtoNode] = parseProtobuf(filepath).packages
     queue: seq[ProtoNode] = @[]
@@ -179,12 +179,12 @@ proc protoToTypesInternal*(filepath: string, logFile: string = ""): NimNode {.co
           value
         )
       )
-  if logFile != "":
-    logFile.writeFile(repr(result))
+  if log:
+    result.storeMacroResult(true)
 
-macro protoToTypes*(filepath: static[string], logFile: static[string] = ""): untyped =
-  result = protoToTypesInternal(filepath, logFile)
+macro protoToTypes*(filepath: static[string], log: static[bool] = false): untyped =
+  result = protoToTypesInternal(filepath, log)
 
-template import_proto3*(file: static[string], logFile: static[string] = ""): untyped =
+template import_proto3*(file: static[string], log: static[bool] = false): untyped =
   const filepath = parentDir(instantiationInfo(-1, true).filename) / file
-  protoToTypes(filepath, logFile)
+  protoToTypes(filepath, log)

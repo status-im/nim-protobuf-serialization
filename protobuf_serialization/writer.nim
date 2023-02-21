@@ -38,12 +38,6 @@ proc writeField(
   if fieldVal.isSome(): # TODO required field checking
     stream.writeField(fieldNum, fieldVal.get(), ProtoType)
 
-proc writeField[T: enum](
-    stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type) =
-  when 0 notin T:
-    {.fatal: $T & " definition must contain a constant that maps to zero".}
-  stream.writeField(fieldNum, pint32(fieldVal.ord()))
-
 proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
     output: OutputStream, field: int, values: openArray[T], _: type ProtoType) =
   doAssert validFieldNumber(field)
@@ -75,6 +69,12 @@ proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
       output.write(toBytes(ProtoType(value)))
 
 when defined(ConformanceTest):
+  proc writeField[T: enum](
+      stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type) =
+    when 0 notin T:
+      {.fatal: $T & " definition must contain a constant that maps to zero".}
+    stream.writeField(fieldNum, pint32(fieldVal.ord()))
+
   proc writeField*[K, V](
     stream: OutputStream,
     fieldNum: int,
