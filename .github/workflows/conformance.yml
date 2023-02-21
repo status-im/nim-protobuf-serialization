@@ -1,10 +1,9 @@
-name: CI
+name: Conformance Test
+
 on:
-  push:
-    branches:
-      - master
-  pull_request:
   workflow_dispatch:
+    types: [run]
+  pull_request:
 
 concurrency: # Cancel stale PR builds (but not push builds)
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
@@ -20,26 +19,13 @@ jobs:
             cpu: amd64
           - os: linux
             cpu: i386
-          - os: macos
-            cpu: amd64
-          - os: windows
-            cpu: amd64
-          #- os: windows
-            #cpu: i386
-        branch: [version-1-2, version-1-4, version-1-6, devel]
+
+        branch: [version-1-4, version-1-6, devel]
         include:
           - target:
               os: linux
             builder: ubuntu-20.04
             shell: bash
-          - target:
-              os: macos
-            builder: macos-12
-            shell: bash
-          - target:
-              os: windows
-            builder: windows-2019
-            shell: msys2 {0}
 
     defaults:
       run:
@@ -72,50 +58,6 @@ jobs:
           chmod 755 external/bin/gcc external/bin/g++
           echo '${{ github.workspace }}/external/bin' >> $GITHUB_PATH
 
-      - name: MSYS2 (Windows i386)
-        if: runner.os == 'Windows' && matrix.target.cpu == 'i386'
-        uses: msys2/setup-msys2@v2
-        with:
-          path-type: inherit
-          msystem: MINGW32
-          install: >-
-            base-devel
-            git
-            mingw-w64-i686-toolchain
-
-      - name: MSYS2 (Windows amd64)
-        if: runner.os == 'Windows' && matrix.target.cpu == 'amd64'
-        uses: msys2/setup-msys2@v2
-        with:
-          path-type: inherit
-          install: >-
-            base-devel
-            git
-            mingw-w64-x86_64-toolchain
-
-      - name: Restore Nim DLLs dependencies (Windows) from cache
-        if: runner.os == 'Windows'
-        id: windows-dlls-cache
-        uses: actions/cache@v3
-        with:
-          path: external/dlls-${{ matrix.target.cpu }}
-          key: 'dlls-${{ matrix.target.cpu }}'
-
-      - name: Install DLLs dependencies (Windows)
-        if: >
-          steps.windows-dlls-cache.outputs.cache-hit != 'true' &&
-          runner.os == 'Windows'
-        run: |
-          mkdir -p external
-          curl -L "https://nim-lang.org/download/windeps.zip" -o external/windeps.zip
-          7z x -y external/windeps.zip -oexternal/dlls-${{ matrix.target.cpu }}
-
-      - name: Path to cached dependencies (Windows)
-        if: >
-          runner.os == 'Windows'
-        run: |
-          echo "${{ github.workspace }}/external/dlls-${{ matrix.target.cpu }}" >> $GITHUB_PATH
-
       - name: Derive environment variables
         run: |
           if [[ '${{ matrix.target.cpu }}' == 'amd64' ]]; then
@@ -131,17 +73,16 @@ jobs:
           'Linux')
             ncpu=$(nproc)
             ;;
-          'macOS')
-            ncpu=$(sysctl -n hw.ncpu)
-            ;;
-          'Windows')
-            ncpu=$NUMBER_OF_PROCESSORS
-            MAKE_CMD="mingw32-make"
-            ;;
           esac
           [[ -z "$ncpu" || $ncpu -le 0 ]] && ncpu=1
           echo "ncpu=$ncpu" >> $GITHUB_ENV
           echo "MAKE_CMD=${MAKE_CMD}" >> $GITHUB_ENV
+
+      - name: Install CMake
+        run: |
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            sudo apt-get install cmake
+          fi
 
       - name: Build Nim and Nimble
         run: |
@@ -153,12 +94,8 @@ jobs:
 
       - name: Run tests
         run: |
-          if [[ "${{ matrix.target.os }}" == "windows" ]]; then
-            # https://github.com/status-im/nimbus-eth2/issues/3121
-            export NIMFLAGS="-d:nimRawSetjmp"
-          fi
           nim --version
           nimble --version
           nimble install -y --depsOnly
-          env NIMLANG="c" nimble test
-          env NIMLANG="cpp" nimble test
+          env NIMLANG="c" nimble conformance_test
+          env NIMLANG="cpp" nimble conformance_test

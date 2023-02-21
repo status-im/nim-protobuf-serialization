@@ -1,6 +1,6 @@
 #Variables needed by the Reader and Writer which should NOT be exported outside of this library.
 
-import std/[options, sets]
+import std/[options, sets, tables]
 import stew/shims/macros
 #Depending on the situation, one of these two are used.
 #Sometimes, one works where the other doesn't.
@@ -115,12 +115,16 @@ template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped)
     type InnerType = pstring
   elif FlatType is seq[byte]:
     type InnerType = pbytes
-  elif FlatType is object:
+  elif FlatType is enum:
+    type InnerType = penum
+  elif FlatType is object or FlatType is ref:
     type InnerType = FieldType
   else:
     type InnerType = UnsupportedType[FieldType, RootType, fieldName]
 
 template elementType[T](_: type seq[T]): type = typeof(T)
+template elementTypeKey[K, V](_: type Table[K, V]): type = typeof(K)
+template elementTypeVal[K, V](_: type Table[K, V]): type = typeof(V)
 
 func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
   type FlatType = flatType(default(T))
@@ -128,7 +132,18 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
     {.fatal: $T & ": Serializing a number requires specifying the amount of bits via the type.".}
   elif FlatType is seq:
     when FlatType isnot seq[byte]:
-      verifySerializable(elementType(FlatType))
+      when defined(ConformanceTest):
+        return # TODO make it work in case of recursivity
+        # type List = object (value: Value)
+        # type Value = object (list: List)
+      else:
+        verifySerializable(elementType(FlatType))
+  elif FlatType is Table and defined(ConformanceTest):
+    return # TODO make it work in case of recursivity
+    # type Struct = object (map: Table[..., Value])
+    # type Value = object (struct: Struct)
+    # verifySerializable(elementTypeKey(FlatType))
+    # verifySerializable(elementTypeVal(FlatType))
   elif FlatType is object and T isnot PBOption:
     var
       inst: T
@@ -138,7 +153,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
       isProto2 = T.isProto2()
       isProto3 = T.isProto3()
     when isProto2 == isProto3:
-      {.fatal: $T & ": missing {.proto2.} or {.proto3}".}
+      {.fatal: $T & ": missing {.proto2.} or {.proto3.}".}
 
     enumInstanceSerializedFields(inst, fieldName, fieldVar):
       when isProto2 and not T.isRequired(fieldName):

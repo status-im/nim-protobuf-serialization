@@ -50,3 +50,20 @@ task test, "Run all tests":
       echo "  \x1B[0;31m[FAILED]\x1B[0;37m ", path.split(DirSep)[^1]
       exec "exit 1"
 
+task conformance_test, "Run conformance tests":
+  let
+    pwd = thisDir()
+    conformance = pwd / "conformance"
+    test = pwd / "tests" / "conformance"
+
+  if not system.dirExists(conformance):
+    exec "git clone -b v22.0 --recurse-submodules https://github.com/protocolbuffers/protobuf/ " & conformance
+
+  withDir conformance:
+    exec "cmake . -Dprotobuf_BUILD_CONFORMANCE=ON"
+    exec "make conformance_test_runner"
+
+  exec "cp " & conformance / "conformance_test_runner" & " " & test
+  withDir test:
+    exec "nim c -d:ConformanceTest conformance_nim.nim"
+    exec "./conformance_test_runner --failure_list failure_list.txt conformance_nim"

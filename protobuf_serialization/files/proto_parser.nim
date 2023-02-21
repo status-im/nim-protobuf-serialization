@@ -9,6 +9,7 @@ type
     typ: TokenType
     text: string
     index: int
+    filePos: int
 
 proc `$`(t: Token): string =
   $t.typ & ": " & t.text
@@ -22,12 +23,13 @@ proc `==`(t: Token, tt: TokenType): bool =
 proc `==`(t: Token, c: char): bool =
   t.typ == Symbol and t.text[0] == c
 
-proc tokenize(text: string): seq[Token] =
+proc tokenize(filename, text: string): seq[Token] =
   let lexer = peg(tokens, res: seq[Token]):
     space      <- +Space
     comment    <- "//" * *(1 - '\n')
     comment2   <- "/*" * @"*/"
 
+    decDigit   <- {'0'..'9'}
     octDigit   <- {'0'..'7'}
     hexDigit   <- {'0'..'9', 'a'..'f', 'A'..'F'}
     octEscape  <- '\\' * octDigit[3]
@@ -35,21 +37,27 @@ proc tokenize(text: string): seq[Token] =
     charEscape <- '\\' * {'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '\'', '"'}
     escapes    <- hexEscape | octEscape | charEscape
     dblstring  <- '"' * *(escapes | 1 - '"') * '"':
-      res.add Token(typ: String, text: ($0).unescape)
+      res.add Token(typ: String, text: ($0).unescape, filePos: @0)
     regstring  <- '\'' * *(escapes | 1 - '\'') * '\'':
-      res.add Token(typ: String, text: ($0).unescape(prefix = "'", suffix = "'"))
+      res.add Token(typ: String, text: ($0).unescape(prefix = "'", suffix = "'"), filePos: @0)
     string     <- dblstring | regstring
     sym        <- {'=', ';', '{', '}', '[', ']', '<', '>', ','}:
-      res.add Token(typ: Symbol, text: $0)
+      res.add Token(typ: Symbol, text: $0, filePos: @0)
     # according to the official syntax, this is correct.
     # but in reality, leading underscores are accepted
     #ident     <- Alpha * *(Alpha | '_' | Digit)
     ident      <- (Alpha | '_') * *(Alpha | '_' | Digit)
     fullIdent  <- ?'.' * ident * *('.' * ident):
-      res.add Token(typ: Ident, text: $0)
+      res.add Token(typ: Ident, text: $0, filePos: @0)
+
+    decimals   <- +decDigit
+    exponent   <- {'e', 'E'} * ?('+' | '-') * decimals
+    floatLit   <- ((decimals * '.' * ?decimals * ?exponent) | (decimals * exponent) | ('.' * decimals * ?exponent)):
+      # TODO: find a way to add "inf" and "nan", currently if a Field name starts with nan or inf, it will fail to parse
+      res.add Token(typ: Float, text: $0, filePos: @0)
     int        <- ?('-' | '+') * +(Digit):
-      res.add Token(typ: Integer, text: $0)
-    tokens     <- *(comment | comment2 | space | string | sym | int | fullIdent)
+      res.add Token(typ: Integer, text: $0, filePos: @0)
+    tokens     <- *(comment | comment2 | space | string | sym | floatLit | int | fullIdent)
 
   let
     match = lexer.match(text, result)
@@ -58,11 +66,13 @@ proc tokenize(text: string): seq[Token] =
     tok.index = index
 
   if match.matchLen != text.len:
-    var msg = "Failed to lex: '" & text[match.matchMax] & "'\n"
-    let
-      minToShow = max(0, match.matchMax - 20)
-      maxToShow = min(text.len, match.matchMax + 20)
-    msg &= text[minToShow .. maxToShow]
+    let line = text[0..<match.matchMax].count('\n') + 1
+    var msg = filename & ":" & $line & " Failed to lex '" & text[match.matchMax] & "'\n"
+    var
+      minToShow = text.rfind('\n', 0, match.matchMax) + 1
+      maxToShow = text.find('\n', match.matchMax)
+    if maxToShow == -1: maxToShow = text.len
+    msg &= text[minToShow ..< maxToShow]
     raise newException(CatchableError, msg)
 
 type
@@ -92,21 +102,25 @@ proc extract(x: var seq[(Token, ProtoNode)], s: Token): seq[ProtoNode] =
   x.keepItIf(it[0].index < s.index)
 
 proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
-  let tokens = file.readFile.tokenize
+  let
+    fileContent = file.readFile
+    filename = file.extractFilename
+    tokens = tokenize(filename, fileContent)
 
   let parser = peg(g, Token, ps: ParseState):
     ident      <- [Ident]
     string     <- [String]
     int        <- [Integer]
+    float      <- [Float]
 
     pkg        <- ["package"] * >ident * [';']:
       ps.currentPackage = ProtoNode(kind: Package, packageName: ($1).text)
-    option     <- ["option"] * ident * ['='] * (ident | string) * [';']
+    option     <- ["option"] * ident * ['='] * (ident | string | int | float) * [';']
     syntax     <- ["syntax"] * ['='] * string * [';']
     impor      <- ["import"] * >string * [';']:
       ps.imports.add ProtoNode(kind: Imported, filename: ($1).text)
 
-    fieldopt   <- ident * ['='] * ident
+    fieldopt   <- ident * ['='] * (ident | int | string | float)
     fieldopts  <- ['['] * fieldopt * *([','] * fieldopt) * [']']
 
     oneoffield <- >ident * >ident * ['='] * >int * ?fieldopts * [';']:
@@ -178,7 +192,7 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
       ps.fields.add (($0, node))
     mapfield   <- ["map"] * ['<'] * >ident * [','] * >ident * ['>'] * * >ident * ['='] * >int * ?fieldopts * [';']:
       let
-        fieldType = "map<" & ($1).text & ", " & ($2).text & ">"
+        fieldType = "map<" & ($1).text & "," & ($2).text & ">"
         fieldName = ($3).text
         fieldValue = ($4).text
       ps.fields.add (($0, ProtoNode(
@@ -186,7 +200,42 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
           number: parseInt(fieldValue),
           protoType: fieldType,
           name: fieldName)))
-    msg        <- ["message"] * >ident * ['{'] * *(typedecl | mapfield | oneof2 | msgfield | reserved | extensions) * ['}']:
+
+    # protobuf2
+    groupfield <- ?multiple * >["group"] * >ident * ['='] * >int * msgbody:
+      let fields = ps.fields.extract($0)
+      ps.messages.add(($0, ProtoNode(
+        messageName: ($2).text,
+        kind: Message,
+        nested: ps.messages.extract($0),
+        definedEnums: ps.enums.extract($0),
+        reserved: ps.reservedBlocks.extract($0),
+        fields: fields
+      )))
+
+      let
+        fieldType = ($2).text
+        fieldName = ($2).text
+        fieldValue = ($3).text
+      let node = ProtoNode(
+          kind: Field,
+          number: parseInt(fieldValue),
+          protoType: fieldType,
+          name: fieldName)
+      if @1 != @2:
+        node.presence = parseEnum[Presence](($0).text.toUpper)
+      ps.fields.add (($0, node))
+
+    extend2    <- ["extend"] * >ident * msgbody:
+      let fields = ps.fields.extract($0)
+      ps.messages.add(($0, ProtoNode(
+        extending: ($1).text,
+        kind: Extend,
+        extendedFields: fields
+      )))
+
+    msgbody    <- ['{'] * *(typedecl | mapfield | oneof2 | msgfield | reserved | extensions | groupfield | option | extend2) * ['}']
+    msg        <- ["message"] * >ident * msgbody:
       let fields = ps.fields.extract($0)
       ps.messages.add(($0, ProtoNode(
         messageName: ($1).text,
@@ -196,6 +245,7 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
         reserved: ps.reservedBlocks.extract($0),
         fields: fields
       )))
+
 
     enumfield  <- >ident * ['='] * >int * [';']:
       let
@@ -212,17 +262,21 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
         values: ps.fields.extract($0)
       )))
     typedecl   <- (msg | enumdecl)
-    onething   <- (pkg | option | syntax | impor | typedecl)
+    onething   <- (pkg | option | syntax | impor | typedecl | extend2)
     g          <- +onething
 
   var state = ParseState(currentPackage: ProtoNode(kind: Package))
   let match = parser.match(tokens, state)
   if match.matchLen != tokens.len:
-    var msg = "Failed to parse: '" & tokens[match.matchMax].text & "'\n"
     let
-      minToShow = max(0, match.matchMax - 2)
-      maxToShow = min(tokens.len, match.matchMax + 2)
-    msg &= tokens[minToShow .. maxToShow].mapIt(it.text).join(" ")
+      tokenPos = tokens[match.matchMax].filePos
+      line = fileContent[0..<tokenPos].count('\n') + 1
+    var msg = filename & ":" & $line & " Failed to parse: '" & tokens[match.matchMax].text & "'\n"
+    var
+      minToShow = fileContent.rfind('\n', 0, tokenPos) + 1
+      maxToShow = fileContent.find('\n', tokenPos)
+    if maxToShow == -1: maxToShow = msg.len
+    msg &= fileContent[minToShow ..< maxToShow]
     raise newException(CatchableError, msg)
 
   result = state.currentPackage

@@ -1,8 +1,9 @@
 #Writes the specified type into a buffer using the Protobuf binary wire format.
 
 import
-  std/typetraits,
+  std/[typetraits, tables],
   stew/shims/macros,
+  stew/objects,
   faststreams/outputs,
   serialization,
   "."/[codec, internal, types]
@@ -28,7 +29,7 @@ proc writeField[T: object and not PBOption](
     stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type) =
   stream.writeField(fieldNum, fieldVal)
 
-proc writeField[T: not object](
+proc writeField[T: not object and not enum](
     stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type) =
   stream.writeField(fieldNum, ProtoType(fieldVal))
 
@@ -67,6 +68,43 @@ proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
     for value in values:
       output.write(toBytes(ProtoType(value)))
 
+when defined(ConformanceTest):
+  proc writeField[T: enum](
+      stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type) =
+    when 0 notin T:
+      {.fatal: $T & " definition must contain a constant that maps to zero".}
+    stream.writeField(fieldNum, pint32(fieldVal.ord()))
+
+  proc writeField*[K, V](
+    stream: OutputStream,
+    fieldNum: int,
+    value: Table[K, V],
+    ProtoType: type
+  ) =
+    when K is SomePBInt and V is SomePBInt:
+      type
+        TableObject {.proto3.} = object
+          key {.fieldNumber: 1, pint.}: K
+          value {.fieldNumber: 2, pint.}: V
+    elif K is SomePBInt:
+      type
+        TableObject {.proto3.} = object
+          key {.fieldNumber: 1, pint.}: K
+          value {.fieldNumber: 2.}: V
+    elif V is SomePBInt:
+      type
+        TableObject {.proto3.} = object
+          key {.fieldNumber: 1.}: K
+          value {.fieldNumber: 2, pint.}: V
+    else:
+      type
+        TableObject {.proto3.} = object
+          key {.fieldNumber: 1.}: K
+          value {.fieldNumber: 2.}: V
+    for k, v in value.pairs():
+      let tmp = TableObject(key: k, value: v)
+      stream.writeField(fieldNum, tmp, ProtoType)
+
 proc writeValue*[T: object](stream: OutputStream, value: T) =
   const
     isProto2: bool = T.isProto2()
@@ -94,6 +132,9 @@ proc writeValue*[T: object](stream: OutputStream, value: T) =
     elif FlatType is object:
       # TODO avoid writing empty objects in proto3
       stream.writeField(fieldNum, fieldVal, ProtoType)
+    elif FlatType is ref and defined(ConformanceTest):
+      if not fieldVal.isNil():
+        stream.writeField(fieldNum, fieldVal[], ProtoType)
     else:
       when isProto2:
         stream.writeField(fieldNum, fieldVal, ProtoType)
