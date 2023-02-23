@@ -48,7 +48,10 @@ when defined(ConformanceTest):
   proc computeFieldSize*[T](
     fieldNum: int, fieldVal: ref T,
     ProtoType: type pbytes, skipDefault: static bool): int =
-    discard
+    if not fieldVal.isNil():
+      computeFieldSize(fieldNum, fieldVal[], ProtoType, skipDefault)
+    else:
+      0
 
   proc writeField[T: enum](
       stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type) =
