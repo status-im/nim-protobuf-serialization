@@ -26,14 +26,16 @@ type
   ReservedType* = enum
     String, Number, Range
   ProtoType* = enum
-    Field, Enum, EnumVal, ReservedBlock, Reserved, Message, File, Imported, Oneof, Package, ProtoDef
+    Field, Enum, EnumVal, ReservedBlock, Reserved, Message, File, Imported, Oneof, Package, ProtoDef, Extend
+  Presence* = enum
+    Singular, Repeated, Optional, Required
   ProtoNode* = ref object
     case kind*: ProtoType
     of Field:
       number*: int
       protoType*: string
       name*: string
-      repeated*: bool
+      presence*: Presence
     of Oneof:
       oneofName*: string
       oneof*: seq[ProtoNode]
@@ -60,6 +62,9 @@ type
       definedEnums*: seq[ProtoNode]
       fields*: seq[ProtoNode]
       nested*: seq[ProtoNode]
+    of Extend:
+      extending*: string
+      extendedFields*: seq[ProtoNode]
     of Package:
       packageName*: string
       messages*: seq[ProtoNode]
@@ -77,12 +82,11 @@ type
 proc `$`*(node: ProtoNode): string =
   case node.kind:
     of Field:
-      result = "Field $1 of type $2 with index $3".format(
+      result = "$1 field $2 of type $3 with index $4".format(
+        $node.presence,
         node.name,
         node.protoType,
         node.number)
-      if node.repeated:
-        result &= " is repeated"
     of Oneof:
       result = "One-of named $1, with one of these fields:\n".format(
         node.oneofName)
@@ -146,6 +150,14 @@ proc `$`*(node: ProtoNode): string =
         for message in node.nested:
           messages &= $message & "\n"
         data &= messages[0..^2].indent(1, "  ")
+      result &= data.indent(1, "  ")
+    of Extend:
+      result = "Extension of $1 with fields:".format(node.extending)
+      var data = ""
+      var fields = "\n"
+      for field in node.extendedFields:
+        fields &= $field & "\n"
+      data &= fields[0..^2].indent(1, "  ")
       result &= data.indent(1, "  ")
     of File:
       result = "Protobuf file with syntax $1\n".format(

@@ -31,6 +31,8 @@ type
     # EndGroup = 4 # Not used
     Fixed32 = 5
 
+  SomePBInt* = int32 | int64 | uint32 | uint64
+
   FieldHeader* = distinct uint32
 
   # Scalar types used in `.proto` files
@@ -54,19 +56,20 @@ type
   sfixed64* = distinct int64 ## fixed-width signed integer
 
   pbool* = distinct bool
+  penum* = distinct int32
 
   pstring* = distinct string ## UTF-8-encoded string
   pbytes* = distinct seq[byte] ## byte sequence
 
   SomeScalar* =
-    pint32 | pint64 | puint32 | puint64 | sint32 | sint64 | pbool |
+    pint32 | pint64 | puint32 | puint64 | sint32 | sint64 | pbool | penum |
     fixed64 | sfixed64 | pdouble |
     pstring | pbytes |
     fixed32 | sfixed32 | pfloat
 
   # Mappings of proto type to wire type
   SomeVarint* =
-    pint32 | pint64 | puint32 | puint64 | sint32 | sint64 | pbool
+    pint32 | pint64 | puint32 | puint64 | sint32 | sint64 | pbool | penum
   SomeFixed64* = fixed64 | sfixed64 | pdouble
   SomeLengthDelim* = pstring | pbytes # Also messages and packed repeated fields
   SomeFixed32* = fixed32 | sfixed32 | pfloat
@@ -116,6 +119,7 @@ func toUleb(x: sint32): uint32 =
 template toUleb(x: pint64): uint64 = cast[uint64](x)
 template toUleb(x: pint32): uint32 = cast[uint32](x)
 template toUleb(x: pbool): uint8 = cast[uint8](x)
+template toUleb(x: penum): uint64 = cast[uint32](x)
 
 template fromUleb(x: uint64, T: type puint64): T = puint64(x)
 template fromUleb(x: uint64, T: type pbool): T = pbool(x != 0)
@@ -130,6 +134,7 @@ template fromUleb(x: uint64, T: type sint32): T =
 
 template fromUleb(x: uint64, T: type pint64): T = cast[T](x)
 template fromUleb(x: uint64, T: type pint32): T = cast[T](x)
+template fromUleb(x: uint64, T: type penum): T = cast[T](x)
 
 template toBytes*(x: SomeVarint): openArray[byte] =
   toBytes(toUleb(x), Leb128).toOpenArray()

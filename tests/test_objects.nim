@@ -5,6 +5,11 @@ import
   ../protobuf_serialization/codec
 
 type
+#  TestEnum = enum
+#    A1 = 0
+#    B1 = 1000
+#    C1 = 1000000
+
   Basic {.proto3.} = object
     a {.fieldNumber: 1, pint.}: uint64
     b {.fieldNumber: 2.}: string
@@ -16,6 +21,7 @@ type
     f {.fieldNumber: 3.}: Basic
     g {.fieldNumber: 4.}: string
     h {.fieldNumber: 5.}: bool
+    #i {.fieldNumber: 6.}: TestEnum
 
 discard Protobuf.supports(Basic)
 discard Protobuf.supports(Wrapped)
@@ -72,6 +78,7 @@ suite "Test Object Encoding/Decoding":
       writer = memoryOutput()
 
     writer.writeField(3, obj.f, pbytes)
+    #writer.writeField(6, penum(obj.i))
     writer.writeField(1, sint64(obj.d))
     writer.writeField(2, sint64(obj.e))
     writer.writeField(5, pbool(obj.h))
