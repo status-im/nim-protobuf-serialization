@@ -89,26 +89,7 @@ when defined(ConformanceTest):
     ProtoType: type,
     skipDefault: static bool = false
   ) =
-    when K is SomePBInt and V is SomePBInt:
-      type
-        TableObject {.proto3.} = object
-          key {.fieldNumber: 1, pint.}: K
-          value {.fieldNumber: 2, pint.}: V
-    elif K is SomePBInt:
-      type
-        TableObject {.proto3.} = object
-          key {.fieldNumber: 1, pint.}: K
-          value {.fieldNumber: 2.}: V
-    elif V is SomePBInt:
-      type
-        TableObject {.proto3.} = object
-          key {.fieldNumber: 1.}: K
-          value {.fieldNumber: 2, pint.}: V
-    else:
-      type
-        TableObject {.proto3.} = object
-          key {.fieldNumber: 1.}: K
-          value {.fieldNumber: 2.}: V
+    tableObject(TableObject, K, V)
     for k, v in value.pairs():
       let tmp = TableObject(key: k, value: v)
       stream.writeField(fieldNum, tmp, ProtoType)

@@ -64,28 +64,7 @@ when defined(ConformanceTest):
     header: FieldHeader,
     ProtoType: type
   ) =
-    # I know it's ugly, but I cannot find a clean way to do it
-    # ... And nobody cares about map
-    when K is SomePBInt and V is SomePBInt:
-      type
-        TableObject {.proto3.} = object
-          key {.fieldNumber: 1, pint.}: K
-          value {.fieldNumber: 2, pint.}: V
-    elif K is SomePBInt:
-      type
-        TableObject {.proto3.} = object
-          key {.fieldNumber: 1, pint.}: K
-          value {.fieldNumber: 2.}: V
-    elif V is SomePBInt:
-      type
-        TableObject {.proto3.} = object
-          key {.fieldNumber: 1.}: K
-          value {.fieldNumber: 2, pint.}: V
-    else:
-      type
-        TableObject {.proto3.} = object
-          key {.fieldNumber: 1.}: K
-          value {.fieldNumber: 2.}: V
+    tableObject(TableObject, K, V)
     var tmp = default(TableObject)
     stream.readFieldInto(tmp, header, ProtoType)
     value[tmp.key] = tmp.value

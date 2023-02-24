@@ -54,6 +54,28 @@ proc fieldNumberOf*(T: type, fieldName: static string): int {.compileTime.} =
   else:
     fieldNum
 
+template tableObject*(TableObject, K, V) =
+  when K is SomePBInt and V is SomePBInt:
+    type
+      TableObject {.proto3.} = object
+        key {.fieldNumber: 1, pint.}: K
+        value {.fieldNumber: 2, pint.}: V
+  elif K is SomePBInt:
+    type
+      TableObject {.proto3.} = object
+        key {.fieldNumber: 1, pint.}: K
+        value {.fieldNumber: 2.}: V
+  elif V is SomePBInt:
+    type
+      TableObject {.proto3.} = object
+        key {.fieldNumber: 1.}: K
+        value {.fieldNumber: 2, pint.}: V
+  else:
+    type
+      TableObject {.proto3.} = object
+        key {.fieldNumber: 1.}: K
+        value {.fieldNumber: 2.}: V
+
 template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped) =
   mixin flatType
 
