@@ -16,7 +16,10 @@ type
     x {.fieldNumber: 1.}: bool
 
 proc writeRead[W, R](toWrite: W, value: R) =
-  check Protobuf.decode(Protobuf.encode(toWrite), R) == value
+  let encoded = Protobuf.encode(toWrite)
+  check:
+    encoded.len == Protobuf.computeSize(toWrite)
+    Protobuf.decode(encoded, R) == value
 
 suite "Test Boolean Encoding/Decoding":
   test "Can encode/decode boolean without subtype specification":

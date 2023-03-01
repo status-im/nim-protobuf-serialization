@@ -109,6 +109,8 @@ suite "codec test suite":
       let data = getVarintEncodedValue(VarintValues[i])
       check:
         toHex(data) == VarintVectors[i]
+        data.len == computeSize(puint64(VarintValues[i]))
+
         getVarintDecodedValue(data) == VarintValues[i]
 
   test "[varint] incorrect values test":
@@ -125,6 +127,7 @@ suite "codec test suite":
       let data = getFixed32EncodedValue(cast[float32](Fixed32Values[i]))
       check:
         toHex(data) == Fixed32Vectors[i]
+        data.len == computeSize(fixed32(Fixed32Values[i]))
         getFixed32DecodedValue(data) == Fixed32Values[i]
 
   test "[fixed32] incorrect values test":
@@ -140,6 +143,7 @@ suite "codec test suite":
       let data = getFixed64EncodedValue(cast[float64](Fixed64Values[i]))
       check:
         toHex(data) == Fixed64Vectors[i]
+        data.len == computeSize(fixed64(Fixed64Values[i]))
         getFixed64DecodedValue(data) == Fixed64Values[i]
 
   test "[fixed64] incorrect values test":
@@ -153,10 +157,12 @@ suite "codec test suite":
   test "[length] edge values test":
     for i in 0 ..< len(LengthValues):
       let data1 = getLengthEncodedValue(LengthValues[i])
-      let data2 = getLengthEncodedValue(cast[seq[byte]](LengthValues[i]))
+      let data2 = getLengthEncodedValue(toBytes(LengthValues[i]))
       check:
         toHex(data1) == LengthVectors[i]
+        computeSize(pstring(LengthValues[i])) == data1.len
         toHex(data2) == LengthVectors[i]
+        computeSize(pbytes(toBytes(LengthValues[i]))) == data2.len
       check:
         getLengthDecodedValue(data1) == LengthValues[i]
         getLengthDecodedValue(data2) == LengthValues[i]

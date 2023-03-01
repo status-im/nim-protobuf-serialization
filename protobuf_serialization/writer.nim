@@ -6,42 +6,50 @@ import
   stew/objects,
   faststreams/outputs,
   serialization,
-  "."/[codec, internal, types]
+  "."/[codec, internal, sizer, types]
 
 export outputs, serialization, codec, types
 
-proc writeValue*[T: object](stream: OutputStream, value: T)
+proc writeObject[T: object](stream: OutputStream, value: T)
 
-proc writeField(
-    stream: OutputStream, fieldNum: int, fieldVal: auto, ProtoType: type UnsupportedType) =
+proc writeField*(
+    stream: OutputStream, fieldNum: int, fieldVal: auto,
+    ProtoType: type UnsupportedType, _: static bool = false) =
   # TODO turn this into an extension point
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
-proc writeField*[T: object](stream: OutputStream, fieldNum: int, fieldVal: T) =
-  # TODO Pre-compute size of inner object then write it without the intermediate
-  #      memory output
-  var inner = memoryOutput()
-  inner.writeValue(fieldVal)
-  let bytes = inner.getOutput()
-  stream.writeField(fieldNum, pbytes(bytes))
+proc writeField*[T: object and not PBOption and not Table](
+    stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type pbytes,
+    skipDefault: static bool = false) =
+  let
+    size = computeObjectSize(fieldVal)
 
-proc writeField[T: object and not PBOption](
-    stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type) =
-  stream.writeField(fieldNum, fieldVal)
+  when skipDefault:
+    if size == 0:
+      return
 
-proc writeField[T: not object and not enum](
-    stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type) =
+  stream.writeValue(FieldHeader.init(fieldNum, ProtoType.wireKind()))
+  stream.writeValue(puint64(size))
+  stream.writeObject(fieldVal)
+
+proc writeField*[T: not object and not enum](
+    stream: OutputStream, fieldNum: int, fieldVal: T,
+    ProtoType: type SomeScalar, skipDefault: static bool = false) =
+  when skipDefault:
+    const def = default(typeof(fieldVal))
+    if fieldVal == def:
+      return
+
   stream.writeField(fieldNum, ProtoType(fieldVal))
 
-proc writeField(
-    stream: OutputStream, fieldNum: int, fieldVal: PBOption, ProtoType: type) =
-  if fieldVal.isSome(): # TODO required field checking
-    stream.writeField(fieldNum, fieldVal.get(), ProtoType)
+proc writeField*(
+    stream: OutputStream, fieldNum: int, fieldVal: PBOption, ProtoType: type,
+    skipDefault: static bool = false) =
+  if fieldVal.isSome():
+    stream.writeField(fieldNum, fieldVal.get(), ProtoType, skipDefault)
 
 proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
     output: OutputStream, field: int, values: openArray[T], _: type ProtoType) =
-  doAssert validFieldNumber(field)
-
   # Packed encoding uses a length-delimited field byte length of the sum of the
   # byte lengths of each field followed by the header-free contents
   output.write(
@@ -49,63 +57,44 @@ proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
 
   const canCopyMem =
     ProtoType is SomeFixed32 or ProtoType is SomeFixed64 or ProtoType is pbool
-  let dlength =
-    when canCopyMem:
-      values.len() * sizeof(T)
-    else:
-      var total = 0
-      for item in values:
-        total += vsizeof(ProtoType(item))
-      total
-  output.write(toBytes(puint64(dlength)))
+  let
+    dataSize = computeSizePacked(values, ProtoType)
+  output.write(toBytes(puint64(dataSize)))
 
   when canCopyMem:
     if values.len > 0:
       output.write(
         cast[ptr UncheckedArray[byte]](
-          unsafeAddr values[0]).toOpenArray(0, dlength - 1))
+          unsafeAddr values[0]).toOpenArray(0, dataSize - 1))
   else:
     for value in values:
       output.write(toBytes(ProtoType(value)))
 
 when defined(ConformanceTest):
   proc writeField[T: enum](
-      stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type) =
+      stream: OutputStream,
+      fieldNum: int,
+      fieldVal: T,
+      ProtoType: type,
+      skipDefault: static bool = false
+  ) =
     when 0 notin T:
       {.fatal: $T & " definition must contain a constant that maps to zero".}
     stream.writeField(fieldNum, pint32(fieldVal.ord()))
 
-  proc writeField*[K, V](
+  proc writeField[K, V](
     stream: OutputStream,
     fieldNum: int,
     value: Table[K, V],
-    ProtoType: type
+    ProtoType: type,
+    skipDefault: static bool = false
   ) =
-    when K is SomePBInt and V is SomePBInt:
-      type
-        TableObject {.proto3.} = object
-          key {.fieldNumber: 1, pint.}: K
-          value {.fieldNumber: 2, pint.}: V
-    elif K is SomePBInt:
-      type
-        TableObject {.proto3.} = object
-          key {.fieldNumber: 1, pint.}: K
-          value {.fieldNumber: 2.}: V
-    elif V is SomePBInt:
-      type
-        TableObject {.proto3.} = object
-          key {.fieldNumber: 1.}: K
-          value {.fieldNumber: 2, pint.}: V
-    else:
-      type
-        TableObject {.proto3.} = object
-          key {.fieldNumber: 1.}: K
-          value {.fieldNumber: 2.}: V
+    tableObject(TableObject, K, V)
     for k, v in value.pairs():
       let tmp = TableObject(key: k, value: v)
       stream.writeField(fieldNum, tmp, ProtoType)
 
-proc writeValue*[T: object](stream: OutputStream, value: T) =
+proc writeObject[T: object](stream: OutputStream, value: T) =
   const
     isProto2: bool = T.isProto2()
     isProto3: bool = T.isProto3()
@@ -127,54 +116,21 @@ proc writeValue*[T: object](stream: OutputStream, value: T) =
         stream.writeFieldPacked(fieldNum, fieldVal, ProtoType)
       else:
         for i in 0..<fieldVal.len:
-          stream.writeField(fieldNum, fieldVal[i], ProtoType)
+          # don't skip defaults so as to preserve length
+          stream.writeField(fieldNum, fieldVal[i], ProtoType, false)
 
-    elif FlatType is object:
-      # TODO avoid writing empty objects in proto3
-      stream.writeField(fieldNum, fieldVal, ProtoType)
     elif FlatType is ref and defined(ConformanceTest):
       if not fieldVal.isNil():
         stream.writeField(fieldNum, fieldVal[], ProtoType)
     else:
-      when isProto2:
-        stream.writeField(fieldNum, fieldVal, ProtoType)
-      else:
-        if fieldVal != static(default(typeof(fieldVal))): # TODO make this an extension point?
-          stream.writeField(fieldNum, fieldVal, ProtoType)
+      stream.writeField(fieldNum, fieldVal, ProtoType, isProto3)
 
 proc writeValue*[T: object](writer: ProtobufWriter, value: T) =
   static: verifySerializable(T)
 
-  # TODO cursors broken
-  # var
-  #   cursor: VarSizeWriteCursor
-  #   startPos: int
+  if ProtobufFlags.VarIntLengthPrefix in writer.flags:
+    let
+      size = computeObjectSize(value)
+    writer.stream.writeValue(puint64(size))
 
-  # if writer.flags.contains(VarIntLengthPrefix):
-  #   cursor = writer.stream.delayVarSizeWrite(10)
-  #   startPos = writer.stream.pos
-
-  writer.stream.writeValue(value)
-
-  # if writer.flags.contains(VarIntLengthPrefix):
-  #   var len = uint32(writer.stream.pos - startPos)
-  #   if len == 0:
-  #     cursor.finalWrite([])
-  #   elif writer.flags.contains(VarIntLengthPrefix):
-  #     var viLen = encodeVarInt(PInt(len))
-  #     if viLen.len == 0:
-  #       cursor.finalWrite([byte(0)])
-  #     else:
-  #       cursor.finalWrite(viLen)
-  #   elif writer.flags.contains(UIntLELengthPrefix):
-  #     var temp: array[sizeof(len), byte]
-  #     for i in 0 ..< sizeof(len):
-  #       temp[i] = byte(len and LAST_BYTE)
-  #       len = len shr 8
-  #     cursor.finalWrite(temp)
-  #   elif writer.flags.contains(UIntBELengthPrefix):
-  #     var temp: array[sizeof(len), byte]
-  #     for i in 0 ..< sizeof(len):
-  #       temp[i] = byte(len shr ((sizeof(len) - 1) * 8))
-  #       len = len shl 8
-  #     cursor.finalWrite(temp)
+  writer.stream.writeObject(value)

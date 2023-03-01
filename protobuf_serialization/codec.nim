@@ -156,9 +156,25 @@ template toBytes*(x: pfloat): openArray[byte] =
 template toBytes*(header: FieldHeader): openArray[byte] =
   toBytes(uint32(header), Leb128).toOpenArray()
 
-proc vsizeof*(x: SomeVarint): int =
+func computeSize*(x: SomeVarint): int =
   ## Returns number of bytes required to encode integer ``x`` as varint.
   Leb128.len(toUleb(x))
+
+func computeSize*(x: SomeFixed64 | SomeFixed32): int =
+  ## Returns number of bytes required to encode integer ``x`` as varint.
+  sizeof(x)
+
+func computeSize*(x: pstring | pbytes): int =
+  let len = distinctBase(x).len()
+  computeSize(puint64(len)) + len
+
+func computeSize*(x: FieldHeader): int =
+  ## Returns number of bytes required to encode integer ``x`` as varint.
+  computeSize(puint32(x))
+
+func computeSize*(field: int, x: SomeScalar): int =
+  computeSize(FieldHeader.init(field, wireKind(typeof(x)))) +
+    computeSize(x)
 
 proc writeValue*(output: OutputStream, value: SomeVarint) =
   output.write(toBytes(value))
@@ -177,8 +193,11 @@ proc writeValue*(output: OutputStream, value: pbytes) =
 proc writeValue*(output: OutputStream, value: SomeFixed32) =
   output.write(toBytes(value))
 
+proc writeValue*(output: OutputStream, value: FieldHeader) =
+  output.write(toBytes(value))
+
 proc writeField*(output: OutputStream, field: int, value: SomeScalar) =
-  output.write(toBytes(FieldHeader.init(field, wireKind(typeof(value)))))
+  output.writeValue(FieldHeader.init(field, wireKind(typeof(value))))
   output.writeValue(value)
 
 proc readValue*[T: SomeVarint](input: InputStream, _: type T): T =
