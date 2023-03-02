@@ -146,13 +146,20 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
 
   while stream.readable():
     let header = stream.readHeader()
-    var i = -1
+    var
+      i = -1
+      knownField = false
+
+    if not header.number().int.validFieldNumber(true):
+      raise newException(ProtobufReadError, "Invalid field number: " & $header.number())
+
     enumInstanceSerializedFields(value, fieldName, fieldVar):
       inc i
       const
         fieldNum = T.fieldNumberOf(fieldName)
 
       if header.number() == fieldNum:
+        knownField = true
         when isProto2:
           if not silent: requiredSets.excl i
 
@@ -169,6 +176,22 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
           stream.readFieldInto(fieldVar[], header, ProtoType)
         else:
           stream.readFieldInto(fieldVar, header, ProtoType)
+
+    # TODO preserve the unknown field
+    # maybe use the pragma proto2/3 to create a "hidden" unknownField
+    if not knownField:
+      if header.kind() == WireKind.Varint:
+        var flushed: uint64
+        stream.readFieldInto(flushed, header, puint64)
+      elif header.kind() == WireKind.Fixed64:
+        var flushed: uint64
+        stream.readFieldInto(flushed, header, fixed64)
+      elif header.kind() == WireKind.LengthDelim:
+        var flushed: seq[byte]
+        stream.readFieldInto(flushed, header, pbytes)
+      elif header.kind() == WireKind.Fixed32:
+        var flushed: uint32
+        stream.readFieldInto(flushed, header, fixed32)
 
   when isProto2:
     if (requiredSets.len != 0):
