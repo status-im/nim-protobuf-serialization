@@ -43,7 +43,7 @@ proc readFieldInto[T: object and not Table](
       raise (ref ValueError)(msg: "not enough bytes")
     memoryInput(tmp).readValueInternal(value)
 
-when defined(ConformanceTest):
+when defined(npsConformanceTest):
   proc readFieldInto[T: enum](
     stream: InputStream,
     value: var T,
@@ -171,7 +171,7 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
             stream.readFieldPackedInto(fieldVar, header, ProtoType)
           else:
             stream.readFieldInto(fieldVar, header, ProtoType)
-        elif typeof(fieldVar) is ref and defined(ConformanceTest):
+        elif typeof(fieldVar) is ref and defined(npsConformanceTest):
           fieldVar = new typeof(fieldVar)
           stream.readFieldInto(fieldVar[], header, ProtoType)
         else:
