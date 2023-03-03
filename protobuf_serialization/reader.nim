@@ -180,18 +180,11 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
     # TODO preserve the unknown field
     # maybe use the pragma proto2/3 to create a "hidden" unknownField
     if not knownField:
-      if header.kind() == WireKind.Varint:
-        var flushed: uint64
-        stream.readFieldInto(flushed, header, puint64)
-      elif header.kind() == WireKind.Fixed64:
-        var flushed: uint64
-        stream.readFieldInto(flushed, header, fixed64)
-      elif header.kind() == WireKind.LengthDelim:
-        var flushed: seq[byte]
-        stream.readFieldInto(flushed, header, pbytes)
-      elif header.kind() == WireKind.Fixed32:
-        var flushed: uint32
-        stream.readFieldInto(flushed, header, fixed32)
+      case header.kind():
+        of WireKind.Varint: stream.skipValue(puint64)
+        of WireKind.Fixed64: stream.skipValue(fixed64)
+        of WireKind.LengthDelim: stream.skipValue(pbytes)
+        of WireKind.Fixed32: stream.skipValue(fixed32)
 
   when isProto2:
     if (requiredSets.len != 0):

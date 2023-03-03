@@ -218,6 +218,19 @@ proc readValue*[T: SomeVarint](input: InputStream, _: type T): T =
 
   fromUleb(val, T)
 
+proc skipValue*[T: SomeVarint](input: InputStream, _: type T) =
+  var buf: Leb128Buf[uint64]
+  while buf.len < buf.data.len and input.readable():
+    let b = input.read()
+    buf.data[buf.len] = b
+    buf.len += 1
+    if (b and 0x80'u8) == 0:
+      break
+
+  let (_, len) = uint64.fromBytes(buf)
+  if buf.len == 0 or len != buf.len:
+    raise (ref ValueError)(msg: "Cannot read varint from stream")
+
 proc readValue*[T: SomeFixed32 | SomeFixed64](input: InputStream, _: type T): T =
   var tmp {.noinit.}: array[sizeof(T), byte]
   if not input.readInto(tmp):
@@ -228,6 +241,12 @@ proc readValue*[T: SomeFixed32 | SomeFixed64](input: InputStream, _: type T): T 
     cast[T](uint64.fromBytesLE(tmp)) # Cast so we don't run into signed trouble
   else:
     cast[T](uint32.fromBytesLE(tmp)) # Cast so we don't run into signed trouble
+
+proc skipValue*[T: SomeFixed32 | SomeFixed64](input: InputStream, _: type T) =
+  when sizeof(T) == 8:
+    input.advance(8)
+  else:
+    input.advance(4)
 
 proc readLength*(input: InputStream): int =
   let lenu32 = input.readValue(puint32)
@@ -255,6 +274,14 @@ proc readValue*[T: SomeLengthDelim](input: InputStream, _: type T): T =
     when T is pstring:
       if validateUtf8(string(result)) != -1:
         raise (ref ValueError)(msg: "String not valid UTF-8")
+
+proc skipValue*[T: SomeLengthDelim](input: InputStream, _: type T) =
+  let len = input.readLength()
+  if len > 0:
+    let inputLen = input.len()
+    if inputLen.isSome() and len > inputLen.get():
+      raise (ref ValueError)(msg: "Missing bytes: " & $len)
+    input.advance(len)
 
 proc readHeader*(input: InputStream): FieldHeader =
   let
