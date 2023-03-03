@@ -21,7 +21,7 @@ template requireKind(header: FieldHeader, expected: WireKind) =
   if header.kind() != expected:
     raise (ref ValueError)(
       msg: "Unexpected data kind " & $(header.number()) & ": " & $header.kind()  &
-      ", exprected " & $expected)
+      ", expected " & $expected)
 
 proc readFieldInto[T: object and not Table](
   stream: InputStream,
