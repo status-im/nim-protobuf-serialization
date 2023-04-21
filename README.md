@@ -43,7 +43,7 @@ type ExampleMsg {.proto3.} = object
 **Importing proto file**:
 
 ```nim
-import protocol_serialization/proto_parser
+import protobuf_serialization/proto_parser
 
 # This generates the same definition as above using a compile-time macro / parser
 import_proto3 "my_protocol.proto3"
