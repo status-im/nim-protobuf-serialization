@@ -14,7 +14,7 @@ import "."/[codec, types]
 
 type UnsupportedType*[FieldType; RootType; fieldName: static string] = object
 
-proc flatTypeInternal(value: auto): auto {.compileTime.} =
+func flatTypeInternal(value: auto): auto {.compileTime.} =
   when value is PBOption:
     flatTypeInternal(value.get())
   else:

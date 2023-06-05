@@ -108,10 +108,10 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
     tokens = tokenize(filename, fileContent)
 
   let parser = peg(g, Token, ps: ParseState):
-    ident      <- [Ident]
-    string     <- [String]
-    int        <- [Integer]
-    float      <- [Float]
+    ident      <- [TokenType.Ident]
+    string     <- [TokenType.String]
+    int        <- [TokenType.Integer]
+    float      <- [TokenType.Float]
 
     pkg        <- ["package"] * >ident * [';']:
       ps.currentPackage = ProtoNode(kind: Package, packageName: ($1).text)
