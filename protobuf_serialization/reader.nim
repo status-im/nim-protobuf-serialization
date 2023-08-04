@@ -19,7 +19,7 @@ macro unsupported(T: typed): untyped =
 template requireKind(header: FieldHeader, expected: WireKind) =
   mixin number
   if header.kind() != expected:
-    raise (ref ValueError)(
+    raise (ref ProtobufValueError)(
       msg: "Unexpected data kind " & $(header.number()) & ": " & $header.kind()  &
       ", exprected " & $expected)
 
@@ -40,7 +40,7 @@ proc readFieldInto[T: object and not Table](
 
     var tmp = newSeqUninitialized[byte](len)
     if not stream.readInto(tmp):
-      raise (ref ValueError)(msg: "not enough bytes")
+      raise (ref ProtobufValueError)(msg: "not enough bytes")
     memoryInput(tmp).readValueInternal(value)
 
 when defined(ConformanceTest):
