@@ -20,7 +20,8 @@
 import
   std/[typetraits, unicode],
   faststreams,
-  stew/[leb128, endians2]
+  stew/[leb128, endians2],
+  ./types
 
 type
   WireKind* = enum
