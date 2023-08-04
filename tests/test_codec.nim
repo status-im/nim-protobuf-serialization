@@ -119,7 +119,7 @@ suite "codec test suite":
       # corrupting
       data.setLen(len(data) - 1)
 
-      expect(ValueError):
+      expect(ProtobufValueError):
         discard readValue(memoryInput(data), puint64)
 
   test "[fixed32] edge values test":
@@ -135,7 +135,7 @@ suite "codec test suite":
       var data = getFixed32EncodedValue(float32(Fixed32Values[i]))
       # corrupting
       data.setLen(len(data) - 1)
-      expect(ValueError):
+      expect(ProtobufValueError):
         discard readValue(memoryInput(data), fixed32)
 
   test "[fixed64] edge values test":
@@ -151,7 +151,7 @@ suite "codec test suite":
       var data = getFixed64EncodedValue(cast[float64](Fixed64Values[i]))
       # corrupting
       data.setLen(len(data) - 1)
-      expect(ValueError):
+      expect(ProtobufValueError):
         discard readValue(memoryInput(data), fixed64)
 
   test "[length] edge values test":
@@ -173,7 +173,7 @@ suite "codec test suite":
       # corrupting
       data.setLen(len(data) - 1)
 
-      expect(ValueError):
+      expect(ProtobufValueError):
         discard readValue(memoryInput(data), pbytes)
 
   test "Truncation":

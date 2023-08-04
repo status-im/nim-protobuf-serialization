@@ -20,7 +20,10 @@
 import
   std/[typetraits, unicode],
   faststreams,
-  stew/[leb128, endians2]
+  stew/[leb128, endians2],
+  ./types
+
+export types
 
 type
   WireKind* = enum
@@ -214,14 +217,14 @@ proc readValue*[T: SomeVarint](input: InputStream, _: type T): T =
 
   let (val, len) = uint64.fromBytes(buf)
   if buf.len == 0 or len != buf.len:
-    raise (ref ValueError)(msg: "Cannot read varint from stream")
+    raise (ref ProtobufValueError)(msg: "Cannot read varint from stream")
 
   fromUleb(val, T)
 
 proc readValue*[T: SomeFixed32 | SomeFixed64](input: InputStream, _: type T): T =
   var tmp {.noinit.}: array[sizeof(T), byte]
   if not input.readInto(tmp):
-    raise (ref ValueError)(msg: "Not enough bytes")
+    raise (ref ProtobufValueError)(msg: "Not enough bytes")
   when T is pdouble | pfloat:
     copyMem(addr result, addr tmp[0], sizeof(result))
   elif sizeof(T) == 8:
@@ -232,7 +235,7 @@ proc readValue*[T: SomeFixed32 | SomeFixed64](input: InputStream, _: type T): T 
 proc readLength*(input: InputStream): int =
   let lenu32 = input.readValue(puint32)
   if uint64(lenu32) > uint64(int.high()):
-    raise (ref ValueError)(msg: "Invalid length")
+    raise (ref ProtobufValueError)(msg: "Invalid length")
   int(lenu32)
 
 proc readValue*[T: SomeLengthDelim](input: InputStream, _: type T): T =
@@ -241,7 +244,7 @@ proc readValue*[T: SomeLengthDelim](input: InputStream, _: type T): T =
     type Base = typetraits.distinctBase(T)
     let inputLen = input.len()
     if inputLen.isSome() and len > inputLen.get():
-        raise (ref ValueError)(msg: "Missing bytes: " & $len)
+        raise (ref ProtobufValueError)(msg: "Missing bytes: " & $len)
 
     Base(result).setLen(len)
     template bytes(): openArray[byte] =
@@ -250,11 +253,11 @@ proc readValue*[T: SomeLengthDelim](input: InputStream, _: type T): T =
       else:
         Base(result).toOpenArrayByte(0, len - 1)
     if not input.readInto(bytes()):
-      raise (ref ValueError)(msg: "Missing bytes: " & $len)
+      raise (ref ProtobufValueError)(msg: "Missing bytes: " & $len)
 
     when T is pstring:
       if validateUtf8(string(result)) != -1:
-        raise (ref ValueError)(msg: "String not valid UTF-8")
+        raise (ref ProtobufValueError)(msg: "String not valid UTF-8")
 
 proc readHeader*(input: InputStream): FieldHeader =
   let
@@ -262,6 +265,6 @@ proc readHeader*(input: InputStream): FieldHeader =
     wire = uint8(hdr and 0x07)
 
   if wire notin SupportedWireKinds:
-    raise (ref ValueError)(msg: "Invalid wire type")
+    raise (ref ProtobufValueError)(msg: "Invalid wire type")
 
   FieldHeader(hdr)
