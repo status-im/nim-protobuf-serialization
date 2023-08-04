@@ -23,6 +23,8 @@ import
   stew/[leb128, endians2],
   ./types
 
+export types
+
 type
   WireKind* = enum
     Varint = 0
