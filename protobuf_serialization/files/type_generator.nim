@@ -179,7 +179,7 @@ proc protoToTypesInternal*(filepath: string): NimNode {.compileTime.} =
           value
         )
       )
-  when defined(LogGeneratedTypes):
+  when defined(npsLogGeneratedTypes):
     result.storeMacroResult(true)
 
 macro protoToTypes*(filepath: static[string]): untyped =

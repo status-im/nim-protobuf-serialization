@@ -70,7 +70,7 @@ proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
     for value in values:
       output.write(toBytes(ProtoType(value)))
 
-when defined(ConformanceTest):
+when defined(npsConformanceTest):
   proc writeField[T: enum](
       stream: OutputStream,
       fieldNum: int,
@@ -80,6 +80,11 @@ when defined(ConformanceTest):
   ) =
     when 0 notin T:
       {.fatal: $T & " definition must contain a constant that maps to zero".}
+
+    when skipDefault:
+      if fieldVal.ord() == 0:
+        return
+
     stream.writeField(fieldNum, pint32(fieldVal.ord()))
 
   proc writeField[K, V](
@@ -119,7 +124,7 @@ proc writeObject[T: object](stream: OutputStream, value: T) =
           # don't skip defaults so as to preserve length
           stream.writeField(fieldNum, fieldVal[i], ProtoType, false)
 
-    elif FlatType is ref and defined(ConformanceTest):
+    elif FlatType is ref and defined(npsConformanceTest):
       if not fieldVal.isNil():
         stream.writeField(fieldNum, fieldVal[], ProtoType)
     else:

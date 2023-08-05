@@ -21,7 +21,7 @@ template requireKind(header: FieldHeader, expected: WireKind) =
   if header.kind() != expected:
     raise (ref ProtobufValueError)(
       msg: "Unexpected data kind " & $(header.number()) & ": " & $header.kind()  &
-      ", exprected " & $expected)
+      ", expected " & $expected)
 
 proc readFieldInto[T: object and not Table](
   stream: InputStream,
@@ -43,7 +43,7 @@ proc readFieldInto[T: object and not Table](
       raise (ref ProtobufValueError)(msg: "not enough bytes")
     memoryInput(tmp).readValueInternal(value)
 
-when defined(ConformanceTest):
+when defined(npsConformanceTest):
   proc readFieldInto[T: enum](
     stream: InputStream,
     value: var T,
@@ -146,13 +146,20 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
 
   while stream.readable():
     let header = stream.readHeader()
-    var i = -1
+    var
+      i = -1
+      knownField = false
+
+    if not header.number().int.validFieldNumber(true):
+      raise newException(ProtobufReadError, "Invalid field number: " & $header.number())
+
     enumInstanceSerializedFields(value, fieldName, fieldVar):
       inc i
       const
         fieldNum = T.fieldNumberOf(fieldName)
 
       if header.number() == fieldNum:
+        knownField = true
         when isProto2:
           if not silent: requiredSets.excl i
 
@@ -164,11 +171,20 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
             stream.readFieldPackedInto(fieldVar, header, ProtoType)
           else:
             stream.readFieldInto(fieldVar, header, ProtoType)
-        elif typeof(fieldVar) is ref and defined(ConformanceTest):
+        elif typeof(fieldVar) is ref and defined(npsConformanceTest):
           fieldVar = new typeof(fieldVar)
           stream.readFieldInto(fieldVar[], header, ProtoType)
         else:
           stream.readFieldInto(fieldVar, header, ProtoType)
+
+    # TODO preserve the unknown field
+    # maybe use the pragma proto2/3 to create a "hidden" unknownField
+    if not knownField:
+      case header.kind():
+        of WireKind.Varint: stream.skipValue(puint64)
+        of WireKind.Fixed64: stream.skipValue(fixed64)
+        of WireKind.LengthDelim: stream.skipValue(pbytes)
+        of WireKind.Fixed32: stream.skipValue(fixed32)
 
   when isProto2:
     if (requiredSets.len != 0):

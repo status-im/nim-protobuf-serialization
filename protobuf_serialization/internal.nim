@@ -141,7 +141,7 @@ template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped)
     type InnerType = penum
   elif FlatType is object:
     type InnerType = pbytes
-  elif FlatType is ref and defined(ConformanceTest):
+  elif FlatType is ref and defined(npsConformanceTest):
     type InnerType = pbytes
   else:
     type InnerType = UnsupportedType[FieldType, RootType, fieldName]
@@ -156,13 +156,13 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
     {.fatal: $T & ": Serializing a number requires specifying the amount of bits via the type.".}
   elif FlatType is seq:
     when FlatType isnot seq[byte]:
-      when defined(ConformanceTest):
+      when defined(npsConformanceTest):
         return # TODO make it work in case of recursivity
         # type List = object (value: Value)
         # type Value = object (list: List)
       else:
         verifySerializable(elementType(FlatType))
-  elif FlatType is Table and defined(ConformanceTest):
+  elif FlatType is Table and defined(npsConformanceTest):
     return # TODO make it work in case of recursivity
     # type Struct = object (map: Table[..., Value])
     # type Value = object (struct: Struct)

@@ -44,7 +44,7 @@ proc computeFieldSize*(
   else:
     0
 
-when defined(ConformanceTest):
+when defined(npsConformanceTest):
   proc computeFieldSize*[T](
     fieldNum: int, fieldVal: ref T,
     ProtoType: type pbytes, skipDefault: static bool): int =
