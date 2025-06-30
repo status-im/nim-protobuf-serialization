@@ -61,7 +61,7 @@ task conformance_test, "Run conformance tests":
 
   withDir conformance:
     exec "cmake . -Dprotobuf_BUILD_CONFORMANCE=ON"
-    exec "make conformance_test_runner"
+    exec "make -j4 conformance_test_runner"
 
   exec "cp " & conformance / "conformance_test_runner" & " " & test
   withDir test:
