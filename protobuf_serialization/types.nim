@@ -1,5 +1,7 @@
 #Types/common data exported for use outside of this library.
 
+{.push raises: [], gcsafe.}
+
 import
   faststreams,
   serialization/errors
@@ -60,7 +62,7 @@ func init*(
 #That said, getting the output purges the stream, and doesn't close it.
 #Now it's called finish, as there's no reason to keep the stream open at that point.
 #A singly function reduces API complexity/expectations on the user.
-proc finish*(writer: ProtobufWriter): seq[byte] =
+proc finish*(writer: ProtobufWriter): seq[byte] {.raises: [IOError].} =
   result = writer.stream.getOutput()
   writer.stream.close()
 

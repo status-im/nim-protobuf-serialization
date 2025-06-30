@@ -2,3 +2,6 @@ nimcache/
 *.exe
 build/
 nimbus-build-system.paths
+nimble.develop
+nimble.paths
+nimbledeps/

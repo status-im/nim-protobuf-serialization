@@ -11,7 +11,7 @@ skipDirs      = @["tests"]
 
 requires "nim >= 1.2.0",
          "stew",
-         "faststreams",
+         "faststreams >= 0.3.0",
          "serialization",
          "npeg#22449099", # waiting for this to be in a release
          "unittest2"
@@ -57,11 +57,11 @@ task conformance_test, "Run conformance tests":
     test = pwd / "tests" / "conformance"
 
   if not system.dirExists(conformance):
-    exec "git clone -b v22.0 --recurse-submodules https://github.com/protocolbuffers/protobuf/ " & conformance
+    exec "git clone -b v30.0 --recurse-submodules https://github.com/protocolbuffers/protobuf/ " & conformance
 
   withDir conformance:
     exec "cmake . -Dprotobuf_BUILD_CONFORMANCE=ON"
-    exec "make conformance_test_runner"
+    exec "make -j4 conformance_test_runner"
 
   exec "cp " & conformance / "conformance_test_runner" & " " & test
   withDir test:
