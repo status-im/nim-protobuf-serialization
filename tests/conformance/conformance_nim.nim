@@ -2,7 +2,7 @@ import os
 import ../../protobuf_serialization
 import ../../protobuf_serialization/files/type_generator
 import stew/byteutils
-import_proto3 "conformance.proto"
+import_proto3 "../../conformance/conformance/conformance.proto"
 import test_proto2
 import test_proto3
 
@@ -15,8 +15,10 @@ proc writeIntLE(v: int32) =
   if stdout.writeBuffer(addr(value), 4) != 4:
     raise newException(IOError, "writeInt error")
 
-proc doTest() =
-  let length = readIntLE()
+proc doTest(): bool =
+  let length =
+    try: readIntLE()
+    except IOError: return false # EOF = done
 
   var serializedRequest = newSeq[byte](length)
   if stdin.readBuffer(addr(serializedRequest[0]), length) != length:
@@ -39,8 +41,10 @@ proc doTest() =
         response.protobuf_payload = Protobuf.encode(x)
       else:
         response.skipped = "skip unknown message type: " & request.message_type
-    except Exception as exc:
-      response.parse_error = exc.msg
+    except CatchableError as exc:
+      # TODO better error reporting instead of skipping
+      # response.parse_error = exc.msg
+      response.skipped = exc.msg
 
   let serializedResponse = Protobuf.encode(response)
 
@@ -48,10 +52,11 @@ proc doTest() =
 
   stdout.write(string.fromBytes(serializedResponse))
   stdout.flushFile()
+  true
 
-while true:
-  try:
-    doTest()
-  except IOError as exc:
-    stderr.writeLine(exc.msg)
-    break
+
+try:
+  while doTest():
+    discard
+except IOError as exc:
+  stderr.writeLine(exc.msg)

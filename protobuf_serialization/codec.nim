@@ -259,6 +259,6 @@ proc readHeader*(input: InputStream): FieldHeader {.raises: [SerializationError,
     wire = uint8(hdr and 0x07)
 
   if wire notin SupportedWireKinds:
-    raise (ref ProtobufValueError)(msg: "Invalid wire type")
+    raise (ref ProtobufValueError)(msg: "Invalid wire type " & $wire)
 
   FieldHeader(hdr)
