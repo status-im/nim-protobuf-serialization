@@ -3,13 +3,13 @@ import os, strutils
 mode = ScriptMode.Verbose
 
 packageName   = "protobuf_serialization"
-version       = "0.4.0"
+version       = "0.3.0"
 author        = "Status"
 description   = "Protobuf implementation compatible with the nim-serialization framework."
 license       = "MIT"
 skipDirs      = @["tests"]
 
-requires "nim >= 2.0.14",
+requires "nim >= 1.6.20",
          "stew",
          "faststreams >= 0.3.0",
          "serialization",
