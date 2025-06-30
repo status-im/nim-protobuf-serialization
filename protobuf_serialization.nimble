@@ -11,7 +11,7 @@ skipDirs      = @["tests"]
 
 requires "nim >= 1.2.0",
          "stew",
-         "faststreams",
+         "faststreams >= 0.3.0",
          "serialization",
          "npeg#22449099", # waiting for this to be in a release
          "unittest2"

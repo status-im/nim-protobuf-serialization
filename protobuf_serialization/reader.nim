@@ -1,5 +1,7 @@
 #Parses the Protobuf binary wire protocol into the specified type.
 
+{.push raises: [], gcsafe.}
+
 import
   std/[typetraits, sets, tables],
   stew/assign2,
@@ -11,7 +13,7 @@ import
 
 export inputs, serialization, codec, types
 
-proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false)
+proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false) {.raises: [SerializationError, IOError].}
 
 macro unsupported(T: typed): untyped =
   error "Assignment of the type " & humaneTypeName(T) & " is not supported"
@@ -28,7 +30,7 @@ proc readFieldInto[T: object and not Table](
   value: var T,
   header: FieldHeader,
   ProtoType: type
-) =
+) {.raises: [SerializationError, IOError].} =
   header.requireKind(WireKind.LengthDelim)
 
   let len = stream.readLength()
@@ -49,7 +51,7 @@ when defined(ConformanceTest):
     value: var T,
     header: FieldHeader,
     ProtoType: type
-  ) =
+  ) {.raises: [SerializationError, IOError].} =
     # TODO: This function doesn't work for proto2 edge cases. Make it work
     when 0 notin T and T.isProto3():
       {.fatal: $T & " definition must contain a constant that maps to zero".}
@@ -63,7 +65,7 @@ when defined(ConformanceTest):
     value: var Table[K, V],
     header: FieldHeader,
     ProtoType: type
-  ) =
+  ) {.raises: [SerializationError, IOError].} =
     tableObject(TableObject, K, V)
     var tmp = default(TableObject)
     stream.readFieldInto(tmp, header, ProtoType)
@@ -74,7 +76,7 @@ proc readFieldInto[T: not object and not enum and (seq[byte] or not seq)](
   value: var T,
   header: FieldHeader,
   ProtoType: type
-) =
+) {.raises: [SerializationError, IOError].} =
   when ProtoType is SomeVarint:
     header.requireKind(WireKind.Varint)
     assign(value, T(stream.readValue(ProtoType)))
@@ -95,7 +97,7 @@ proc readFieldInto[T: not byte](
   value: var seq[T],
   header: FieldHeader,
   ProtoType: type
-) =
+) {.raises: [SerializationError, IOError].} =
   value.add(default(T))
   stream.readFieldInto(value[^1], header, ProtoType)
 
@@ -104,7 +106,7 @@ proc readFieldInto(
   value: var PBOption,
   header: FieldHeader,
   ProtoType: type
-) =
+) {.raises: [SerializationError, IOError].} =
   stream.readFieldInto(value.mget(), header, ProtoType)
 
 proc readFieldPackedInto[T](
@@ -112,7 +114,7 @@ proc readFieldPackedInto[T](
   value: var seq[T],
   header: FieldHeader,
   ProtoType: type
-) =
+) {.raises: [SerializationError, IOError].} =
   # TODO make more efficient
   var
     bytes = seq[byte](stream.readValue(pbytes))
@@ -130,7 +132,7 @@ proc readFieldPackedInto[T](
 
     inner.readFieldInto(value[^1], FieldHeader.init(header.number, kind), ProtoType)
 
-proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false) =
+proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false) {.raises: [SerializationError, IOError].} =
   const
     isProto2: bool = T.isProto2()
 
@@ -176,7 +178,7 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
         ProtobufReadError,
         "Message didn't encode a required field: " & $requiredSets)
 
-proc readValue*[T: object](reader: ProtobufReader, value: var T) =
+proc readValue*[T: object](reader: ProtobufReader, value: var T) {.raises: [SerializationError, IOError].} =
   static: verifySerializable(T)
 
   # TODO skip length header

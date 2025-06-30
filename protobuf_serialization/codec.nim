@@ -9,13 +9,7 @@
 ## This module implements core primitives for the protobuf language as seen in
 ## `.proto` files
 
-# TODO fix exception raising - should probably only raise ProtoError derivatives
-#      and whatever streams already raises
-#
-# when (NimMajor, NimMinor) < (1, 4):
-#   {.push raises: [Defect].}
-# else:
-#   {.push raises: [].}
+{.push raises: [], gcsafe.}
 
 import
   std/[typetraits, unicode],
@@ -179,31 +173,31 @@ func computeSize*(field: int, x: SomeScalar): int =
   computeSize(FieldHeader.init(field, wireKind(typeof(x)))) +
     computeSize(x)
 
-proc writeValue*(output: OutputStream, value: SomeVarint) =
+proc writeValue*(output: OutputStream, value: SomeVarint) {.raises: [IOError].} =
   output.write(toBytes(value))
 
-proc writeValue*(output: OutputStream, value: SomeFixed64) =
+proc writeValue*(output: OutputStream, value: SomeFixed64) {.raises: [IOError].} =
   output.write(toBytes(value))
 
-proc writeValue*(output: OutputStream, value: pstring) =
+proc writeValue*(output: OutputStream, value: pstring) {.raises: [IOError].} =
   output.write(toBytes(puint64(string(value).len())))
   output.write(string(value).toOpenArrayByte(0, string(value).high()))
 
-proc writeValue*(output: OutputStream, value: pbytes) =
+proc writeValue*(output: OutputStream, value: pbytes) {.raises: [IOError].} =
   output.write(toBytes(puint64(seq[byte](value).len())))
   output.write(seq[byte](value))
 
-proc writeValue*(output: OutputStream, value: SomeFixed32) =
+proc writeValue*(output: OutputStream, value: SomeFixed32) {.raises: [IOError].} =
   output.write(toBytes(value))
 
-proc writeValue*(output: OutputStream, value: FieldHeader) =
+proc writeValue*(output: OutputStream, value: FieldHeader) {.raises: [IOError].} =
   output.write(toBytes(value))
 
-proc writeField*(output: OutputStream, field: int, value: SomeScalar) =
+proc writeField*(output: OutputStream, field: int, value: SomeScalar) {.raises: [IOError].} =
   output.writeValue(FieldHeader.init(field, wireKind(typeof(value))))
   output.writeValue(value)
 
-proc readValue*[T: SomeVarint](input: InputStream, _: type T): T =
+proc readValue*[T: SomeVarint](input: InputStream, _: type T): T {.raises: [SerializationError, IOError].} =
   # TODO This is not entirely correct: we should truncate value if it doesn't
   #      fit, according to the docs:
   #      https://developers.google.com/protocol-buffers/docs/proto#updating
@@ -221,7 +215,7 @@ proc readValue*[T: SomeVarint](input: InputStream, _: type T): T =
 
   fromUleb(val, T)
 
-proc readValue*[T: SomeFixed32 | SomeFixed64](input: InputStream, _: type T): T =
+proc readValue*[T: SomeFixed32 | SomeFixed64](input: InputStream, _: type T): T {.raises: [SerializationError, IOError].} =
   var tmp {.noinit.}: array[sizeof(T), byte]
   if not input.readInto(tmp):
     raise (ref ProtobufValueError)(msg: "Not enough bytes")
@@ -232,13 +226,13 @@ proc readValue*[T: SomeFixed32 | SomeFixed64](input: InputStream, _: type T): T 
   else:
     cast[T](uint32.fromBytesLE(tmp)) # Cast so we don't run into signed trouble
 
-proc readLength*(input: InputStream): int =
+proc readLength*(input: InputStream): int {.raises: [SerializationError, IOError].} =
   let lenu32 = input.readValue(puint32)
   if uint64(lenu32) > uint64(int.high()):
     raise (ref ProtobufValueError)(msg: "Invalid length")
   int(lenu32)
 
-proc readValue*[T: SomeLengthDelim](input: InputStream, _: type T): T =
+proc readValue*[T: SomeLengthDelim](input: InputStream, _: type T): T {.raises: [SerializationError, IOError].} =
   let len = input.readLength()
   if len > 0:
     type Base = typetraits.distinctBase(T)
@@ -259,7 +253,7 @@ proc readValue*[T: SomeLengthDelim](input: InputStream, _: type T): T =
       if validateUtf8(string(result)) != -1:
         raise (ref ProtobufValueError)(msg: "String not valid UTF-8")
 
-proc readHeader*(input: InputStream): FieldHeader =
+proc readHeader*(input: InputStream): FieldHeader {.raises: [SerializationError, IOError].} =
   let
     hdr = uint32(input.readValue(puint32))
     wire = uint8(hdr and 0x07)

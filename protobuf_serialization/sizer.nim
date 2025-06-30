@@ -1,3 +1,5 @@
+{.push raises: [], gcsafe.}
+
 import
   std/[typetraits, tables],
   stew/shims/macros,

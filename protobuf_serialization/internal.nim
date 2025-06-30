@@ -1,5 +1,7 @@
 #Variables needed by the Reader and Writer which should NOT be exported outside of this library.
 
+{.push raises: [], gcsafe.}
+
 import std/[options, sets, tables]
 import stew/shims/macros
 #Depending on the situation, one of these two are used.

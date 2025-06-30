@@ -1,5 +1,7 @@
 #Writes the specified type into a buffer using the Protobuf binary wire format.
 
+{.push raises: [], gcsafe.}
+
 import
   std/[typetraits, tables],
   stew/shims/macros,
@@ -10,17 +12,17 @@ import
 
 export outputs, serialization, codec, types
 
-proc writeObject[T: object](stream: OutputStream, value: T)
+proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].}
 
 proc writeField*(
     stream: OutputStream, fieldNum: int, fieldVal: auto,
-    ProtoType: type UnsupportedType, _: static bool = false) =
+    ProtoType: type UnsupportedType, _: static bool = false) {.raises: [IOError].} =
   # TODO turn this into an extension point
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
 proc writeField*[T: object and not PBOption and not Table](
     stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type pbytes,
-    skipDefault: static bool = false) =
+    skipDefault: static bool = false) {.raises: [IOError].} =
   let
     size = computeObjectSize(fieldVal)
 
@@ -34,7 +36,7 @@ proc writeField*[T: object and not PBOption and not Table](
 
 proc writeField*[T: not object and not enum](
     stream: OutputStream, fieldNum: int, fieldVal: T,
-    ProtoType: type SomeScalar, skipDefault: static bool = false) =
+    ProtoType: type SomeScalar, skipDefault: static bool = false) {.raises: [IOError].} =
   when skipDefault:
     const def = default(typeof(fieldVal))
     if fieldVal == def:
@@ -44,12 +46,12 @@ proc writeField*[T: not object and not enum](
 
 proc writeField*(
     stream: OutputStream, fieldNum: int, fieldVal: PBOption, ProtoType: type,
-    skipDefault: static bool = false) =
+    skipDefault: static bool = false) {.raises: [IOError].} =
   if fieldVal.isSome():
     stream.writeField(fieldNum, fieldVal.get(), ProtoType, skipDefault)
 
 proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
-    output: OutputStream, field: int, values: openArray[T], _: type ProtoType) =
+    output: OutputStream, field: int, values: openArray[T], _: type ProtoType) {.raises: [IOError].} =
   # Packed encoding uses a length-delimited field byte length of the sum of the
   # byte lengths of each field followed by the header-free contents
   output.write(
@@ -77,7 +79,7 @@ when defined(ConformanceTest):
       fieldVal: T,
       ProtoType: type,
       skipDefault: static bool = false
-  ) =
+  ) {.raises: [IOError].} =
     when 0 notin T:
       {.fatal: $T & " definition must contain a constant that maps to zero".}
     stream.writeField(fieldNum, pint32(fieldVal.ord()))
@@ -88,13 +90,13 @@ when defined(ConformanceTest):
     value: Table[K, V],
     ProtoType: type,
     skipDefault: static bool = false
-  ) =
+  ) {.raises: [IOError].} =
     tableObject(TableObject, K, V)
     for k, v in value.pairs():
       let tmp = TableObject(key: k, value: v)
       stream.writeField(fieldNum, tmp, ProtoType)
 
-proc writeObject[T: object](stream: OutputStream, value: T) =
+proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].} =
   const
     isProto2: bool = T.isProto2()
     isProto3: bool = T.isProto3()
@@ -125,7 +127,7 @@ proc writeObject[T: object](stream: OutputStream, value: T) =
     else:
       stream.writeField(fieldNum, fieldVal, ProtoType, isProto3)
 
-proc writeValue*[T: object](writer: ProtobufWriter, value: T) =
+proc writeValue*[T: object](writer: ProtobufWriter, value: T) {.raises: [IOError].} =
   static: verifySerializable(T)
 
   if ProtobufFlags.VarIntLengthPrefix in writer.flags:
