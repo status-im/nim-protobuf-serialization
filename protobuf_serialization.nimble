@@ -9,7 +9,7 @@ description   = "Protobuf implementation compatible with the nim-serialization f
 license       = "MIT"
 skipDirs      = @["tests"]
 
-requires "nim >= 1.2.0",
+requires "nim >= 1.6.20",
          "stew",
          "faststreams >= 0.3.0",
          "serialization",
