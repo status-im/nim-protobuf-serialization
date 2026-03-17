@@ -13,7 +13,7 @@ requires "nim >= 1.6.20",
          "stew",
          "faststreams >= 0.3.0",
          "serialization",
-         "npeg#22449099", # waiting for this to be in a release
+         "npeg >= 1.3.0",
          "unittest2"
 
 let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
@@ -25,7 +25,9 @@ let styleCheckStyle = if (NimMajor, NimMinor) < (1, 6): "hint" else: "error"
 let cfg =
   " --styleCheck:usages --styleCheck:" & styleCheckStyle &
   (if verbose: "" else: " --verbosity:0 --hints:off") &
-  " --skipParentCfg --skipUserCfg --outdir:build --nimcache:build/nimcache -f"
+  " --outdir:build " &
+  quoteShell("--nimcache:build/nimcache/$projectName") &
+  " -f"
 
 proc build(args, path: string) =
   exec nimc & " " & lang & " " & cfg & " " & flags & " " & args & " " & path

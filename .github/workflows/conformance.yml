@@ -11,6 +11,8 @@ concurrency: # Cancel stale PR builds (but not push builds)
 
 jobs:
   build:
+    env:
+      NIMBLE_COMMIT: b920dad9ed76c6619be3ec0cfbf0dde6f9e39092
     strategy:
       fail-fast: false
       matrix:
@@ -97,5 +99,6 @@ jobs:
           nim --version
           nimble --version
           nimble install -y --depsOnly
+          nimble setup
           env NIMLANG="c" nimble conformance_test
           env NIMLANG="cpp" nimble conformance_test
