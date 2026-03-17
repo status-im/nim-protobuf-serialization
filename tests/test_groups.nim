@@ -8,14 +8,14 @@ type
 suite "Test Group Decoding":
   test "decode start group is not supported":
     let encoded = @[byte(0x0B)]
-    expect(ProtobufGroupsError):
+    expect(ProtobufGroupError):
       discard Protobuf.decode(encoded, Dummy)
     expect(ProtobufValueError):
       discard Protobuf.decode(encoded, Dummy)
 
   test "decode end group is not supported":
     let encoded = @[byte(0x0C)]
-    expect(ProtobufGroupsError):
+    expect(ProtobufGroupError):
       discard Protobuf.decode(encoded, Dummy)
     expect(ProtobufValueError):
       discard Protobuf.decode(encoded, Dummy)

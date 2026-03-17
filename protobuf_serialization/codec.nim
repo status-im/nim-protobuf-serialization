@@ -75,7 +75,7 @@ type
     ## Types that may appear packed
 
 const
-  GroupsWireKinds = {
+  GroupWireKinds = {
     3'u8, 4'u8  # StartGroup, EndGroup
   }
   SupportedWireKinds* = {
@@ -261,8 +261,8 @@ proc readHeader*(input: InputStream): FieldHeader {.raises: [SerializationError,
     hdr = uint32(input.readValue(puint32))
     wire = uint8(hdr and 0x07)
 
-  if wire in GroupsWireKinds:
-    raise (ref ProtobufGroupsError)(msg: "Unsupported wire type " & $wire)
+  if wire in GroupWireKinds:
+    raise (ref ProtobufGroupError)(msg: "Unsupported wire type " & $wire)
 
   if wire notin SupportedWireKinds:
     raise (ref ProtobufValueError)(msg: "Invalid wire type " & $wire)
