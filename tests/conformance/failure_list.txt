@@ -348,7 +348,6 @@ Required.Proto3.ProtobufInput.RepeatedScalarSelectsLast.SINT64.ProtobufOutput
 Required.Proto3.ProtobufInput.RepeatedScalarSelectsLast.STRING.ProtobufOutput
 Required.Proto3.ProtobufInput.RepeatedScalarSelectsLast.UINT32.ProtobufOutput
 Required.Proto3.ProtobufInput.RepeatedScalarSelectsLast.UINT64.ProtobufOutput
-Required.Proto3.ProtobufInput.UnknownOrdering.ProtobufOutput
 Required.Proto3.ProtobufInput.UnknownVarint.ProtobufOutput
 Required.Proto3.ProtobufInput.ValidDataMap.BOOL.BOOL.Default.ProtobufOutput
 Required.Proto3.ProtobufInput.ValidDataMap.BOOL.BOOL.DuplicateKey.ProtobufOutput

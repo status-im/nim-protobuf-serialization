@@ -21,7 +21,7 @@ template processPayload(payload, DecodeType): untyped =
     try:
       ConformanceResponse(protobuf_payload: Protobuf.encode(x))
     except ProtobufError as exc:
-      ConformanceResponse(serialize_error: "skipped: " & exc.msg)
+      ConformanceResponse(serialize_error: "serialize_error: " & exc.msg)
   except ProtobufUnsupportedWireTypeError as exc:
     ConformanceResponse(skipped: "skipped: " & exc.msg)
   except ProtobufError as exc:
