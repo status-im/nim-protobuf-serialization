@@ -17,7 +17,7 @@ proc writeIntLE(v: int32) =
 
 template processPayload(payload, DecodeType): untyped =
   try:
-    let x = Protobuf.decode(payload, TestAllTypesProto3)
+    let x = Protobuf.decode(payload, DecodeType)
     try:
       ConformanceResponse(protobuf_payload: Protobuf.encode(x))
     except ProtobufError as exc:
