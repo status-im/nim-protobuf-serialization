@@ -15,6 +15,29 @@ proc writeIntLE(v: int32) =
   if stdout.writeBuffer(addr(value), 4) != 4:
     raise newException(IOError, "writeInt error")
 
+template processPayload(payload, DecodeType): untyped =
+  try:
+    let x = Protobuf.decode(payload, TestAllTypesProto3)
+    try:
+      ConformanceResponse(protobuf_payload: Protobuf.encode(x))
+    except ProtobufError as exc:
+      ConformanceResponse(serialize_error: "skipped: " & exc.msg)
+  except ProtobufUnsupportedWireTypeError as exc:
+    ConformanceResponse(skipped: "skipped: " & exc.msg)
+  except ProtobufError as exc:
+    ConformanceResponse(parse_error: "parse_error: " & exc.msg)
+
+proc doTest(request: ConformanceRequest): ConformanceResponse =
+  if request.requested_output_format != WireFormat.PROTOBUF or
+      request.protobuf_payload.len() == 0:
+    ConformanceResponse(skipped: "skip not protobuf")
+  elif request.message_type == "protobuf_test_messages.proto3.TestAllTypesProto3":
+    processPayload(request.protobuf_payload, TestAllTypesProto3)
+  elif request.message_type == "protobuf_test_messages.proto2.TestAllTypesProto2":
+    processPayload(request.protobuf_payload, TestAllTypesProto2)
+  else:
+    ConformanceResponse(skipped: "skip unknown message type: " & request.message_type)
+
 proc doTest(): bool =
   let length =
     try: readIntLE()
@@ -25,35 +48,13 @@ proc doTest(): bool =
     raise newException(IOError, "IProtobuf./O error")
 
   let request = Protobuf.decode(serializedRequest, ConformanceRequest)
-
-  var response = ConformanceResponse()
-
-  if request.requested_output_format != WireFormat.PROTOBUF or
-      request.protobuf_payload.len() == 0:
-    response.skipped = "skip not protobuf"
-  else:
-    try:
-      if request.message_type == "protobuf_test_messages.proto3.TestAllTypesProto3":
-        let x = Protobuf.decode(request.protobuf_payload, TestAllTypesProto3)
-        response.protobuf_payload = Protobuf.encode(x)
-      elif request.message_type == "protobuf_test_messages.proto2.TestAllTypesProto2":
-        let x = Protobuf.decode(request.protobuf_payload, TestAllTypesProto2)
-        response.protobuf_payload = Protobuf.encode(x)
-      else:
-        response.skipped = "skip unknown message type: " & request.message_type
-    except CatchableError as exc:
-      # TODO better error reporting instead of skipping
-      # response.parse_error = exc.msg
-      response.skipped = exc.msg
-
-  let serializedResponse = Protobuf.encode(response)
+  let serializedResponse = Protobuf.encode(doTest(request))
 
   writeIntLE(serializedResponse.len().int32)
 
   stdout.write(string.fromBytes(serializedResponse))
   stdout.flushFile()
   true
-
 
 try:
   while doTest():

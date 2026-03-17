@@ -6,6 +6,7 @@ import
   test_bool,
   test_codec,
   test_fixed,
+  test_groups,
   test_objects,
   test_empty,
   test_repeated,

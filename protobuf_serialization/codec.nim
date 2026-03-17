@@ -24,8 +24,8 @@ type
     Varint = 0
     Fixed64 = 1
     LengthDelim = 2
-    # StartGroup = 3 # Not used
-    # EndGroup = 4 # Not used
+    StartGroup = 3
+    EndGroup = 4
     Fixed32 = 5
 
   SomePBInt* = int32 | int64 | uint32 | uint64
@@ -75,6 +75,10 @@ type
     ## Types that may appear packed
 
 const
+  UnsupportedWireKinds = {
+    uint8(WireKind.StartGroup),
+    uint8(WireKind.EndGroup)
+  }
   SupportedWireKinds* = {
     uint8(WireKind.Varint),
     uint8(WireKind.Fixed64),
@@ -257,6 +261,9 @@ proc readHeader*(input: InputStream): FieldHeader {.raises: [SerializationError,
   let
     hdr = uint32(input.readValue(puint32))
     wire = uint8(hdr and 0x07)
+
+  if wire in UnsupportedWireKinds:
+    raise (ref ProtobufUnsupportedWireTypeError)(msg: "Unsupported wire type " & $wire)
 
   if wire notin SupportedWireKinds:
     raise (ref ProtobufValueError)(msg: "Invalid wire type " & $wire)
