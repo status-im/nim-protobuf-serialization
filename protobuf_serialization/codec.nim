@@ -24,8 +24,8 @@ type
     Varint = 0
     Fixed64 = 1
     LengthDelim = 2
-    StartGroup = 3
-    EndGroup = 4
+    # StartGroup = 3 # Not used
+    # EndGroup = 4 # Not used
     Fixed32 = 5
 
   SomePBInt* = int32 | int64 | uint32 | uint64
@@ -76,8 +76,7 @@ type
 
 const
   UnsupportedWireKinds = {
-    uint8(WireKind.StartGroup),
-    uint8(WireKind.EndGroup)
+    3'u8, 4'u8  # StartGroup, EndGroup
   }
   SupportedWireKinds* = {
     uint8(WireKind.Varint),
