@@ -262,7 +262,7 @@ proc readHeader*(input: InputStream): FieldHeader {.raises: [SerializationError,
     wire = uint8(hdr and 0x07)
 
   if wire in UnsupportedWireKinds:
-    raise (ref ProtobufUnsupportedWireTypeError)(msg: "Unsupported wire type " & $wire)
+    raise (ref ProtobufGroupsError)(msg: "Unsupported wire type " & $wire)
 
   if wire notin SupportedWireKinds:
     raise (ref ProtobufValueError)(msg: "Invalid wire type " & $wire)
