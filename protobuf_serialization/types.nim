@@ -15,6 +15,7 @@ type
   ProtobufEOFError* = object of ProtobufReadError
   ProtobufMessageError* = object of ProtobufReadError
   ProtobufValueError* = object of ProtobufReadError
+  ProtobufGroupError* = object of ProtobufValueError
 
   ProtobufFlags* = enum
     VarIntLengthPrefix
