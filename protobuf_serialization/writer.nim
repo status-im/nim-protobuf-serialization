@@ -82,6 +82,9 @@ when defined(ConformanceTest):
   ) {.raises: [IOError].} =
     when 0 notin T:
       {.fatal: $T & " definition must contain a constant that maps to zero".}
+    when skipDefault:
+      if fieldVal.ord() == 0:
+        return
     stream.writeField(fieldNum, pint32(fieldVal.ord()))
 
   proc writeField[K, V](

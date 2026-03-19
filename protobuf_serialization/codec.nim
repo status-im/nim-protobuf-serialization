@@ -200,6 +200,12 @@ proc writeField*(output: OutputStream, field: int, value: SomeScalar) {.raises: 
   output.writeValue(FieldHeader.init(field, wireKind(typeof(value))))
   output.writeValue(value)
 
+proc skipBytes(input: InputStream, n: int) {.raises: [SerializationError, IOError].} =
+  for _ in 0 ..< max(0, n):
+    if not input.readable():
+      raise (ref ProtobufValueError)(msg: "Not enough bytes")
+    input.advance()
+
 proc readValue*[T: SomeVarint](input: InputStream, _: type T): T {.raises: [SerializationError, IOError].} =
   # TODO This is not entirely correct: we should truncate value if it doesn't
   #      fit, according to the docs:
@@ -218,6 +224,9 @@ proc readValue*[T: SomeVarint](input: InputStream, _: type T): T {.raises: [Seri
 
   fromUleb(val, T)
 
+proc skipValue*[T: SomeVarint](input: InputStream, _: type T) {.raises: [SerializationError, IOError].} =
+  discard readValue(input, T)
+
 proc readValue*[T: SomeFixed32 | SomeFixed64](input: InputStream, _: type T): T {.raises: [SerializationError, IOError].} =
   var tmp {.noinit.}: array[sizeof(T), byte]
   if not input.readInto(tmp):
@@ -228,6 +237,10 @@ proc readValue*[T: SomeFixed32 | SomeFixed64](input: InputStream, _: type T): T 
     cast[T](uint64.fromBytesLE(tmp)) # Cast so we don't run into signed trouble
   else:
     cast[T](uint32.fromBytesLE(tmp)) # Cast so we don't run into signed trouble
+
+proc skipValue*[T: SomeFixed32 | SomeFixed64](input: InputStream, _: type T) {.raises: [SerializationError, IOError].} =
+  static: doAssert sizeof(T) in {4, 8}
+  input.skipBytes(sizeof(T))
 
 proc readLength*(input: InputStream): int {.raises: [SerializationError, IOError].} =
   let lenu32 = input.readValue(puint32)
@@ -255,6 +268,10 @@ proc readValue*[T: SomeLengthDelim](input: InputStream, _: type T): T {.raises: 
     when T is pstring:
       if validateUtf8(string(result)) != -1:
         raise (ref ProtobufValueError)(msg: "String not valid UTF-8")
+
+proc skipValue*[T: SomeLengthDelim](input: InputStream, _: type T) {.raises: [SerializationError, IOError].} =
+  let len = input.readLength()
+  input.skipBytes(len)
 
 proc readHeader*(input: InputStream): FieldHeader {.raises: [SerializationError, IOError].} =
   let
