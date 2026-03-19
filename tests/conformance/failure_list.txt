@@ -538,6 +538,11 @@ Required.Proto3.ProtobufInput.ValidDataScalar.FIXED32[2].ProtobufOutput
 Required.Proto3.ProtobufInput.ValidDataScalar.FIXED64[0].ProtobufOutput
 Required.Proto3.ProtobufInput.ValidDataScalar.FIXED64[1].ProtobufOutput
 Required.Proto3.ProtobufInput.ValidDataScalar.FIXED64[2].ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataScalar.FLOAT[0].ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataScalar.FLOAT[1].ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataScalar.FLOAT[2].ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataScalar.FLOAT[3].ProtobufOutput
+Required.Proto3.ProtobufInput.ValidDataScalar.FLOAT[4].ProtobufOutput
 Required.Proto3.ProtobufInput.ValidDataScalar.INT32[0].ProtobufOutput
 Required.Proto3.ProtobufInput.ValidDataScalar.INT32[1].ProtobufOutput
 Required.Proto3.ProtobufInput.ValidDataScalar.INT32[2].ProtobufOutput
