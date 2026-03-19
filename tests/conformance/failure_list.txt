@@ -473,9 +473,6 @@ Required.Proto3.ProtobufInput.ValidDataOneof.BOOL.DefaultValue.ProtobufOutput
 Required.Proto3.ProtobufInput.ValidDataOneof.BYTES.DefaultValue.ProtobufOutput
 Required.Proto3.ProtobufInput.ValidDataOneof.DOUBLE.DefaultValue.ProtobufOutput
 Required.Proto3.ProtobufInput.ValidDataOneof.FLOAT.DefaultValue.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataOneof.FLOAT.MultipleValuesForDifferentField.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataOneof.FLOAT.MultipleValuesForSameField.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataOneof.FLOAT.NonDefaultValue.ProtobufOutput
 Required.Proto3.ProtobufInput.ValidDataOneof.MESSAGE.Merge.ProtobufOutput
 Required.Proto3.ProtobufInput.ValidDataOneof.STRING.DefaultValue.ProtobufOutput
 Required.Proto3.ProtobufInput.ValidDataOneof.UINT32.DefaultValue.ProtobufOutput
