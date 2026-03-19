@@ -5,9 +5,12 @@ import decldef
 export decldef, tables
 import proto_parser
 
+# https://protobuf.dev/programming-guides/proto3/#scalar
 proc getTypeAndPragma(strVal: string): (NimNode, NimNode) =
   result[0] = ident(strVal.split('.')[^1]) # TODO: Find a better way to handle namespaces
   case strVal:
+    of "float":
+      result[0] = ident("float32")
     of "double":
       result[0] = ident("float64")
     of "int32":
