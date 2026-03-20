@@ -158,6 +158,15 @@ proc protoToTypesInternal*(filepath: string): NimNode {.compileTime.} =
             if not pragma.isNil():
               value[2][^1][0][1].add(pragma)
 
+          for opt in field.options:
+            if opt.optName == "packed" and opt.optVal in ["true", "false"]:
+              value[2][^1][0][1].add(
+                newNimNode(nnkExprColonExpr).add(
+                  ident(opt.optName),
+                  newLitFixed(opt.optVal == "true")
+                )
+              )
+
           if field.presence == Repeated:
             value[2][^1][1] = newNimNode(nnkBracketExpr).add(
               ident("seq"),
