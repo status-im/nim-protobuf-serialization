@@ -149,12 +149,18 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
   while stream.readable():
     let header = stream.readHeader()
     var i = -1
+    var knownField = false
+
+    if not header.number().validFieldNumber(true):
+      raise newException(ProtobufReadError, "Invalid field number: " & $header.number())
+
     enumInstanceSerializedFields(value, fieldName, fieldVar):
       inc i
       const
         fieldNum = T.fieldNumberOf(fieldName)
 
       if header.number() == fieldNum:
+        knownField = true
         when isProto2:
           if not silent: requiredSets.excl i
 
@@ -171,6 +177,13 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
           stream.readFieldInto(fieldVar[], header, ProtoType)
         else:
           stream.readFieldInto(fieldVar, header, ProtoType)
+
+    if not knownField:
+      case header.kind():
+      of WireKind.Varint: stream.skipValue(puint64)
+      of WireKind.Fixed64: stream.skipValue(fixed64)
+      of WireKind.LengthDelim: stream.skipValue(pbytes)
+      of WireKind.Fixed32: stream.skipValue(fixed32)
 
   when isProto2:
     if (requiredSets.len != 0):
