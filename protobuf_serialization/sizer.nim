@@ -82,9 +82,13 @@ proc computeSizePacked*[T: not byte, ProtoType: SomePrimitive](
     total
 
 proc computeFieldSizePacked*[ProtoType: SomePrimitive](
-    field: int, values: openArray, _: type ProtoType): int =
+    field: int, values: openArray, _: type ProtoType,
+    skipDefault: static bool): int =
   # Packed encoding uses a length-delimited field byte length of the sum of the
   # byte lengths of each field followed by the header-free contents
+  when skipDefault:
+    if values.len == 0:
+      return 0
   let
     dataSize = computeSizePacked(values, ProtoType)
 
@@ -113,7 +117,7 @@ func computeObjectSize*[T: object](value: T): int =
       const
         isPacked = T.isPacked(fieldName).get(isProto3)
       when isPacked and ProtoType is SomePrimitive:
-        computeFieldSizePacked(fieldNum, fieldVal, ProtoType)
+        computeFieldSizePacked(fieldNum, fieldVal, ProtoType, isProto3)
       else:
         var dataSize = 0
         for i in 0..<fieldVal.len:

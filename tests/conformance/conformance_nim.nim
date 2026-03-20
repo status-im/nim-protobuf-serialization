@@ -48,7 +48,13 @@ proc doTest(): bool =
     raise newException(IOError, "IProtobuf./O error")
 
   let request = Protobuf.decode(serializedRequest, ConformanceRequest)
-  let serializedResponse = Protobuf.encode(doTest(request))
+  let response = doTest(request)
+  let serializedResponse = if response == default(ConformanceResponse):
+    # XXX: remove once oneof is supported;
+    #      this is field 3 set to an empty seq
+    "1a00".hexToSeqByte
+  else:
+    Protobuf.encode(response)
 
   writeIntLE(serializedResponse.len().int32)
 
