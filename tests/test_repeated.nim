@@ -38,6 +38,11 @@ z: ["zero", "one", "two"]
       Protobuf.encode(v) == encoded
       Protobuf.decode(encoded, typeof(v)) == v
 
+  test "Empty sequences":
+    check:
+      Protobuf.computeSize(Sequences()) == 0
+      Protobuf.encode(Sequences()).len == 0
+
   test "Packed sequences":
     # protoc --encode=Packed test_repeated.proto | hexdump -ve '1/1 "%.2x"'
     discard """
@@ -60,3 +65,8 @@ a: [5, -3, 300, -612]
       Protobuf.computeSize(v) == encoded.len
       Protobuf.encode(v) == encoded
       Protobuf.decode(encoded, typeof(v)) == v
+
+  test "Empty packed sequences":
+    check:
+      Protobuf.computeSize(Packed()) == 0
+      Protobuf.encode(Packed()).len == 0
