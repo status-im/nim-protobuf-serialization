@@ -84,6 +84,7 @@ type
     enums: seq[(Token, ProtoNode)]
     reservedValues: seq[ProtoNode]
     reservedBlocks: seq[(Token, ProtoNode)]
+    fieldOpts: seq[ProtoNode]
 
 proc extract(x: var seq[(Token, ProtoNode)], s: Token): seq[ProtoNode] =
   # The "extract mechanism" is used to handle this case:
@@ -120,7 +121,8 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
     impor      <- ["import"] * >string * [';']:
       ps.imports.add ProtoNode(kind: Imported, filename: ($1).text)
 
-    fieldopt   <- ident * ['='] * (ident | int | string | float)
+    fieldopt   <- >ident * ['='] * >(ident | int | string | float):
+      ps.fieldOpts.add ProtoNode(kind: FieldOption, optName: ($1).text, optVal: ($2).text)
     fieldopts  <- ['['] * fieldopt * *([','] * fieldopt) * [']']
 
     oneoffield <- >ident * >ident * ['='] * >int * ?fieldopts * [';']:
@@ -186,10 +188,12 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
           kind: Field,
           number: parseInt(fieldValue),
           protoType: fieldType,
-          name: fieldName)
+          name: fieldName,
+          options: ps.fieldOpts)
       if @1 != @2:
         node.presence = parseEnum[Presence](($1).text.toUpper)
       ps.fields.add (($0, node))
+      ps.fieldOpts.setLen 0
     mapfield   <- ["map"] * ['<'] * >ident * [','] * >ident * ['>'] * * >ident * ['='] * >int * ?fieldopts * [';']:
       let
         fieldType = "map<" & ($1).text & "," & ($2).text & ">"
@@ -199,7 +203,9 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
           kind: Field,
           number: parseInt(fieldValue),
           protoType: fieldType,
-          name: fieldName)))
+          name: fieldName,
+          options: ps.fieldOpts)))
+      ps.fieldOpts.setLen 0
 
     # protobuf2
     groupfield <- ?multiple * >["group"] * >ident * ['='] * >int * msgbody:
