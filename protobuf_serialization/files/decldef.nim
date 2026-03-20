@@ -26,7 +26,7 @@ type
   ReservedType* = enum
     String, Number, Range
   ProtoType* = enum
-    Field, Enum, EnumVal, ReservedBlock, Reserved, Message, File, Imported, Oneof, Package, ProtoDef, Extend, FieldOpt
+    Field, Enum, EnumVal, ReservedBlock, Reserved, Message, File, Imported, Oneof, Package, ProtoDef, Extend, FieldOption
   Presence* = enum
     Singular, Repeated, Optional, Required
   ProtoNode* = ref object
@@ -78,7 +78,7 @@ type
       packages*: seq[ProtoNode]
     of Imported:
       filename*: string
-    of FieldOpt:
+    of FieldOption:
       optName*: string
       optVal*: string
 
@@ -187,5 +187,5 @@ proc `$`*(node: ProtoNode): string =
         result &= $package
     of Imported:
       result = "Imported file " & node.filename
-    of FieldOpt:
+    of FieldOption:
       result = "Field option; name=" & node.optName & ";val=" & node.optVal

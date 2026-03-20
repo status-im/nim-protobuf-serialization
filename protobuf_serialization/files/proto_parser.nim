@@ -122,7 +122,7 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
       ps.imports.add ProtoNode(kind: Imported, filename: ($1).text)
 
     fieldopt   <- >ident * ['='] * >(ident | int | string | float):
-      ps.fieldOpts.add ProtoNode(kind: FieldOpt, optName: ($1).text, optVal: ($2).text)
+      ps.fieldOpts.add ProtoNode(kind: FieldOption, optName: ($1).text, optVal: ($2).text)
     fieldopts  <- ['['] * fieldopt * *([','] * fieldopt) * [']']
 
     oneoffield <- >ident * >ident * ['='] * >int * ?fieldopts * [';']:
