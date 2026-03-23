@@ -116,8 +116,9 @@ func toUleb(x: sint32): uint32 =
   let v = cast[uint32](x)
   (v shl 1) xor (0 - (v shr 31))
 
+# https://protobuf.dev/programming-guides/encoding/#signed-ints
 template toUleb(x: pint64): uint64 = cast[uint64](x)
-template toUleb(x: pint32): uint32 = cast[uint32](x)
+template toUleb(x: pint32): uint64 = cast[uint64](int64(x))
 template toUleb(x: pbool): uint8 = cast[uint8](x)
 template toUleb(x: penum): uint64 = cast[uint32](x)
 
