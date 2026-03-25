@@ -183,9 +183,8 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
 
     enumInstanceSerializedFields(inst, fieldName, fieldVar):
       when isProto2 and not T.isRequired(fieldName):
-        when fieldVar is not seq:
-          when fieldVar is not PBOption:
-            fieldError T, fieldName, "proto2 requires every field to either have the required pragma attached or be a repeated field/PBOption."
+        when fieldVar is not (seq or PBOption or Table):
+          fieldError T, fieldName, "proto2 requires every field to either have the required pragma attached or be a repeated field/PBOption."
       when isProto3 and (
         T.hasCustomPragmaFixed(fieldName, required) or
         (fieldVar is PBOption)
