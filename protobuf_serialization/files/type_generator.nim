@@ -1,4 +1,4 @@
-import os, algorithm, strutils, tables
+import os, algorithm, strutils, tables, deques
 import macros
 import stew/shims/macros as stewmacros
 import decldef
@@ -45,6 +45,30 @@ proc getTypeAndPragma(strVal: string): (NimNode, NimNode) =
         ident("byte")
       )
 
+proc parseDefault(val: string, ptype: NimNode): NimNode =
+  if repr(ptype) == "seq[byte]":
+    doAssert val.len >= 2
+    var res = newSeq[byte]()
+    for c in val:
+      res.add c.byte
+    newLitFixed(res)
+  else:
+    ptype.expectKind(nnkIdent)
+    doAssert val.len > 0
+    let v = case $ptype
+    of "int32": val & "'i32"
+    of "int64": val & "'i64"
+    of "uint32": val & "'u32"
+    of "uint64": val & "'u64"
+    of "float32": val & "'f32"
+    of "float64": val & "'f64"
+    of "string": "\"" & val & "\""
+    of "bool": val
+    else:
+      raiseAssert "unsupported proto type default: " & $ptype
+      ""
+    parseExpr(v)
+
 proc getMessage(name: string, messages: seq[ProtoNode]): ProtoNode =
   for msg in messages:
     if msg.kind == ProtoType.Extend:
@@ -72,7 +96,7 @@ proc isNested(base: string, currentName: string, messages: seq[ProtoNode]): bool
           return true
 
 # Exported for the tests.
-proc protoToTypesInternal*(filepath: string): NimNode {.compileTime.} =
+proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compileTime.} =
   var
     packages: seq[ProtoNode] = parseProtobuf(filepath).packages
     queue: seq[ProtoNode] = @[]
@@ -80,6 +104,11 @@ proc protoToTypesInternal*(filepath: string): NimNode {.compileTime.} =
   for parsed in packages:
     for msg in parsed.messages:
       queue.add(msg)
+      # TODO: define Enums first to workaround https://github.com/nim-lang/Nim/issues/25651
+      if msg.kind != ProtoType.Extend:
+        if (msg.definedEnums.len != 0) or (msg.nested.len != 0):
+          for nestee in (msg.definedEnums & msg.nested):
+            queue.add(nestee)
     for pbEnum in parsed.packageEnums:
       queue.add(pbEnum)
 
@@ -104,9 +133,9 @@ proc protoToTypesInternal*(filepath: string): NimNode {.compileTime.} =
       else:
         if next.kind == ProtoType.Extend:
           continue
-        if (next.definedEnums.len != 0) or (next.nested.len != 0):
-          for nestee in (next.definedEnums & next.nested):
-            queue.add(nestee)
+        #if (next.definedEnums.len != 0) or (next.nested.len != 0):
+        #  for nestee in (next.definedEnums & next.nested):
+        #    queue.add(nestee)
 
         name = next.messageName
         value = newNimNode(nnkObjectTy).add(
@@ -122,6 +151,7 @@ proc protoToTypesInternal*(filepath: string): NimNode {.compileTime.} =
           if field.kind == Oneof:
             # TODO: ATM the oneof is ignored. Find a way to make it work
             for f in field.oneof:
+              f.presence = Optional
               fieldsQueue.add(f)
             continue
           value[2].add(newNimNode(nnkIdentDefs).add(
@@ -158,6 +188,18 @@ proc protoToTypesInternal*(filepath: string): NimNode {.compileTime.} =
             if not pragma.isNil():
               value[2][^1][0][1].add(pragma)
 
+          if field.presence == Optional and not isProto3:
+            var optDefault = ""
+            for opt in field.options:
+              if opt.optName == "default":
+                optDefault = opt.optVal
+            let typ = value[2][^1][1]
+            let innerTyp = if optDefault.len > 0:
+              parseDefault(optDefault, typ)
+            else:
+              quote do: default(`typ`)
+            value[2][^1][1] = quote do: PBOption[`innerTyp`]
+
           for opt in field.options:
             if opt.optName == "packed" and opt.optVal in ["true", "false"]:
               value[2][^1][0][1].add(
@@ -177,15 +219,19 @@ proc protoToTypesInternal*(filepath: string): NimNode {.compileTime.} =
         if value[2].len == 0:
           value[2] = newEmptyNode()
 
+      let protoVer = if isProto3:
+        "proto3"
+      else:
+        "proto2"
 
       result.add(
         newNimNode(nnkTypeDef).add(
           newNimNode(nnkPragmaExpr).add(
             newNimNode(nnkPostfix).add(ident("*"), ident(name)),
             if next.kind == ProtoType.Enum:
-              newNimNode(nnkPragma).add(ident("pure"), ident("proto3"))
+              newNimNode(nnkPragma).add(ident("pure"), ident(protoVer))
             else:
-              newNimNode(nnkPragma).add(ident("proto3"))
+              newNimNode(nnkPragma).add(ident(protoVer))
           ),
           newEmptyNode(),
           value
@@ -194,9 +240,14 @@ proc protoToTypesInternal*(filepath: string): NimNode {.compileTime.} =
   when defined(LogGeneratedTypes):
     result.storeMacroResult(true)
 
-macro protoToTypes*(filepath: static[string]): untyped =
-  result = protoToTypesInternal(filepath)
+macro protoToTypes*(filepath: static[string], isProto3: static[bool] = true): untyped =
+  result = protoToTypesInternal(filepath, isProto3)
 
 template import_proto3*(file: static[string]): untyped =
   const filepath = parentDir(instantiationInfo(-1, true).filename) / file
   protoToTypes(filepath)
+
+# XXX put behind ConformanceTest define
+template import_proto2*(file: static[string]): untyped =
+  const filepath = parentDir(instantiationInfo(-1, true).filename) / file
+  protoToTypes(filepath, isProto3 = false)

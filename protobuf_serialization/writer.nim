@@ -44,12 +44,6 @@ proc writeField*[T: not object and not enum](
 
   stream.writeField(fieldNum, ProtoType(fieldVal))
 
-proc writeField*(
-    stream: OutputStream, fieldNum: int, fieldVal: PBOption, ProtoType: type,
-    skipDefault: static bool = false) {.raises: [IOError].} =
-  if fieldVal.isSome():
-    stream.writeField(fieldNum, fieldVal.get(), ProtoType, skipDefault)
-
 proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
     output: OutputStream, field: int, values: openArray[T], _: type ProtoType,
     skipDefault: static bool = false) {.raises: [IOError].} =
@@ -103,6 +97,12 @@ when defined(ConformanceTest):
     for k, v in value.pairs():
       let tmp = TableObject(key: k, value: v)
       stream.writeField(fieldNum, tmp, ProtoType)
+
+proc writeField*(
+    stream: OutputStream, fieldNum: int, fieldVal: PBOption, ProtoType: type,
+    skipDefault: static bool = false) {.raises: [IOError].} =
+  if fieldVal.isSome():
+    stream.writeField(fieldNum, fieldVal.get(), ProtoType, skipDefault)
 
 proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].} =
   const
