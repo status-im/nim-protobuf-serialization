@@ -45,13 +45,11 @@ proc writeField*[T: not object and not enum](
   stream.writeField(fieldNum, ProtoType(fieldVal))
 
 proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
-    output: OutputStream, field: int, values: openArray[T], _: type ProtoType,
-    skipDefault: static bool = false) {.raises: [IOError].} =
+    output: OutputStream, field: int, values: openArray[T], _: type ProtoType) {.raises: [IOError].} =
   # Packed encoding uses a length-delimited field byte length of the sum of the
   # byte lengths of each field followed by the header-free contents
-  when skipDefault:
-    if values.len == 0:
-      return
+  if values.len == 0:
+    return
 
   output.write(
     toBytes(FieldHeader.init(field, WireKind.LengthDelim)))
@@ -123,7 +121,7 @@ proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].
       const
         isPacked = T.isPacked(fieldName).get(isProto3)
       when isPacked and ProtoType is SomePrimitive:
-        stream.writeFieldPacked(fieldNum, fieldVal, ProtoType, isProto3)
+        stream.writeFieldPacked(fieldNum, fieldVal, ProtoType)
       else:
         for i in 0..<fieldVal.len:
           # don't skip defaults so as to preserve length
