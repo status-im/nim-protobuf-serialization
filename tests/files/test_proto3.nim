@@ -61,9 +61,8 @@ macro test() =
   for c in 0 ..< vector.len:
     convertFromSym(vector, c)
 
-  debugEcho repr parsed
-  if not (parsed == vector):
-    raise newException(Exception, "")
+  if parsed != vector:
+    raise newException(Exception, "Expected: " & repr(parsed))
 
 test()
 
