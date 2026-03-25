@@ -1,4 +1,4 @@
-import os, algorithm, strutils, tables, deques
+import os, algorithm, strutils, tables
 import macros
 import stew/shims/macros as stewmacros
 import decldef
