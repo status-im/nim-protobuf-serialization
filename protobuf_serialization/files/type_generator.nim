@@ -46,15 +46,13 @@ proc getTypeAndPragma(strVal: string): (NimNode, NimNode) =
       )
 
 proc parseDefault(val: string, ptype: NimNode): NimNode =
-  if repr(ptype) == "seq[byte]":
-    doAssert val.len >= 2
+  case ptype.kind
+  of nnkBracketExpr:
     var res = newSeq[byte]()
     for c in val:
       res.add c.byte
     newLitFixed(res)
-  else:
-    ptype.expectKind(nnkIdent)
-    doAssert val.len > 0
+  of nnkIdent:
     let v = case $ptype
     of "int32": val & "'i32"
     of "int64": val & "'i64"
@@ -64,10 +62,10 @@ proc parseDefault(val: string, ptype: NimNode): NimNode =
     of "float64": val & "'f64"
     of "string": "\"" & val & "\""
     of "bool": val
-    else:
-      raiseAssert "unsupported proto type default: " & $ptype
-      ""
+    else: raiseAssert "unsupported proto type default: " & $ptype
     parseExpr(v)
+  else:
+    raiseAssert "unexpected nnk: " & $ptype.kind
 
 proc getMessage(name: string, messages: seq[ProtoNode]): ProtoNode =
   for msg in messages:
@@ -240,14 +238,17 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
   when defined(LogGeneratedTypes):
     result.storeMacroResult(true)
 
-macro protoToTypes*(filepath: static[string], isProto3: static[bool] = true): untyped =
-  result = protoToTypesInternal(filepath, isProto3)
+macro protoToTypes*(filepath: static[string]): untyped =
+  result = protoToTypesInternal(filepath)
 
 template import_proto3*(file: static[string]): untyped =
   const filepath = parentDir(instantiationInfo(-1, true).filename) / file
   protoToTypes(filepath)
 
-# XXX put behind ConformanceTest define
-template import_proto2*(file: static[string]): untyped =
-  const filepath = parentDir(instantiationInfo(-1, true).filename) / file
-  protoToTypes(filepath, isProto3 = false)
+when defined(ConformanceTest):
+  macro protoToTypes2*(filepath: static[string]): untyped =
+    result = protoToTypesInternal(filepath, false)
+
+  template import_proto2*(file: static[string]): untyped =
+    const filepath = parentDir(instantiationInfo(-1, true).filename) / file
+    protoToTypes2(filepath)
