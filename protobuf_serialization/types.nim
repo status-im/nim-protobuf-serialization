@@ -89,6 +89,25 @@ func pbSome*[T: PBOption](optType: typedesc[T], value: auto): T {.inline.} =
     value: value
   )
 
+template fixedDefault(T): untyped =
+  when T is int64:
+    0'i64
+  elif T is int32:
+    0'i32
+  elif T is uint64:
+    0'u64
+  elif T is uint32:
+    0'u32
+  elif T is float64:
+    0'f64
+  elif T is float32:
+    0'f32
+  else:
+    default(T)
+
+template pbSome*(value: untyped): untyped =
+  pbSome(PBOption[fixedDefault(typeof(value))], value)
+
 func init*(opt: var PBOption, val: auto) =
   opt.some = true
   opt.value = val
