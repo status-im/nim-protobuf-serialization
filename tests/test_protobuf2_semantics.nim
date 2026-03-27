@@ -109,7 +109,7 @@ suite "Test Encoding of Protobuf 2 Semantics":
     var v = FixedOption(d: PBOption[0'u64].pbSome(1'u64))
     check Protobuf.decode(Protobuf.encode(v), FixedOption) == v
 
-  test "PBOption ergonomic":
+  test "pbSome ergonomic":
     check:
       PBOption[0'i64].pbSome(1'i64) == pbSome(1'i64)
       PBOption[0'i32].pbSome(1'i32) == pbSome(1'i32)
@@ -121,3 +121,9 @@ suite "Test Encoding of Protobuf 2 Semantics":
       PBOption[""].pbSome("abc") == pbSome("abc")
       PBOption[default(seq[byte])].pbSome(@[1'u8]) == pbSome(@[1'u8])
       PBOption[default(Required)].pbSome(Required()) == pbSome(Required())
+
+  test "pbNone ergonomic":
+    check:
+      pbNone("").isNone
+      PBOption[""]() == pbNone("")
+      PBOption[default(Required)]() == pbNone(default(Required))
