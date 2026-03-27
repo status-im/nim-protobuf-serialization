@@ -108,6 +108,9 @@ template fixedDefault(T): untyped =
 template pbSome*(value: untyped): untyped =
   pbSome(PBOption[fixedDefault(typeof(value))], value)
 
+template pbNone*(value: untyped): untyped =
+  PBOption[value]()
+
 func init*(opt: var PBOption, val: auto) =
   opt.some = true
   opt.value = val
