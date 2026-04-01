@@ -40,6 +40,10 @@ proc readFieldInto[T: object and not Table](
     # stream.withReadableRange(len, inner):
     #   inner.readValueInternal(value)
 
+    let inputLen = stream.len()
+    if inputLen.isSome() and len > inputLen.get():
+      raise (ref ProtobufValueError)(msg: "Missing bytes: " & $len)
+
     var tmp = newSeqUninitialized[byte](len)
     if not stream.readInto(tmp):
       raise (ref ProtobufValueError)(msg: "not enough bytes")

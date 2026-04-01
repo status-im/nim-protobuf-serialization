@@ -207,11 +207,8 @@ proc skipBytes(input: InputStream, n: int) {.raises: [SerializationError, IOErro
       raise (ref ProtobufValueError)(msg: "Not enough bytes")
     input.advance()
 
-proc readValue*[T: SomeVarint](input: InputStream, _: type T): T {.raises: [SerializationError, IOError].} =
-  # TODO This is not entirely correct: we should truncate value if it doesn't
-  #      fit, according to the docs:
-  #      https://developers.google.com/protocol-buffers/docs/proto#updating
-  var buf: Leb128Buf[uint64]
+proc readVarint[T: uint64 | uint32](input: InputStream, _: type T): T {.raises: [SerializationError, IOError].} =
+  var buf: Leb128Buf[T]
   while buf.len < buf.data.len and input.readable():
     let b = input.read()
     buf.data[buf.len] = b
@@ -219,10 +216,16 @@ proc readValue*[T: SomeVarint](input: InputStream, _: type T): T {.raises: [Seri
     if (b and 0x80'u8) == 0:
       break
 
-  let (val, len) = uint64.fromBytes(buf)
+  let (val, len) = T.fromBytes(buf)
   if buf.len == 0 or len != buf.len:
     raise (ref ProtobufValueError)(msg: "Cannot read varint from stream")
+  val
 
+proc readValue*[T: SomeVarint](input: InputStream, _: type T): T {.raises: [SerializationError, IOError].} =
+  # TODO This is not entirely correct: we should truncate value if it doesn't
+  #      fit, according to the docs:
+  #      https://developers.google.com/protocol-buffers/docs/proto#updating
+  let val = input.readVarint(uint64)
   fromUleb(val, T)
 
 proc skipValue*[T: SomeVarint](input: InputStream, _: type T) {.raises: [SerializationError, IOError].} =
@@ -243,11 +246,13 @@ proc skipValue*[T: SomeFixed32 | SomeFixed64](input: InputStream, _: type T) {.r
   static: doAssert sizeof(T) in {4, 8}
   input.skipBytes(sizeof(T))
 
+# https://protobuf.dev/programming-guides/encoding/#length-types
+# https://protobuf.dev/programming-guides/proto-limits/#total
 proc readLength*(input: InputStream): int {.raises: [SerializationError, IOError].} =
-  let lenu32 = input.readValue(puint32)
-  if uint64(lenu32) > uint64(int.high()):
+  let val = input.readVarint(uint32)
+  if val > uint32(int32.high()):
     raise (ref ProtobufValueError)(msg: "Invalid length")
-  int(lenu32)
+  int(val)
 
 proc readValue*[T: SomeLengthDelim](input: InputStream, _: type T): T {.raises: [SerializationError, IOError].} =
   let len = input.readLength()
@@ -255,7 +260,7 @@ proc readValue*[T: SomeLengthDelim](input: InputStream, _: type T): T {.raises: 
     type Base = typetraits.distinctBase(T)
     let inputLen = input.len()
     if inputLen.isSome() and len > inputLen.get():
-        raise (ref ProtobufValueError)(msg: "Missing bytes: " & $len)
+      raise (ref ProtobufValueError)(msg: "Missing bytes: " & $len)
 
     Base(result).setLen(len)
     template bytes(): openArray[byte] =

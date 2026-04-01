@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+message Bytes {
+  bytes x = 1;
+}
+
+message Varint {
+  int64 x = 1;
+}
