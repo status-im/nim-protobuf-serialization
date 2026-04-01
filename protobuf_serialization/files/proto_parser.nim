@@ -1,4 +1,4 @@
-import npeg, strutils, sequtils, macros, os, options, sets
+import npeg, strutils, sequtils, macros, os, sets
 import decldef
 
 type
@@ -11,8 +11,8 @@ type
     index: int
     filePos: int
 
-proc `$`(t: Token): string =
-  $t.typ & ": " & t.text
+#proc `$`(t: Token): string =
+#  $t.typ & ": " & t.text
 
 proc `==`(t: Token, s: string): bool =
   result = t.typ == Ident and t.text == s
