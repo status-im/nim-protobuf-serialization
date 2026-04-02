@@ -65,6 +65,7 @@ type
     fixed32 | sfixed32 | pfloat
 
   # Mappings of proto type to wire type
+  # https://protobuf.dev/programming-guides/encoding/#cheat-sheet
   SomeVarint* =
     pint32 | pint64 | puint32 | puint64 | sint32 | sint64 | pbool | penum
   SomeFixed64* = fixed64 | sfixed64 | pdouble
@@ -246,6 +247,7 @@ proc skipValue*[T: SomeFixed32 | SomeFixed64](input: InputStream, _: type T) {.r
   static: doAssert sizeof(T) in {4, 8}
   input.skipBytes(sizeof(T))
 
+# https://protobuf.dev/programming-guides/encoding/#cheat-sheet
 # https://protobuf.dev/programming-guides/encoding/#length-types
 # https://protobuf.dev/programming-guides/proto-limits/#total
 proc readLength*(input: InputStream): int {.raises: [SerializationError, IOError].} =

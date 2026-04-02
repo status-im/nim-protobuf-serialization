@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+message PIntType {
+  int32 x = 1;
+}
+
+message UIntType {
+  uint32 x = 1;
+}
+
+message SIntType {
+  sint32 x = 1;
+}
+
+message BoolType {
+  bool x = 1;
+}
