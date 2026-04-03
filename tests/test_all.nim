@@ -22,6 +22,6 @@ import
   test_repeated,
   test_protobuf2_semantics,
   test_thirty_three_fields,
-  test_truncation.nim,
+  test_truncation,
   test_wire_type_mismatch,
   files/test_proto3
