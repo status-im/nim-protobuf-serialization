@@ -18,20 +18,13 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
 macro unsupported(T: typed): untyped =
   error "Assignment of the type " & humaneTypeName(T) & " is not supported"
 
-template requireKind(header: FieldHeader, expected: WireKind) =
-  mixin number
-  if header.kind() != expected:
-    raise (ref ProtobufValueError)(
-      msg: "Unexpected data kind " & $(header.number()) & ": " & $header.kind()  &
-      ", exprected " & $expected)
-
 proc readFieldInto[T: object and not Table](
   stream: InputStream,
   value: var T,
   header: FieldHeader,
   ProtoType: type
 ) {.raises: [SerializationError, IOError].} =
-  header.requireKind(WireKind.LengthDelim)
+  doAssert header.kind() == WireKind.LengthDelim
 
   let len = stream.readLength()
   if len > 0:
@@ -59,7 +52,7 @@ when defined(ConformanceTest):
     # TODO: This function doesn't work for proto2 edge cases. Make it work
     when 0 notin T and T.isProto3():
       {.fatal: $T & " definition must contain a constant that maps to zero".}
-    header.requireKind(WireKind.Varint)
+    doAssert header.kind() == WireKind.Varint
     let enumValue = stream.readValue(ProtoType)
     if not checkedEnumAssign(value, enumValue.int32):
       discard checkedEnumAssign(value, 0)
@@ -81,17 +74,14 @@ proc readFieldInto[T: not object and not enum and (seq[byte] or not seq)](
   header: FieldHeader,
   ProtoType: type
 ) {.raises: [SerializationError, IOError].} =
+  doAssert header.kind() == wireKind(ProtoType)
   when ProtoType is SomeVarint:
-    header.requireKind(WireKind.Varint)
     assign(value, T(stream.readValue(ProtoType)))
   elif ProtoType is SomeFixed64:
-    header.requireKind(WireKind.Fixed64)
     assign(value, T(stream.readValue(ProtoType)))
   elif ProtoType is SomeLengthDelim:
-    header.requireKind(WireKind.LengthDelim)
     assign(value, T(stream.readValue(ProtoType)))
   elif ProtoType is SomeFixed32:
-    header.requireKind(WireKind.Fixed32)
     assign(value, T(stream.readValue(ProtoType)))
   else:
     static: unsupported(ProtoType)
@@ -164,23 +154,27 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
         fieldNum = T.fieldNumberOf(fieldName)
 
       if header.number() == fieldNum:
-        knownField = true
-        when isProto2:
-          if not silent: requiredSets.excl i
-
         protoType(ProtoType, T, typeof(fieldVar), fieldName)
-
         # TODO should we allow reading packed fields into non-repeated fields?
         when ProtoType is SomePrimitive and fieldVar is seq and fieldVar isnot seq[byte]:
           if header.kind() == WireKind.LengthDelim:
+            knownField = true
             stream.readFieldPackedInto(fieldVar, header, ProtoType)
-          else:
+          elif header.kind() == wireKind(ProtoType):
+            knownField = true
             stream.readFieldInto(fieldVar, header, ProtoType)
         elif typeof(fieldVar) is ref and defined(ConformanceTest):
-          fieldVar = new typeof(fieldVar)
-          stream.readFieldInto(fieldVar[], header, ProtoType)
+          if header.kind() == wireKind(ProtoType):
+            knownField = true
+            fieldVar = new typeof(fieldVar)
+            stream.readFieldInto(fieldVar[], header, ProtoType)
         else:
-          stream.readFieldInto(fieldVar, header, ProtoType)
+          if header.kind() == wireKind(ProtoType):
+            knownField = true
+            stream.readFieldInto(fieldVar, header, ProtoType)
+
+        when isProto2:
+          if not silent and knownField: requiredSets.excl i
 
     if not knownField:
       case header.kind():

@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+message Bytes {
+  bytes x = 1;
+}
+
+message Varint {
+  int64 x = 1;
+}
+
+message Fixed32Obj {
+  fixed32 x = 1;
+}
+
+message Fixed64Obj {
+  fixed64 x = 1;
+}
