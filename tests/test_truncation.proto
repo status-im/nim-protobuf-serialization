@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+message BoolObj {
+  bool x = 1;
+}
+
+message PInt32Obj {
+  int32 x = 1;
+}
+
+message PUInt32Obj {
+  uint32 x = 1;
+}
+
+message PInt64Obj {
+  int64 x = 1;
+}
+
+message PUInt64Obj {
+  uint64 x = 1;
+}
+
+message SInt32Obj {
+  sint32 x = 1;
+}
+
+message SInt64Obj {
+  sint64 x = 1;
+}
+
+message FixedInt32Obj {
+  sfixed32 x = 1;
+}
+
+message FixedInt64Obj {
+  sfixed64 x = 1;
+}
+
+message FixedUInt32Obj {
+  fixed32 x = 1;
+}
+
+message FixedUInt64Obj {
+  fixed64 x = 1;
+}

@@ -1,6 +1,15 @@
+# nim-protobuf-serialization
+# Copyright (c) 2026 Status Research & Development GmbH
+# Licensed under either of
+#  * Apache License, version 2.0, ([LICENSE-APACHE](LICENSE-APACHE))
+#  * MIT license ([LICENSE-MIT](LICENSE-MIT))
+# at your option.
+# This file may not be copied, modified, or distributed except according to
+# those terms.
+
 import unittest2
 
-import ../protobuf_serialization
+import ./utils, ../protobuf_serialization
 
 type
   PIntType {.proto3.} = object
@@ -15,28 +24,33 @@ type
   BoolType {.proto3.} = object
     x {.fieldNumber: 1.}: bool
 
-proc writeRead[W, R](toWrite: W, value: R) =
-  let encoded = Protobuf.encode(toWrite)
-  check:
-    encoded.len == Protobuf.computeSize(toWrite)
-    Protobuf.decode(encoded, R) == value
-
 suite "Test Boolean Encoding/Decoding":
   test "Can encode/decode boolean without subtype specification":
-    writeRead(BoolType(x: true), BoolType(x: true))
-    writeRead(BoolType(x: false), BoolType(x: false))
+    # echo "0801" | xxd -r -p | protoc --decode=BoolType test_bool.proto
+    # x: true
+    # echo "x: true" | protoc --encode=BoolType test_bool.proto | hexdump -ve '1/1 "%.2x"'
+    # 0801
+    roundtrip(BoolType(x: true), BoolType(x: true), "0801")
+    roundtrip(BoolType(x: false), BoolType(x: false), "")
 
   #Skipping subtype specification only works when every encoding has the same truthiness.
   #That's what this tests. It should be noted 1 encodes as 1/1/2 for the following.
   test "Can encode/decode boolean as signed VarInt":
-    writeRead(PIntType(x: 1), BoolType(x: true))
-    writeRead(PIntType(x: 0), BoolType(x: false))
+    # echo "x: 1" | protoc --encode=PIntType test_bool.proto | hexdump -ve '1/1 "%.2x"'
+    # 0801
+    roundtrip(PIntType(x: 1), BoolType(x: true), "0801")
+    roundtrip(PIntType(x: 0), BoolType(x: false), "")
 
   test "Can encode/decode boolean as unsigned VarInt":
-    writeRead(UIntType(x: 1), BoolType(x: true))
-    writeRead(UIntType(x: 0), BoolType(x: false))
+    # echo "x: 1" | protoc --encode=UIntType test_bool.proto | hexdump -ve '1/1 "%.2x"'
+    # 0801
+    roundtrip(UIntType(x: 1), BoolType(x: true), "0801")
+    roundtrip(UIntType(x: 0), BoolType(x: false), "")
 
   test "Can encode/decode boolean as zig-zagged VarInt":
-    # TODO 1 encodes as 2 in zig-zah - should we truncate? see `readVarint`
-    writeRead(SIntType(x: 1), BoolType(x: true))
-    writeRead(SIntType(x: 0), BoolType(x: false))
+    # echo "x: 1" | protoc --encode=SIntType test_bool.proto | hexdump -ve '1/1 "%.2x"'
+    # 0802
+    # echo "0802" | xxd -r -p | protoc --decode=BoolType test_bool.proto
+    # x: true
+    roundtrip(SIntType(x: 1), BoolType(x: true), "0802")
+    roundtrip(SIntType(x: 0), BoolType(x: false), "")

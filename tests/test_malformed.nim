@@ -1,3 +1,12 @@
+# nim-protobuf-serialization
+# Copyright (c) 2026 Status Research & Development GmbH
+# Licensed under either of
+#  * Apache License, version 2.0, ([LICENSE-APACHE](LICENSE-APACHE))
+#  * MIT license ([LICENSE-MIT](LICENSE-MIT))
+# at your option.
+# This file may not be copied, modified, or distributed except according to
+# those terms.
+
 import unittest2
 import stew/byteutils
 import ../protobuf_serialization
@@ -8,6 +17,21 @@ type
 
   Varint {.proto3.} = object
     x {.fieldNumber: 1, pint.}: int64
+
+  StringObj {.proto3.} = object
+    x {.fieldNumber: 1.}: string
+
+  PInt32Obj {.proto3.} = object
+    x {.fieldNumber: 1, pint.}: int32
+
+  PInt64Obj {.proto3.} = object
+    x {.fieldNumber: 1, pint.}: int64
+
+  FixedInt32Obj {.proto3.} = object
+    x {.fieldNumber: 1, fixed.}: int32
+
+  FixedInt64Obj {.proto3.} = object
+    x {.fieldNumber: 1, fixed.}: int64
 
 suite "Test well formed messages":
   test "Bytes len 0":
@@ -38,6 +62,12 @@ suite "Test malformed messages":
     # Failed to parse input.
     # this must be rejected, not truncated; truncated == 0 (valid)
     let encoded = "0A8080808010".hexToSeqByte
+    expect(ProtobufValueError):
+      discard ProtoBuf.decode(encoded, Bytes)
+
+  test "Max uint32 + 2 length":
+    # this must be rejected, not truncated; truncated == 1 (valid)
+    let encoded = "0A818080801061".hexToSeqByte
     expect(ProtobufValueError):
       discard ProtoBuf.decode(encoded, Bytes)
 
@@ -114,3 +144,46 @@ suite "Test malformed messages":
     let encoded = "08FFFFFFFFFFFFFFFFFFFF01".hexToSeqByte
     expect(ProtobufValueError):
       discard ProtoBuf.decode(encoded, Varint)
+
+  test "Malformed unicode string":
+    # echo 'x: "\xE2\x28\xA1"' | protoc --encode=StringObj test_malformed.proto | hexdump -ve '1/1 "%.2x"'
+    # echo "0a03e228a1" | xxd -r -p | protoc --decode=StringObj test_malformed.proto
+    let encoded = "0a03e228a1".hexToSeqByte
+    expect(ProtobufValueError):
+      discard Protobuf.decode(encoded, StringObj)
+
+  test "Truncated length varint":
+    # echo "0A81" | xxd -r -p | protoc --decode=StringObj test_malformed.proto
+    let encoded = "0A81".hexToSeqByte
+    expect(ProtobufValueError):
+      discard Protobuf.decode(encoded, StringObj)
+
+  test "Length greater than available data":
+    # echo "0A056162" | xxd -r -p | protoc --decode=StringObj test_malformed.proto
+    let encoded = "0A056162".hexToSeqByte
+    expect(ProtobufValueError):
+      discard Protobuf.decode(encoded, StringObj)
+
+  test "Truncated varint":
+    # echo "0881" | xxd -r -p | protoc --decode=PInt32Obj test_malformed.proto
+    let encoded = "0881".hexToSeqByte
+    expect(ProtobufValueError):
+      discard Protobuf.decode(encoded, PInt32Obj)
+
+  test "Varint overflow (11 bytes)":
+    # echo "08FFFFFFFFFFFFFFFFFFFF01" | xxd -r -p | protoc --decode=PInt64Obj test_malformed.proto
+    let encoded = "08FFFFFFFFFFFFFFFFFFFF01".hexToSeqByte
+    expect(ProtobufValueError):
+      discard Protobuf.decode(encoded, PInt64Obj)
+
+  test "Truncated fixed32 field (3 bytes instead of 4)":
+    # echo "0D010000" | xxd -r -p | protoc --decode=FixedInt32Obj test_malformed.proto
+    let encoded = "0D010000".hexToSeqByte
+    expect(ProtobufValueError):
+      discard Protobuf.decode(encoded, FixedInt32Obj)
+
+  test "Truncated fixed64 field (7 bytes instead of 8)":
+    # echo "0901000000000000" | xxd -r -p | protoc --decode=FixedInt64Obj test_malformed.proto
+    let encoded = "0901000000000000".hexToSeqByte
+    expect(ProtobufValueError):
+      discard Protobuf.decode(encoded, FixedInt64Obj)
