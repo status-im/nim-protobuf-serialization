@@ -31,7 +31,7 @@ suite "Test Boolean Encoding/Decoding":
     # echo "x: true" | protoc --encode=BoolType test_bool.proto | hexdump -ve '1/1 "%.2x"'
     # 0801
     roundtrip(BoolType(x: true), BoolType(x: true), "0801")
-    roundtrip(BoolType(x: false), BoolType(x: false), default(seq[byte]))
+    roundtrip(BoolType(x: false), BoolType(x: false), "")
 
   #Skipping subtype specification only works when every encoding has the same truthiness.
   #That's what this tests. It should be noted 1 encodes as 1/1/2 for the following.
@@ -39,13 +39,13 @@ suite "Test Boolean Encoding/Decoding":
     # echo "x: 1" | protoc --encode=PIntType test_bool.proto | hexdump -ve '1/1 "%.2x"'
     # 0801
     roundtrip(PIntType(x: 1), BoolType(x: true), "0801")
-    roundtrip(PIntType(x: 0), BoolType(x: false), default(seq[byte]))
+    roundtrip(PIntType(x: 0), BoolType(x: false), "")
 
   test "Can encode/decode boolean as unsigned VarInt":
     # echo "x: 1" | protoc --encode=UIntType test_bool.proto | hexdump -ve '1/1 "%.2x"'
     # 0801
     roundtrip(UIntType(x: 1), BoolType(x: true), "0801")
-    roundtrip(UIntType(x: 0), BoolType(x: false), default(seq[byte]))
+    roundtrip(UIntType(x: 0), BoolType(x: false), "")
 
   test "Can encode/decode boolean as zig-zagged VarInt":
     # echo "x: 1" | protoc --encode=SIntType test_bool.proto | hexdump -ve '1/1 "%.2x"'
@@ -53,4 +53,4 @@ suite "Test Boolean Encoding/Decoding":
     # echo "0802" | xxd -r -p | protoc --decode=BoolType test_bool.proto
     # x: true
     roundtrip(SIntType(x: 1), BoolType(x: true), "0802")
-    roundtrip(SIntType(x: 0), BoolType(x: false), default(seq[byte]))
+    roundtrip(SIntType(x: 0), BoolType(x: false), "")
