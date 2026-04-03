@@ -11,18 +11,18 @@ suite "Test wire type mismatches":
     # echo "0801" | xxd -r -p | protoc --decode=Bytes test_wire_type_mismatch.proto
     # 1: 1
     let encoded = "0801".hexToSeqByte
-    check ProtoBuf.decode(encoded, Bytes) == Bytes()
+    check Protobuf.decode(encoded, Bytes) == Bytes()
 
   test "Varint instead of length variant 1":
     # echo "08010a0161" | xxd -r -p | protoc --decode=Bytes test_wire_type_mismatch.proto
     # x: "a"
     # 1: 1
     let encoded = "08010a0161".hexToSeqByte
-    check ProtoBuf.decode(encoded, Bytes) == Bytes(x: @['a'.byte])
+    check Protobuf.decode(encoded, Bytes) == Bytes(x: @['a'.byte])
 
   test "Varint instead of length variant 2":
     # echo "0a01610801" | xxd -r -p | protoc --decode=Bytes test_wire_type_mismatch.proto
     # x: "a"
     # 1: 1
     let encoded = "0a01610801".hexToSeqByte
-    check ProtoBuf.decode(encoded, Bytes) == Bytes(x: @['a'.byte])
+    check Protobuf.decode(encoded, Bytes) == Bytes(x: @['a'.byte])
