@@ -8,7 +8,6 @@
 # those terms.
 
 import unittest2
-import stew/byteutils
 
 import ./utils, ../protobuf_serialization
 
@@ -31,7 +30,7 @@ suite "Test Boolean Encoding/Decoding":
     # x: true
     # echo "x: true" | protoc --encode=BoolType test_bool.proto | hexdump -ve '1/1 "%.2x"'
     # 0801
-    roundtrip(BoolType(x: true), BoolType(x: true), hexToSeqByte("0801"))
+    roundtrip(BoolType(x: true), BoolType(x: true), "0801")
     roundtrip(BoolType(x: false), BoolType(x: false), default(seq[byte]))
 
   #Skipping subtype specification only works when every encoding has the same truthiness.
@@ -39,13 +38,13 @@ suite "Test Boolean Encoding/Decoding":
   test "Can encode/decode boolean as signed VarInt":
     # echo "x: 1" | protoc --encode=PIntType test_bool.proto | hexdump -ve '1/1 "%.2x"'
     # 0801
-    roundtrip(PIntType(x: 1), BoolType(x: true), hexToSeqByte("0801"))
+    roundtrip(PIntType(x: 1), BoolType(x: true), "0801")
     roundtrip(PIntType(x: 0), BoolType(x: false), default(seq[byte]))
 
   test "Can encode/decode boolean as unsigned VarInt":
     # echo "x: 1" | protoc --encode=UIntType test_bool.proto | hexdump -ve '1/1 "%.2x"'
     # 0801
-    roundtrip(UIntType(x: 1), BoolType(x: true), hexToSeqByte("0801"))
+    roundtrip(UIntType(x: 1), BoolType(x: true), "0801")
     roundtrip(UIntType(x: 0), BoolType(x: false), default(seq[byte]))
 
   test "Can encode/decode boolean as zig-zagged VarInt":
@@ -53,5 +52,5 @@ suite "Test Boolean Encoding/Decoding":
     # 0802
     # echo "0802" | xxd -r -p | protoc --decode=BoolType test_bool.proto
     # x: true
-    roundtrip(SIntType(x: 1), BoolType(x: true), hexToSeqByte("0802"))
+    roundtrip(SIntType(x: 1), BoolType(x: true), "0802")
     roundtrip(SIntType(x: 0), BoolType(x: false), default(seq[byte]))

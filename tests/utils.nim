@@ -8,19 +8,19 @@
 # those terms.
 
 import unittest2
-
+import stew/byteutils
 import ../protobuf_serialization
 
-proc roundtrip*[W, R](toWrite: W, value: R, expected: seq[byte]) =
+proc roundtrip*[W, R](toWrite: W, value: R, expected: string) =
   let encoded = Protobuf.encode(toWrite)
   check:
     encoded.len == Protobuf.computeSize(toWrite)
-    encoded == expected
+    encoded == hexToSeqByte expected
     Protobuf.decode(encoded, R) == value
 
-proc roundtrip*[R](value: R, expected: seq[byte]) =
+proc roundtrip*[R](value: R, expected: string) =
   let encoded = Protobuf.encode(value)
   check:
     encoded.len == Protobuf.computeSize(value)
-    encoded == expected
+    encoded == hexToSeqByte expected
     Protobuf.decode(encoded, R) == value
