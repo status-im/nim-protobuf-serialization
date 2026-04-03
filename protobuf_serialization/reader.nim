@@ -164,23 +164,27 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
         fieldNum = T.fieldNumberOf(fieldName)
 
       if header.number() == fieldNum:
-        knownField = true
-        when isProto2:
-          if not silent: requiredSets.excl i
-
         protoType(ProtoType, T, typeof(fieldVar), fieldName)
-
         # TODO should we allow reading packed fields into non-repeated fields?
         when ProtoType is SomePrimitive and fieldVar is seq and fieldVar isnot seq[byte]:
           if header.kind() == WireKind.LengthDelim:
+            knownField = true
             stream.readFieldPackedInto(fieldVar, header, ProtoType)
-          else:
+          elif header.kind() == wireKind(ProtoType):
+            knownField = true
             stream.readFieldInto(fieldVar, header, ProtoType)
         elif typeof(fieldVar) is ref and defined(ConformanceTest):
-          fieldVar = new typeof(fieldVar)
-          stream.readFieldInto(fieldVar[], header, ProtoType)
+          if header.kind() == wireKind(ProtoType):
+            knownField = true
+            fieldVar = new typeof(fieldVar)
+            stream.readFieldInto(fieldVar[], header, ProtoType)
         else:
-          stream.readFieldInto(fieldVar, header, ProtoType)
+          if header.kind() == wireKind(ProtoType):
+            knownField = true
+            stream.readFieldInto(fieldVar, header, ProtoType)
+
+        when isProto2:
+          if not silent and knownField: requiredSets.excl i
 
     if not knownField:
       case header.kind():
