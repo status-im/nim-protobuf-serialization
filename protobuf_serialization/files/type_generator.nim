@@ -78,20 +78,28 @@ proc getMessage(name: string, messages: seq[ProtoNode]): ProtoNode =
       return res
   return nil
 
-proc isNested(base: string, currentName: string, messages: seq[ProtoNode]): bool =
+proc isNested(base: string, currentName: string, messages: seq[ProtoNode], seen: var seq[ProtoNode]): bool =
   let msg = currentName.getMessage(messages)
   if msg.isNil():
     return false
+  if msg in seen:
+    return false
+  seen.add msg
   for field in msg.fields:
     if field.kind == ProtoType.Field:
       if field.presence == Repeated: continue
-      if base == field.protoType or base.isNested(field.protoType, messages):
+      if base == field.protoType or base.isNested(field.protoType, messages, seen):
         return true
     elif field.kind == ProtoType.Oneof:
       for f in field.oneof:
         if f.presence == Repeated: continue
-        if base == f.protoType or base.isNested(f.protoType, messages):
+        if base == f.protoType or base.isNested(f.protoType, messages, seen):
           return true
+
+proc isNested(base: string, currentName: string, messages: seq[ProtoNode]): bool =
+  # XXX use a set
+  var seen = default(seq[ProtoNode])
+  isNested(base, currentName, messages, seen)
 
 # Exported for the tests.
 proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compileTime.} =
@@ -102,6 +110,21 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
   for parsed in packages:
     for msg in parsed.messages:
       queue.add(msg)
+      if msg.kind != ProtoType.Extend:
+        for field in msg.fields:
+          if field.kind == ProtoType.Oneof:
+            # XXX this should be supported
+            continue
+          if field.protoType.startsWith("map<"):
+            let matches = field.protoType.split({'<', '>', ','})
+            let entryFields = @[
+              ProtoNode(kind: Field, number: 1, protoType: matches[1], name: "key"),
+              ProtoNode(kind: Field, number: 2, protoType: matches[2], name: "value")
+            ]
+            queue.add ProtoNode(
+              kind: Message,
+              messageName: field.name & "Entry",
+              fields: entryFields)
       # TODO: define Enums first to workaround https://github.com/nim-lang/Nim/issues/25651
       if msg.kind != ProtoType.Extend:
         if (msg.definedEnums.len != 0) or (msg.nested.len != 0):
@@ -176,10 +199,9 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
               break
 
           if value[2][^1][1].strVal.startsWith("map<"):
-            var matches = value[2][^1][1].strVal.split({'<', '>', ','})
-            let (typ1, _) = getTypeAndPragma(matches[1])
-            let (typ2, _) = getTypeAndPragma(matches[2])
-            value[2][^1][1] = nnkBracketExpr.newTree(newIdentNode("Table"), typ1, typ2)
+            value[2][^1][1] = newNimNode(nnkBracketExpr).add(
+              ident("seq"), ident(field.name & "Entry")
+            )
           else:
             let (typ, pragma) = getTypeAndPragma(value[2][^1][1].strVal)
             value[2][^1][1] = typ
