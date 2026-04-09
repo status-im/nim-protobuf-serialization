@@ -13,7 +13,7 @@ import ../protobuf_serialization
 
 type
   OneOfKind {.pure.} = enum
-    undefined
+    unset
     x
     y
   OneOf {.proto3.} = object
@@ -24,8 +24,24 @@ type
     one {.oneof, dontSerialize.}: OneOf
 
 suite "Test oneof":
+  test "oneof unset":
+    let encoded = "".hexToSeqByte
+    check Protobuf.decode(encoded, OneOfObj) == OneOfObj(one: OneOf(kind: OneOfKind.unset))
+
   test "oneof field 1 set":
     # echo 'x: 1' | protoc --encode=OneOfObj test_oneof.proto | hexdump -ve '1/1 "%.2x"'
     # 0801
     let encoded = "0801".hexToSeqByte
+    check Protobuf.decode(encoded, OneOfObj) == OneOfObj(one: OneOf(kind: OneOfKind.x, x: 1))
+
+  test "oneof field 2 set":
+    let encoded = "1001".hexToSeqByte
+    check Protobuf.decode(encoded, OneOfObj) == OneOfObj(one: OneOf(kind: OneOfKind.y, y: 1))
+
+  test "oneof field 1 and 2 set":
+    let encoded = "08011001".hexToSeqByte
+    check Protobuf.decode(encoded, OneOfObj) == OneOfObj(one: OneOf(kind: OneOfKind.y, y: 1))
+
+  test "oneof field 1 and 2 set variant":
+    let encoded = "10010801".hexToSeqByte
     check Protobuf.decode(encoded, OneOfObj) == OneOfObj(one: OneOf(kind: OneOfKind.x, x: 1))

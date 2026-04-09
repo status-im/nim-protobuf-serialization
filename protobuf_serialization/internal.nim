@@ -61,12 +61,16 @@ proc isOneof*(T: type, fieldName: static string): bool {.compileTime.} =
   T.hasCustomPragmaFixed(fieldName, oneof)
 
 template setOneof*(obj: object, name: string): untyped =
+  type T = typeof(obj)
   for fieldNameX, fieldVarX in fieldPairs(obj):
     when fieldNameX == "kind":
       try:
         fieldVarX = parseEnum[typeof(fieldVarX)](name)
       except ValueError:
         raiseAssert "unexpected oneof field " & name
+    # XXX skip dontSerialize
+    elif T.fieldNumberOf(name) != T.fieldNumberOf(fieldNameX):
+      fieldVarX = default(typeof(fieldVarX))
 
 template tableObject*(TableObject, K, V) =
   when K is SomePBInt and V is SomePBInt:
