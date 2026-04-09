@@ -152,19 +152,20 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
 
   while stream.readable():
     let header = stream.readHeader()
+    let headerNum = header.number()
     let pos = stream.pos()
     var i {.used.} = -1
     var knownField = false
 
-    if not header.number().validFieldNumber(true):
-      raise newException(ProtobufReadError, "Invalid field number: " & $header.number())
+    if not headerNum.validFieldNumber(true):
+      raise newException(ProtobufReadError, "Invalid field number: " & $headerNum)
 
     enumInstanceSerializedFields(value, fieldName, fieldVar):
       inc i
       const
         fieldNum = T.fieldNumberOf(fieldName)
 
-      if header.number() == fieldNum:
+      if headerNum == fieldNum:
         protoType(ProtoType, T, typeof(fieldVar), fieldName)
         # TODO should we allow reading packed fields into non-repeated fields?
         knownField =
