@@ -11,6 +11,8 @@ import
   serialization,
   "."/[codec, internal, types]
 
+from std/strutils import parseEnum
+
 export inputs, serialization, codec, types
 
 proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false) {.raises: [SerializationError, IOError].}
@@ -142,18 +144,46 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
 
   while stream.readable():
     let header = stream.readHeader()
+    let headerNum = header.number()
     var i = -1
     var knownField = false
 
-    if not header.number().validFieldNumber(true):
-      raise newException(ProtobufReadError, "Invalid field number: " & $header.number())
+    if not headerNum.validFieldNumber(true):
+      raise newException(ProtobufReadError, "Invalid field number: " & $headerNum)
+
+    for fieldNameX, fieldVarX in fieldPairs(value):
+      when T.isOneof(fieldNameX):
+        type TT = typeof(fieldVarX)
+        enumInstanceSerializedFields(fieldVarX, fieldName, fieldVar):
+          const fieldNum = TT.fieldNumberOf(fieldName)
+          if headerNum == fieldNum:
+            protoType(ProtoType, TT, typeof(fieldVar), fieldName)
+            # TODO should we allow reading packed fields into non-repeated fields?
+            when ProtoType is SomePrimitive and fieldVar is seq and fieldVar isnot seq[byte]:
+              if header.kind() == WireKind.LengthDelim:
+                knownField = true
+                stream.readFieldPackedInto(fieldVar, header, ProtoType)
+              elif header.kind() == wireKind(ProtoType):
+                knownField = true
+                stream.readFieldInto(fieldVar, header, ProtoType)
+            elif typeof(fieldVar) is ref and defined(ConformanceTest):
+              if header.kind() == wireKind(ProtoType):
+                knownField = true
+                fieldVar = new typeof(fieldVar)
+                stream.readFieldInto(fieldVar[], header, ProtoType)
+            else:
+              if header.kind() == wireKind(ProtoType):
+                knownField = true
+                stream.readFieldInto(fieldVar, header, ProtoType)
+        if knownField:
+          setOneof(fieldVarX, headerNum)
 
     enumInstanceSerializedFields(value, fieldName, fieldVar):
       inc i
       const
         fieldNum = T.fieldNumberOf(fieldName)
 
-      if header.number() == fieldNum:
+      if headerNum == fieldNum:
         protoType(ProtoType, T, typeof(fieldVar), fieldName)
         # TODO should we allow reading packed fields into non-repeated fields?
         when ProtoType is SomePrimitive and fieldVar is seq and fieldVar isnot seq[byte]:

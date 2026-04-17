@@ -4,6 +4,7 @@
 
 import std/[options, sets, tables]
 import stew/shims/macros
+from std/strutils import parseEnum
 #Depending on the situation, one of these two are used.
 #Sometimes, one works where the other doesn't.
 #It all comes down to bugs in Nim and managing them.
@@ -55,6 +56,24 @@ proc fieldNumberOf*(T: type, fieldName: static string): int {.compileTime.} =
     fieldError T, fieldName, "Missing {.fieldNumber: N.}"
   else:
     fieldNum
+
+proc isOneof*(T: type, fieldName: static string): bool {.compileTime.} =
+  T.hasCustomPragmaFixed(fieldName, oneof)
+
+template setOneof*(obj: object, headerNum: int): untyped =
+  type T = typeof(obj)
+  for fieldName, fieldVar in fieldPairs(obj):
+    when fieldName == "kind":
+      enumInstanceSerializedFields(obj, fieldName2, fieldVar2):
+        if headerNum == T.fieldNumberOf(fieldName2):
+          try:
+            fieldVar = parseEnum[typeof(fieldVar)](fieldName2)
+          except ValueError:
+            raiseAssert "unexpected oneof field " & fieldName2
+    else:
+      # XXX skip dontSerialize
+      if headerNum != T.fieldNumberOf(fieldName):
+        fieldVar = default(typeof(fieldVar))
 
 template tableObject*(TableObject, K, V) =
   when K is SomePBInt and V is SomePBInt:
