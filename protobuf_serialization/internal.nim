@@ -60,17 +60,20 @@ proc fieldNumberOf*(T: type, fieldName: static string): int {.compileTime.} =
 proc isOneof*(T: type, fieldName: static string): bool {.compileTime.} =
   T.hasCustomPragmaFixed(fieldName, oneof)
 
-template setOneof*(obj: object, name: string): untyped =
+template setOneof*(obj: object, headerNum: int): untyped =
   type T = typeof(obj)
-  for fieldNameX, fieldVarX in fieldPairs(obj):
-    when fieldNameX == "kind":
-      try:
-        fieldVarX = parseEnum[typeof(fieldVarX)](name)
-      except ValueError:
-        raiseAssert "unexpected oneof field " & name
-    # XXX skip dontSerialize
-    elif T.fieldNumberOf(name) != T.fieldNumberOf(fieldNameX):
-      fieldVarX = default(typeof(fieldVarX))
+  for fieldName, fieldVar in fieldPairs(obj):
+    when fieldName == "kind":
+      enumInstanceSerializedFields(obj, fieldName2, fieldVar2):
+        if headerNum == T.fieldNumberOf(fieldName2):
+          try:
+            fieldVar = parseEnum[typeof(fieldVar)](fieldName2)
+          except ValueError:
+            raiseAssert "unexpected oneof field " & fieldName2
+    else:
+      # XXX skip dontSerialize
+      if headerNum != T.fieldNumberOf(fieldName):
+        fieldVar = default(typeof(fieldVar))
 
 template tableObject*(TableObject, K, V) =
   when K is SomePBInt and V is SomePBInt:
