@@ -79,15 +79,15 @@ func get*(opt: PBOption): auto =
   else:
     opt.defaultValue
 
-template get*[T](opt: PBOption, default: T): T =
-  if opt.some:
-    opt.value
-  else:
-    default
-
 template mget*(opt: var PBOption): untyped =
   opt.some = true
   opt.value
+
+template valueOr*(opt: PBOption, def: untyped): untyped =
+  if opt.some:
+    opt.value
+  else:
+    def
 
 func pbSome*[T: PBOption](optType: typedesc[T], value: auto): T {.inline.} =
   T(

@@ -137,27 +137,31 @@ suite "Test Encoding of Protobuf 2 Semantics":
       PBOption[""]() == pbNone("")
       PBOption[default(Required)]() == pbNone(default(Required))
 
-  test "PBOptional get with default":
+  test "PBOptional valueOr":
     check:
-      pbSome(1'i64).get(123'i64) == 1'i64
-      pbNone(0'i64).get(123'i64) == 123'i64
-      pbSome(1'i32).get(123'i32) == 1'i32
-      pbNone(0'i32).get(123'i32) == 123'i32
-      pbSome(1'u64).get(123'u64) == 1'u64
-      pbNone(0'u64).get(123'u64) == 123'u64
-      pbSome(1'u32).get(123'u32) == 1'u32
-      pbNone(0'u32).get(123'u32) == 123'u32
-      pbSome(1'f64).get(123'f64) == 1'f64
-      pbNone(0'f64).get(123'f64) == 123'f64
-      pbSome(1'f32).get(123'f32) == 1'f32
-      pbNone(0'f32).get(123'f32) == 123'f32
-      pbSome(true).get(false) == true
-      pbSome(false).get(true) == false
-      pbNone(false).get(true) == true
-      pbNone(true).get(false) == false
-      pbSome("abc").get("def") == "abc"
-      pbNone("").get("def") == "def"
-      pbSome(@[1'u8]).get(@[123'u8]) == @[1'u8]
-      pbNone(default(seq[byte])).get(@[123'u8]) == @[123'u8]
-      pbSome(Required(b: 1)).get(Required(b: 123)) == Required(b: 1)
-      pbNone(default(Required)).get(Required(b: 123)) == Required(b: 123)
+      pbNone(1'u32).valueOr(if true: 123 else: 456) == 123'u32
+      pbNone(1'i32).valueOr(123) == 123'i32
+      pbNone(1'u32).valueOr(123) == 123'u32
+      pbNone(1'i32).valueOr(123) == 123'i32
+      pbSome(1'i64).valueOr(123'i64) == 1'i64
+      pbNone(0'i64).valueOr(123'i64) == 123'i64
+      pbSome(1'i32).valueOr(123'i32) == 1'i32
+      pbNone(0'i32).valueOr(123'i32) == 123'i32
+      pbSome(1'u64).valueOr(123'u64) == 1'u64
+      pbNone(0'u64).valueOr(123'u64) == 123'u64
+      pbSome(1'u32).valueOr(123'u32) == 1'u32
+      pbNone(0'u32).valueOr(123'u32) == 123'u32
+      pbSome(1'f64).valueOr(123'f64) == 1'f64
+      pbNone(0'f64).valueOr(123'f64) == 123'f64
+      pbSome(1'f32).valueOr(123'f32) == 1'f32
+      pbNone(0'f32).valueOr(123'f32) == 123'f32
+      pbSome(true).valueOr(false) == true
+      pbSome(false).valueOr(true) == false
+      pbNone(false).valueOr(true) == true
+      pbNone(true).valueOr(false) == false
+      pbSome("abc").valueOr("def") == "abc"
+      pbNone("").valueOr("def") == "def"
+      pbSome(@[1'u8]).valueOr(@[123'u8]) == @[1'u8]
+      pbNone(default(seq[byte])).valueOr(@[123'u8]) == @[123'u8]
+      pbSome(Required(b: 1)).valueOr(Required(b: 123)) == Required(b: 1)
+      pbNone(default(Required)).valueOr(Required(b: 123)) == Required(b: 123)
