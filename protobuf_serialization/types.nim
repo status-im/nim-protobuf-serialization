@@ -79,6 +79,12 @@ func get*(opt: PBOption): auto =
   else:
     opt.defaultValue
 
+func get*[T](opt: PBOption, default: T): T =
+  if opt.some:
+    opt.value
+  else:
+    default
+
 template mget*(opt: var PBOption): untyped =
   opt.some = true
   opt.value
