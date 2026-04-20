@@ -79,7 +79,7 @@ func get*(opt: PBOption): auto =
   else:
     opt.defaultValue
 
-func get*[T](opt: PBOption, default: T): T =
+template get*[T](opt: PBOption, default: T): T =
   if opt.some:
     opt.value
   else:
