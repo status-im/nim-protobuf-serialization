@@ -1,7 +1,7 @@
 {.push raises: [], gcsafe.}
 
 import
-  std/[typetraits, tables],
+  std/[typetraits],
   stew/shims/macros,
   serialization,
   "."/[codec, internal, types]
@@ -60,14 +60,6 @@ when defined(ConformanceTest):
     when 0 notin T:
       {.fatal: $T & " definition must contain a constant that maps to zero".}
     stream.writeField(fieldNum, pint32(fieldVal.ord()))
-
-  proc computeFieldSize*[K, V](
-      fieldNum: int, fieldVal: Table[K, V], ProtoType: type pbytes,
-      skipDefault: static bool): int =
-    tableObject(TableObject, K, V)
-    for k, v in fieldVal.pairs():
-      let tmp = TableObject(key: k, value: v)
-      result += computeFieldSize(fieldNum, tmp, ProtoType, false)
 
 proc computeSizePacked*[T: not byte, ProtoType: SomePrimitive](
     values: openArray[T], _: type ProtoType): int =
