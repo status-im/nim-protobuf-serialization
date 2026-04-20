@@ -3,7 +3,7 @@
 {.push raises: [], gcsafe.}
 
 import
-  std/[typetraits, tables],
+  std/[typetraits],
   stew/shims/macros,
   stew/objects,
   faststreams/outputs,
@@ -20,7 +20,7 @@ proc writeField*(
   # TODO turn this into an extension point
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
-proc writeField*[T: object and not PBOption and not Table](
+proc writeField*[T: object and not PBOption](
     stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type pbytes,
     skipDefault: static bool = false) {.raises: [IOError].} =
   let
@@ -83,18 +83,6 @@ when defined(ConformanceTest):
       if fieldVal.ord() == 0:
         return
     stream.writeField(fieldNum, pint32(fieldVal.ord()))
-
-  proc writeField[K, V](
-    stream: OutputStream,
-    fieldNum: int,
-    value: Table[K, V],
-    ProtoType: type,
-    skipDefault: static bool = false
-  ) {.raises: [IOError].} =
-    tableObject(TableObject, K, V)
-    for k, v in value.pairs():
-      let tmp = TableObject(key: k, value: v)
-      stream.writeField(fieldNum, tmp, ProtoType)
 
 proc writeField*(
     stream: OutputStream, fieldNum: int, fieldVal: PBOption, ProtoType: type,

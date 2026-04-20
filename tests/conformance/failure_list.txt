@@ -1,81 +1,41 @@
-Required.Proto2.ProtobufInput.PrematureEofInSubmessageValue.MESSAGE
-Required.Proto2.ProtobufInput.RepeatedScalarMessageMerge.ProtobufOutput
-Required.Proto2.ProtobufInput.UnknownOrdering.ProtobufOutput
-Required.Proto2.ProtobufInput.UnknownVarint.ProtobufOutput
-Required.Proto2.ProtobufInput.UnmatchedEndGroupNestedLen
-Required.Proto2.ProtobufInput.UnmatchedStartGroupNestedLen
-Required.Proto2.ProtobufInput.ValidDataMap.FIXED32.FIXED32.DuplicateKey.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.FIXED32.FIXED32.DuplicateKeyInMapEntry.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.FIXED32.FIXED32.DuplicateValueInMapEntry.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.FIXED32.FIXED32.NonDefault.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.FIXED32.FIXED32.Unordered.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.FIXED64.FIXED64.DuplicateKey.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.FIXED64.FIXED64.DuplicateKeyInMapEntry.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.FIXED64.FIXED64.DuplicateValueInMapEntry.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.FIXED64.FIXED64.NonDefault.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.FIXED64.FIXED64.Unordered.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.SFIXED32.SFIXED32.DuplicateKey.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.SFIXED32.SFIXED32.DuplicateKeyInMapEntry.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.SFIXED32.SFIXED32.DuplicateValueInMapEntry.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.SFIXED32.SFIXED32.NonDefault.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.SFIXED32.SFIXED32.Unordered.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.SFIXED64.SFIXED64.DuplicateKey.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.SFIXED64.SFIXED64.DuplicateKeyInMapEntry.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.SFIXED64.SFIXED64.DuplicateValueInMapEntry.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.SFIXED64.SFIXED64.NonDefault.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.SFIXED64.SFIXED64.Unordered.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.STRING.MESSAGE.Default.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.STRING.MESSAGE.DuplicateKey.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.STRING.MESSAGE.DuplicateKeyInMapEntry.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.STRING.MESSAGE.DuplicateValueInMapEntry.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.STRING.MESSAGE.MergeValue.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.STRING.MESSAGE.MissingDefault.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.STRING.MESSAGE.NonDefault.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataMap.STRING.MESSAGE.Unordered.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataOneof.BOOL.MultipleValuesForDifferentField.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataOneof.BYTES.MultipleValuesForDifferentField.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataOneof.DOUBLE.MultipleValuesForDifferentField.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataOneof.ENUM.MultipleValuesForDifferentField.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataOneof.FLOAT.MultipleValuesForDifferentField.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataOneof.MESSAGE.DefaultValue.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataOneof.MESSAGE.Merge.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataOneof.MESSAGE.MultipleValuesForDifferentField.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataOneof.MESSAGE.MultipleValuesForSameField.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataOneof.MESSAGE.NonDefaultValue.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataOneof.STRING.MultipleValuesForDifferentField.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataOneof.UINT64.MultipleValuesForDifferentField.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataRepeated.MESSAGE.ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataScalar.MESSAGE[0].ProtobufOutput
-Required.Proto2.ProtobufInput.ValidDataScalar.MESSAGE[1].ProtobufOutput
-Required.Proto3.ProtobufInput.RepeatedScalarMessageMerge.ProtobufOutput
-Required.Proto3.ProtobufInput.UnknownOrdering.ProtobufOutput
-Required.Proto3.ProtobufInput.UnknownVarint.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.FIXED32.FIXED32.DuplicateKey.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.FIXED32.FIXED32.DuplicateKeyInMapEntry.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.FIXED32.FIXED32.DuplicateValueInMapEntry.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.FIXED32.FIXED32.NonDefault.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.FIXED32.FIXED32.Unordered.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.FIXED64.FIXED64.DuplicateKey.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.FIXED64.FIXED64.DuplicateKeyInMapEntry.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.FIXED64.FIXED64.DuplicateValueInMapEntry.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.FIXED64.FIXED64.NonDefault.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.FIXED64.FIXED64.Unordered.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.SFIXED32.SFIXED32.DuplicateKey.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.SFIXED32.SFIXED32.DuplicateKeyInMapEntry.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.SFIXED32.SFIXED32.DuplicateValueInMapEntry.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.SFIXED32.SFIXED32.NonDefault.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.SFIXED32.SFIXED32.Unordered.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.SFIXED64.SFIXED64.DuplicateKey.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.SFIXED64.SFIXED64.DuplicateKeyInMapEntry.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.SFIXED64.SFIXED64.DuplicateValueInMapEntry.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.SFIXED64.SFIXED64.NonDefault.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataMap.SFIXED64.SFIXED64.Unordered.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataOneof.BOOL.DefaultValue.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataOneof.BYTES.DefaultValue.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataOneof.DOUBLE.DefaultValue.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataOneof.ENUM.DefaultValue.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataOneof.FLOAT.DefaultValue.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataOneof.MESSAGE.Merge.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataOneof.STRING.DefaultValue.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataOneof.UINT32.DefaultValue.ProtobufOutput
-Required.Proto3.ProtobufInput.ValidDataOneof.UINT64.DefaultValue.ProtobufOutput
+Required.Proto2.ProtobufInput.PrematureEofInSubmessageValue.MESSAGE # Should have failed to parse, but didn't.
+Required.Proto2.ProtobufInput.RepeatedScalarMessageMerge.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_nested_message: { corecursive { optional_int32: 4321 optional_
+Required.Proto2.ProtobufInput.UnknownOrdering.ProtobufOutput # Unknown field mismatch
+Required.Proto2.ProtobufInput.UnknownVarint.ProtobufOutput # Output was not equivalent to reference message: Expect: \250\037\001, but got: 
+Required.Proto2.ProtobufInput.UnmatchedEndGroupNestedLen # Should have failed to parse, but didn't.
+Required.Proto2.ProtobufInput.UnmatchedStartGroupNestedLen # Should have failed to parse, but didn't.
+Required.Proto2.ProtobufInput.ValidDataMap.STRING.MESSAGE.Default.ProtobufOutput # Output was not equivalent to reference message: deleted: map_string_nested_message['']: { }
+Required.Proto2.ProtobufInput.ValidDataMap.STRING.MESSAGE.DuplicateKey.ProtobufOutput # Output was not equivalent to reference message: deleted: map_string_nested_message[a]: { a: 1234 }
+Required.Proto2.ProtobufInput.ValidDataMap.STRING.MESSAGE.DuplicateKeyInMapEntry.ProtobufOutput # Output was not equivalent to reference message: deleted: map_string_nested_message[a]: { a: 1234 }
+Required.Proto2.ProtobufInput.ValidDataMap.STRING.MESSAGE.DuplicateValueInMapEntry.ProtobufOutput # Output was not equivalent to reference message: deleted: map_string_nested_message[a]: { a: 1234 }
+Required.Proto2.ProtobufInput.ValidDataMap.STRING.MESSAGE.MergeValue.ProtobufOutput # Output was not equivalent to reference message: deleted: map_string_nested_message['']: { corecursive { optional_int64: 1 repeat
+Required.Proto2.ProtobufInput.ValidDataMap.STRING.MESSAGE.MissingDefault.ProtobufOutput # Output was not equivalent to reference message: deleted: map_string_nested_message['']: { }
+Required.Proto2.ProtobufInput.ValidDataMap.STRING.MESSAGE.NonDefault.ProtobufOutput # Output was not equivalent to reference message: deleted: map_string_nested_message[a]: { a: 1234 }
+Required.Proto2.ProtobufInput.ValidDataMap.STRING.MESSAGE.Unordered.ProtobufOutput # Output was not equivalent to reference message: deleted: map_string_nested_message[a]: { a: 1234 }
+Required.Proto2.ProtobufInput.ValidDataOneof.BOOL.MultipleValuesForDifferentField.ProtobufOutput # Output was not equivalent to reference message: added: oneof_uint32: 0deleted: oneof_bool: true
+Required.Proto2.ProtobufInput.ValidDataOneof.BYTES.MultipleValuesForDifferentField.ProtobufOutput # Output was not equivalent to reference message: added: oneof_uint32: 0deleted: oneof_bytes: "a"
+Required.Proto2.ProtobufInput.ValidDataOneof.DOUBLE.MultipleValuesForDifferentField.ProtobufOutput # Output was not equivalent to reference message: added: oneof_uint32: 0deleted: oneof_double: 1
+Required.Proto2.ProtobufInput.ValidDataOneof.ENUM.MultipleValuesForDifferentField.ProtobufOutput # Output was not equivalent to reference message: added: oneof_uint32: 0deleted: oneof_enum: BAR
+Required.Proto2.ProtobufInput.ValidDataOneof.FLOAT.MultipleValuesForDifferentField.ProtobufOutput # Output was not equivalent to reference message: added: oneof_uint32: 0deleted: oneof_float: 1
+Required.Proto2.ProtobufInput.ValidDataOneof.MESSAGE.DefaultValue.ProtobufOutput # Output was not equivalent to reference message: deleted: oneof_nested_message: { }
+Required.Proto2.ProtobufInput.ValidDataOneof.MESSAGE.Merge.ProtobufOutput # Output was not equivalent to reference message: deleted: oneof_nested_message: { corecursive { optional_int32: 1 optional_int64:
+Required.Proto2.ProtobufInput.ValidDataOneof.MESSAGE.MultipleValuesForDifferentField.ProtobufOutput # Output was not equivalent to reference message: added: oneof_uint32: 0deleted: oneof_nested_message: { a: 1234 }
+Required.Proto2.ProtobufInput.ValidDataOneof.MESSAGE.MultipleValuesForSameField.ProtobufOutput # Output was not equivalent to reference message: deleted: oneof_nested_message: { a: 1234 }
+Required.Proto2.ProtobufInput.ValidDataOneof.MESSAGE.NonDefaultValue.ProtobufOutput # Output was not equivalent to reference message: deleted: oneof_nested_message: { a: 1234 }
+Required.Proto2.ProtobufInput.ValidDataOneof.STRING.MultipleValuesForDifferentField.ProtobufOutput # Output was not equivalent to reference message: added: oneof_uint32: 0deleted: oneof_string: "a"
+Required.Proto2.ProtobufInput.ValidDataOneof.UINT64.MultipleValuesForDifferentField.ProtobufOutput # Output was not equivalent to reference message: added: oneof_uint32: 0deleted: oneof_uint64: 1
+Required.Proto2.ProtobufInput.ValidDataRepeated.MESSAGE.ProtobufOutput # Output was not equivalent to reference message: deleted: repeated_nested_message[0]: { }deleted: repeated_nested_message[1]: { a
+Required.Proto2.ProtobufInput.ValidDataScalar.MESSAGE[0].ProtobufOutput # Output was not equivalent to reference message: deleted: optional_nested_message: { }
+Required.Proto2.ProtobufInput.ValidDataScalar.MESSAGE[1].ProtobufOutput # Output was not equivalent to reference message: deleted: optional_nested_message: { a: 1234 }
+Required.Proto3.ProtobufInput.RepeatedScalarMessageMerge.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_nested_message.corecursive.optional_int64: 1234modified: optio
+Required.Proto3.ProtobufInput.UnknownOrdering.ProtobufOutput # Unknown field mismatch
+Required.Proto3.ProtobufInput.UnknownVarint.ProtobufOutput # Output was not equivalent to reference message: Expect: \250\037\001, but got: 
+Required.Proto3.ProtobufInput.ValidDataOneof.BOOL.DefaultValue.ProtobufOutput # Output was not equivalent to reference message: deleted: oneof_bool: false
+Required.Proto3.ProtobufInput.ValidDataOneof.BYTES.DefaultValue.ProtobufOutput # Output was not equivalent to reference message: deleted: oneof_bytes: ""
+Required.Proto3.ProtobufInput.ValidDataOneof.DOUBLE.DefaultValue.ProtobufOutput # Output was not equivalent to reference message: deleted: oneof_double: 0
+Required.Proto3.ProtobufInput.ValidDataOneof.ENUM.DefaultValue.ProtobufOutput # Output was not equivalent to reference message: deleted: oneof_enum: FOO
+Required.Proto3.ProtobufInput.ValidDataOneof.FLOAT.DefaultValue.ProtobufOutput # Output was not equivalent to reference message: deleted: oneof_float: 0
+Required.Proto3.ProtobufInput.ValidDataOneof.MESSAGE.Merge.ProtobufOutput # Output was not equivalent to reference message: deleted: oneof_nested_message.corecursive.optional_int32: 1deleted: oneof_nested
+Required.Proto3.ProtobufInput.ValidDataOneof.STRING.DefaultValue.ProtobufOutput # Output was not equivalent to reference message: deleted: oneof_string: ""
+Required.Proto3.ProtobufInput.ValidDataOneof.UINT32.DefaultValue.ProtobufOutput # Output was not equivalent to reference message: deleted: oneof_uint32: 0
+Required.Proto3.ProtobufInput.ValidDataOneof.UINT64.DefaultValue.ProtobufOutput # Output was not equivalent to reference message: deleted: oneof_uint64: 0

@@ -3,7 +3,7 @@
 {.push raises: [], gcsafe.}
 
 import
-  std/[typetraits, sets, tables],
+  std/[typetraits, sets],
   stew/assign2,
   stew/objects,
   stew/shims/macros,
@@ -18,7 +18,7 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
 macro unsupported(T: typed): untyped =
   error "Assignment of the type " & humaneTypeName(T) & " is not supported"
 
-proc readFieldInto[T: object and not Table](
+proc readFieldInto[T: object](
   stream: InputStream,
   value: var T,
   header: FieldHeader,
@@ -56,17 +56,6 @@ when defined(ConformanceTest):
     let enumValue = stream.readValue(ProtoType)
     if not checkedEnumAssign(value, enumValue.int32):
       discard checkedEnumAssign(value, 0)
-
-  proc readFieldInto[K, V](
-    stream: InputStream,
-    value: var Table[K, V],
-    header: FieldHeader,
-    ProtoType: type
-  ) {.raises: [SerializationError, IOError].} =
-    tableObject(TableObject, K, V)
-    var tmp = default(TableObject)
-    stream.readFieldInto(tmp, header, ProtoType)
-    value[tmp.key] = tmp.value
 
 proc readFieldInto[T: not object and not enum and (seq[byte] or not seq)](
   stream: InputStream,

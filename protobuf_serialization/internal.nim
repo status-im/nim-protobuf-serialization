@@ -2,7 +2,7 @@
 
 {.push raises: [], gcsafe.}
 
-import std/[options, sets, tables]
+import std/[options, sets]
 import stew/shims/macros
 #Depending on the situation, one of these two are used.
 #Sometimes, one works where the other doesn't.
@@ -55,28 +55,6 @@ proc fieldNumberOf*(T: type, fieldName: static string): int {.compileTime.} =
     fieldError T, fieldName, "Missing {.fieldNumber: N.}"
   else:
     fieldNum
-
-template tableObject*(TableObject, K, V) =
-  when K is SomePBInt and V is SomePBInt:
-    type
-      TableObject {.proto3.} = object
-        key {.fieldNumber: 1, pint.}: K
-        value {.fieldNumber: 2, pint.}: V
-  elif K is SomePBInt:
-    type
-      TableObject {.proto3.} = object
-        key {.fieldNumber: 1, pint.}: K
-        value {.fieldNumber: 2.}: V
-  elif V is SomePBInt:
-    type
-      TableObject {.proto3.} = object
-        key {.fieldNumber: 1.}: K
-        value {.fieldNumber: 2, pint.}: V
-  else:
-    type
-      TableObject {.proto3.} = object
-        key {.fieldNumber: 1.}: K
-        value {.fieldNumber: 2.}: V
 
 template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped) =
   mixin flatType
@@ -149,8 +127,6 @@ template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped)
     type InnerType = UnsupportedType[FieldType, RootType, fieldName]
 
 template elementType[T](_: type seq[T]): type = typeof(T)
-template elementTypeKey[K, V](_: type Table[K, V]): type = typeof(K)
-template elementTypeVal[K, V](_: type Table[K, V]): type = typeof(V)
 
 func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
   type FlatType = flatType(default(T))
@@ -164,12 +140,6 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
         # type Value = object (list: List)
       else:
         verifySerializable(elementType(FlatType))
-  elif FlatType is Table and defined(ConformanceTest):
-    return # TODO make it work in case of recursivity
-    # type Struct = object (map: Table[..., Value])
-    # type Value = object (struct: Struct)
-    # verifySerializable(elementTypeKey(FlatType))
-    # verifySerializable(elementTypeVal(FlatType))
   elif FlatType is object and T isnot PBOption:
     var
       inst: T
@@ -183,7 +153,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
 
     enumInstanceSerializedFields(inst, fieldName, fieldVar):
       when isProto2 and not T.isRequired(fieldName):
-        when fieldVar is not (seq or PBOption or Table):
+        when fieldVar is not (seq or PBOption):
           fieldError T, fieldName, "proto2 requires every field to either have the required pragma attached or be a repeated field/PBOption."
       when isProto3 and (
         T.hasCustomPragmaFixed(fieldName, required) or
