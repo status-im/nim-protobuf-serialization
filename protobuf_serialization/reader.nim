@@ -9,7 +9,7 @@ import
   stew/shims/macros,
   faststreams/inputs,
   serialization,
-  "."/[codec, internal, types]
+  ./[codec, internal, types]
 
 export inputs, serialization, codec, types
 
