@@ -7,13 +7,18 @@
 # This file may not be copied, modified, or distributed except according to
 # those terms.
 
-import os
-import ../../protobuf_serialization
-import ../../protobuf_serialization/files/type_generator
-import stew/byteutils
+import
+  std/os,
+  stew/byteutils,
+  ../../protobuf_serialization,
+  ../../protobuf_serialization/std/enums,
+  ../../protobuf_serialization/files/type_generator
+
 import_proto3 "../../conformance/conformance/conformance.proto"
-import test_proto2
-import test_proto3
+
+import
+  ./test_proto2,
+  ./test_proto3
 
 proc readIntLE(): int32 =
   if stdin.readBuffer(addr(result), 4) != 4:

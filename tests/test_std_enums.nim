@@ -10,8 +10,9 @@
 import unittest2
 
 import
+  stew/objects,
   ../protobuf_serialization,
-  ../protobuf_serialization/codec
+  ../protobuf_serialization/std/enums
 
 type
   Classic = enum
@@ -31,22 +32,22 @@ type
     C3 = int32.high()
 
   ObjClassicP2 {.proto2.} = object
-    x {.fieldNumber: 1, required.}: Classic
+    x {.fieldNumber: 1, required, ext.}: Classic
 
   ObjWithHolesP2 {.proto2.} = object
-    x {.fieldNumber: 1, required.}: WithHoles
+    x {.fieldNumber: 1, required, ext.}: WithHoles
 
   ObjLimitsP2 {.proto2.} = object
-    x {.fieldNumber: 1, required.}: Limits
+    x {.fieldNumber: 1, required, ext.}: Limits
 
   ObjClassicP3 {.proto3.} = object
-    x {.fieldNumber: 1.}: Classic
+    x {.fieldNumber: 1, ext.}: Classic
 
   ObjWithHolesP3 {.proto3.} = object
-    x {.fieldNumber: 1.}: WithHoles
+    x {.fieldNumber: 1, ext.}: WithHoles
 
   ObjLimitsP3 {.proto3.} = object
-    x {.fieldNumber: 1.}: Limits
+    x {.fieldNumber: 1, ext.}: Limits
 
 suite "Test Enum Encoding/Decoding":
   test "Can encode/decode enum":
