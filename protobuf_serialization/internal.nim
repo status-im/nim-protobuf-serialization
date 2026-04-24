@@ -130,7 +130,9 @@ template elementType[T](_: type seq[T]): type = typeof(T)
 
 func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
   type FlatType = flatType(default(T))
-  when FlatType is int | uint:
+  when T is PBOption:
+    verifySerializable(FlatType)
+  elif FlatType is int | uint:
     {.fatal: $T & ": Serializing a number requires specifying the amount of bits via the type.".}
   elif FlatType is seq:
     when FlatType isnot seq[byte]:
@@ -140,8 +142,6 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
         # type Value = object (list: List)
       else:
         verifySerializable(elementType(FlatType))
-  elif T is PBOption:
-    verifySerializable(FlatType)
   elif FlatType is object:
     var
       inst: T
