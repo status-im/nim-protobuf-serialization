@@ -32,6 +32,8 @@ type
     some: bool
     value: typeof(defaultValue)
 
+  ProtobufExt*[FieldType; RootType; fieldName: static string] = object
+
 # Message type annotations
 template proto2*() {.pragma.}
 template proto3*() {.pragma.}
@@ -43,6 +45,7 @@ template packed*(v: bool) {.pragma.}
 template pint*() {.pragma.} # encode as `intXX`
 template sint*() {.pragma.} # encode as `sintXX`
 template fixed*() {.pragma.} # encode as `fixedXX`
+template ext*() {.pragma.}
 
 func init*(
   T: type ProtobufWriter,

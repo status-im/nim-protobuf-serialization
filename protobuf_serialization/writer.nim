@@ -14,10 +14,9 @@ export outputs, serialization, codec, types
 
 proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].}
 
-proc writeField*(
-    stream: OutputStream, fieldNum: int, fieldVal: auto,
-    ProtoType: type UnsupportedType, _: static bool = false) {.raises: [IOError].} =
-  # TODO turn this into an extension point
+proc writeField*[T: not PBOption](
+    stream: OutputStream, fieldNum: int, fieldVal: T,
+    ProtoType: type ProtobufExt, _: static bool = false) {.raises: [IOError].} =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
 proc writeField*[T: object and not PBOption](
@@ -34,7 +33,7 @@ proc writeField*[T: object and not PBOption](
   stream.writeValue(puint64(size))
   stream.writeObject(fieldVal)
 
-proc writeField*[T: not object and not enum](
+proc writeField*[T: not object](
     stream: OutputStream, fieldNum: int, fieldVal: T,
     ProtoType: type SomeScalar, skipDefault: static bool = false) {.raises: [IOError].} =
   when skipDefault:
@@ -69,21 +68,6 @@ proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
     for value in values:
       output.write(toBytes(ProtoType(value)))
 
-when defined(ConformanceTest):
-  proc writeField[T: enum](
-      stream: OutputStream,
-      fieldNum: int,
-      fieldVal: T,
-      ProtoType: type,
-      skipDefault: static bool = false
-  ) {.raises: [IOError].} =
-    when 0 notin T:
-      {.fatal: $T & " definition must contain a constant that maps to zero".}
-    when skipDefault:
-      if fieldVal.ord() == 0:
-        return
-    stream.writeField(fieldNum, pint32(fieldVal.ord()))
-
 proc writeField*(
     stream: OutputStream, fieldNum: int, fieldVal: PBOption, ProtoType: type,
     skipDefault: static bool = false) {.raises: [IOError].} =
@@ -103,7 +87,7 @@ proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].
     type
       FlatType = flatType(fieldVal)
 
-    protoType(ProtoType, T, FlatType, fieldName)
+    protoType(ProtoType, T, typeof(fieldVal), fieldName)
 
     when FlatType is seq and FlatType isnot seq[byte]:
       const

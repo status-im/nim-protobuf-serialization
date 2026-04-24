@@ -1,9 +1,9 @@
-import os, algorithm, strutils, tables
-import macros
-import stew/shims/macros as stewmacros
-import decldef
+import
+  std/[os, algorithm, strutils, tables, sets, macros],
+  stew/shims/macros as stewmacros,
+  ./[decldef, proto_parser]
+
 export decldef, tables
-import proto_parser
 
 # https://protobuf.dev/programming-guides/proto3/#scalar
 proc getTypeAndPragma(strVal: string): (NimNode, NimNode) =
@@ -106,7 +106,15 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
   var
     packages: seq[ProtoNode] = parseProtobuf(filepath).packages
     queue: seq[ProtoNode] = @[]
+    enumNames = initHashSet[string]()
   result = newNimNode(nnkTypeSection)
+  for parsed in packages:
+    for msg in parsed.messages:
+      if msg.kind != ProtoType.Extend:
+        for pbEnum in msg.definedEnums:
+          enumNames.incl pbEnum.enumName
+    for pbEnum in parsed.packageEnums:
+      enumNames.incl pbEnum.enumName
   for parsed in packages:
     for msg in parsed.messages:
       queue.add(msg)
@@ -207,6 +215,10 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
             value[2][^1][1] = typ
             if not pragma.isNil():
               value[2][^1][0][1].add(pragma)
+
+          # XXX fix namespaces
+          if field.protoType.split('.')[^1] in enumNames:
+            value[2][^1][0][1].add ident"ext"
 
           if field.presence == Optional and not isProto3:
             var optDefault = ""
