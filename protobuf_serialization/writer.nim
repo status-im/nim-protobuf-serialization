@@ -8,7 +8,7 @@ import
   stew/objects,
   faststreams/outputs,
   serialization,
-  "."/[codec, internal, sizer, types]
+  ./[codec, internal, sizer, types]
 
 export outputs, serialization, codec, types
 

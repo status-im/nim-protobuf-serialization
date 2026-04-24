@@ -4,7 +4,7 @@ import
   std/[typetraits],
   stew/shims/macros,
   serialization,
-  "."/[codec, internal, types]
+  ./[codec, internal, types]
 
 func computeObjectSize*[T: object](value: T): int
 
@@ -54,12 +54,6 @@ when defined(ConformanceTest):
       computeFieldSize(fieldNum, fieldVal[], ProtoType, skipDefault)
     else:
       0
-
-  proc writeField[T: enum](
-      stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type) =
-    when 0 notin T:
-      {.fatal: $T & " definition must contain a constant that maps to zero".}
-    stream.writeField(fieldNum, pint32(fieldVal.ord()))
 
 proc computeSizePacked*[T: not byte, ProtoType: SomePrimitive](
     values: openArray[T], _: type ProtoType): int =

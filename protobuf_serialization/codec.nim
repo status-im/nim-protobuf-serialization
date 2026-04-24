@@ -123,7 +123,6 @@ template toUleb(x: pint32): uint64 = cast[uint64](int64(x))
 template toUleb(x: pbool): uint8 = cast[uint8](x)
 template toUleb(x: penum): uint64 = cast[uint32](x)
 
-template fromUleb(x: uint64, T: type puint64): T = puint64(x)
 template fromUleb(x: uint64, T: type pbool): T = pbool(x != 0)
 
 template fromUleb(x: uint64, T: type puint64): T = puint64(x)
@@ -283,7 +282,7 @@ proc skipValue*[T: SomeLengthDelim](input: InputStream, _: type T) {.raises: [Se
 
 proc readHeader*(input: InputStream): FieldHeader {.raises: [SerializationError, IOError].} =
   let
-    hdr = uint32(input.readValue(puint32))
+    hdr = input.readVarint(uint32)
     wire = uint8(hdr and 0x07)
 
   if wire in GroupWireKinds:

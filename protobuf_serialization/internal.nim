@@ -12,7 +12,7 @@ export hasCustomPragmaFixed
 
 import serialization
 
-import "."/[codec, types]
+import ./[codec, types]
 
 type UnsupportedType*[FieldType; RootType; fieldName: static string] = object
 

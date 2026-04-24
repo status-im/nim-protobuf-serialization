@@ -56,6 +56,13 @@ suite "Test well formed messages":
     let encoded = "08FFFFFFFFFFFFFFFF7F".hexToSeqByte
     check ProtoBuf.decode(encoded, Varint) == Varint(x: int64.high)
 
+  test "Header varint 5 bytes (non-canonical)":
+    # echo "8A8080800001FF" | xxd -r -p | protoc --decode=Bytes test_malformed.proto
+    # x: "\377"
+    # echo 'x: "\377"' | protoc --encode=Bytes test_malformed.proto | hexdump -ve '1/1 "%.2x"'
+    let encoded = "8A8080800001FF".hexToSeqByte
+    check ProtoBuf.decode(encoded, Bytes) == Bytes(x: @[255.byte])
+
 suite "Test malformed messages":
   test "Max uint32 + 1 length":
     # echo "0A8080808010" | xxd -r -p | protoc --decode=Bytes test_malformed.proto
@@ -187,3 +194,19 @@ suite "Test malformed messages":
     let encoded = "0901000000000000".hexToSeqByte
     expect(ProtobufValueError):
       discard Protobuf.decode(encoded, FixedInt64Obj)
+
+  test "Header varint 10 bytes":
+    # echo "8A80808080808080800001FF" | xxd -r -p | protoc --decode=Bytes test_malformed.proto
+    # Failed to parse input.
+    # If the header varint is read as uint64, the value is 0x0A == field 1; type 2 (valid)
+    let encoded = "8A80808080808080800001FF".hexToSeqByte
+    expect(ProtobufValueError):
+      discard ProtoBuf.decode(encoded, Bytes)
+
+  test "Header varint max uint64":
+    # echo "FFFFFFFFFFFFFFFFFF0100" | xxd -r -p | protoc --decode=Bytes test_malformed.proto
+    # Failed to parse input.
+    let encoded = "FFFFFFFFFFFFFFFFFF0100".hexToSeqByte
+    # XXX check it throws varint read error; not wrong wire type
+    expect(ProtobufValueError):
+      discard ProtoBuf.decode(encoded, Bytes)
