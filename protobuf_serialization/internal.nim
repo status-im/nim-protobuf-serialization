@@ -23,7 +23,7 @@ func flatTypeInternal(value: auto): auto {.compileTime.} =
     value
 
 template flatType*(value: auto): type =
-  type(flatTypeInternal(value))
+  typeof(flatTypeInternal(value))
 
 macro unsupportedProtoType*(FieldType, RootType, fieldName: typed): untyped =
   # TODO turn this into an extension point
@@ -140,7 +140,9 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
         # type Value = object (list: List)
       else:
         verifySerializable(elementType(FlatType))
-  elif FlatType is object and T isnot PBOption:
+  elif T is PBOption:
+    verifySerializable(FlatType)
+  elif FlatType is object:
     var
       inst: T
       fieldNumberSet = initHashSet[int]()
@@ -153,7 +155,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
 
     enumInstanceSerializedFields(inst, fieldName, fieldVar):
       when isProto2 and not T.isRequired(fieldName):
-        when fieldVar is not (seq or PBOption):
+        when fieldVar isnot (seq or PBOption):
           fieldError T, fieldName, "proto2 requires every field to either have the required pragma attached or be a repeated field/PBOption."
       when isProto3 and (
         T.hasCustomPragmaFixed(fieldName, required) or
