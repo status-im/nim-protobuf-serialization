@@ -19,7 +19,7 @@ proc readFieldInto*[T: not seq and not PBOption](
   stream: InputStream,
   value: var T,
   header: FieldHeader,
-  ProtoType: type UnsupportedType
+  ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
