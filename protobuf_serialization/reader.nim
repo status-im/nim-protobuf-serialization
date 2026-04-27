@@ -76,7 +76,11 @@ proc readFieldInto*[T: not byte](
   ProtoType: type
 ): bool {.raises: [SerializationError, IOError].} =
   value.add(default(T))
-  stream.readFieldInto(value[^1], header, ProtoType)
+  if not stream.readFieldInto(value[^1], header, ProtoType):
+    value.setLen(value.len - 1)
+    false
+  else:
+    true
 
 proc readFieldInto*(
   stream: InputStream,

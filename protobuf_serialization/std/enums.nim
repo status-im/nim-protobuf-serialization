@@ -13,8 +13,11 @@ import
   stew/objects,
   ../[reader, writer, sizer]
 
-## This implements *Closed* enums; except unknown values are not stored at all.
-## It can be used in proto2, but it's not compliant with proto3.
+## This is not conformant with protobuf enums. It implements
+## *Closed* enums, but unknown values are not stored at all.
+## So, unknown values cannot be serialized back.
+## It can be used in proto2, with this caveat.
+## A int32 pint can be used instead of this, which is conformant with proto3.
 
 func computeFieldSize*[T: enum](
     fieldNum: int,
