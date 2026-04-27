@@ -29,7 +29,7 @@ proc readFieldInto*[T: object and not PBOption](
   header: FieldHeader,
   ProtoType: type pbytes
 ): bool {.raises: [SerializationError, IOError].} =
-  if header.kind() == WireKind.LengthDelim:
+  if header.kind() == wireKind(ProtoType):
     let len = stream.readLength()
     if len > 0:
       # TODO: https://github.com/status-im/nim-faststreams/issues/31
@@ -128,6 +128,7 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
 
   while stream.readable():
     let header = stream.readHeader()
+    let pos = stream.pos()
     var i = -1
     var knownField = false
 
@@ -157,7 +158,7 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
         when isProto2:
           if not silent and knownField: requiredSets.excl i
 
-    if not knownField:
+    if not knownField and pos == stream.pos():
       case header.kind():
       of WireKind.Varint: stream.skipValue(puint64)
       of WireKind.Fixed64: stream.skipValue(fixed64)
