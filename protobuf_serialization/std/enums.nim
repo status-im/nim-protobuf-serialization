@@ -13,6 +13,9 @@ import
   stew/objects,
   ../[reader, writer, sizer]
 
+## This implements *Closed* enums; except unknown values are not stored at all.
+## It can be used in proto2, but it's not compliant with proto3.
+
 func computeFieldSize*[T: enum](
     fieldNum: int,
     fieldVal: T,
@@ -41,9 +44,12 @@ proc readFieldInto*[T: enum](
   # TODO: This function doesn't work for proto2 edge cases. Make it work
   #when 0 notin T and T.isProto3():
   #  {.fatal: $T & " definition must contain a constant that maps to zero".}
-  if header.kind() != WireKind.Varint:
-    return false
-  let enumValue = stream.readValue(pint32)
-  if not checkedEnumAssign(value, enumValue.int32):
-    discard checkedEnumAssign(value, 0)
-  true
+  if header.kind() == wireKind(pint32):
+    let enumValue = stream.readValue(pint32)
+    if checkedEnumAssign(value, enumValue.int32):
+      true
+    else:
+      discard checkedEnumAssign(value, 0)
+      false
+  else:
+    false

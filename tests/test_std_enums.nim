@@ -81,9 +81,10 @@ suite "Test Enum Encoding/Decoding":
       check Protobuf.decode(encodedp3, ObjLimitsP3) == objp3
 
   test "Decode out of range enum":
-    # TODO: Find a way to save the unrecognized value
     check:
-      Protobuf.decode(@[8'u8, 4], ObjWithHolesP2) == ObjWithHolesP2() # Inside the hole
       Protobuf.decode(@[8'u8, 4], ObjWithHolesP3) == ObjWithHolesP3() # Inside the hole
-      Protobuf.decode(@[8'u8, 24], ObjWithHolesP2) == ObjWithHolesP2() # Outside the hole
       Protobuf.decode(@[8'u8, 24], ObjWithHolesP3) == ObjWithHolesP3() # Outside the hole
+    expect(ProtobufReadError):
+      discard Protobuf.decode(@[8'u8, 4], ObjWithHolesP2) # Inside the hole
+    expect(ProtobufReadError):
+      discard Protobuf.decode(@[8'u8, 24], ObjWithHolesP2) # Outside the hole
