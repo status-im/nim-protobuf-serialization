@@ -49,24 +49,6 @@ proc readFieldInto*[T: object and not PBOption](
   else:
     false
 
-when defined(ConformanceTest):
-  proc readFieldInto*[T: enum](
-    stream: InputStream,
-    value: var T,
-    header: FieldHeader,
-    ProtoType: type
-  ): bool {.raises: [SerializationError, IOError].} =
-    # TODO: This function doesn't work for proto2 edge cases. Make it work
-    when 0 notin T and T.isProto3():
-      {.fatal: $T & " definition must contain a constant that maps to zero".}
-    if header.kind() == WireKind.Varint:
-      let enumValue = stream.readValue(ProtoType)
-      if not checkedEnumAssign(value, enumValue.int32):
-        discard checkedEnumAssign(value, 0)
-      true
-    else:
-      false
-
 proc readFieldInto*[T: not object and not enum and (seq[byte] or not seq)](
   stream: InputStream,
   value: var T,
