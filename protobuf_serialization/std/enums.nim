@@ -10,24 +10,50 @@
 {.push raises: [], gcsafe.}
 
 import
-  stew/objects,
+  std/[macros, typetraits],
   ../[reader, writer, sizer]
 
-## This implements *Closed* enums; except unknown values are not stored at all.
-## It can be used in proto2, but it's not compliant with proto3.
+## This is not conformant with protobuf enums. It implements
+## *Closed* enums, but unknown values are not stored at all.
+## So, unknown values cannot be serialized back.
+## It can be used in proto2, with this caveat.
+## A int32 pint can be used instead of this, which is conformant with proto3.
 
-func computeFieldSize*[T: enum](
+# TODO: https://github.com/status-im/nim-stew/pull/271
+
+func hasHoles(T: type enum): bool =
+  const ret = int64(T.high.ord) - int64(T.low.ord) != int64(enumLen(T) - 1)
+  ret
+
+func contains[I: SomeInteger](e: type[enum], v: I): bool =
+  when I is uint64:
+    if v > int64.high.uint64:
+      return false
+  when e.hasHoles():
+    v.int64 in enumRangeInt64(e)
+  else:
+    v.int64 in e.low.int64 .. e.high.int64
+
+func checkedEnumAssign[E: enum, I: SomeInteger](res: var E, value: I): bool =
+  bind contains
+  if value notin E:
+    false
+  else:
+    res = cast[E](value)
+    true
+
+func computeFieldSize*(
     fieldNum: int,
-    fieldVal: T,
+    fieldVal: enum,
     ProtoType: type ProtobufExt,
     skipDefault: static bool
 ): int =
   computeFieldSize(fieldNum, int32(fieldVal.ord()), pint32, skipDefault)
 
-proc writeField*[T: enum](
+proc writeField*(
     stream: OutputStream,
     fieldNum: int,
-    fieldVal: T,
+    fieldVal: enum,
     ProtoType: type ProtobufExt,
     skipDefault: static bool = false
 ) {.raises: [IOError].} =
@@ -35,9 +61,9 @@ proc writeField*[T: enum](
   #  {.fatal: $T & " definition must contain a constant that maps to zero".}
   writeField(stream, fieldNum, int32(fieldVal.ord()), pint32, skipDefault)
 
-proc readFieldInto*[T: enum](
+proc readFieldInto*(
     stream: InputStream,
-    value: var T,
+    value: var (enum),  # Nim 1.6 requires parens
     header: FieldHeader,
     ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
