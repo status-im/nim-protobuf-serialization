@@ -24,7 +24,6 @@ type
 suite "Test results Opt[T]":
   test "Handles default":
     var fod: FullOfDefaults = FullOfDefaults(b: Opt.some(OneOption(a: Opt.some(123'i32))))
-    check:
-      Protobuf.decode(Protobuf.encode(fod), FullOfDefaults).a.isNone()
-      Protobuf.decode(Protobuf.encode(fod), FullOfDefaults).b.isSome()
-      Protobuf.decode(Protobuf.encode(fod), FullOfDefaults).b.get().a.get() == 123'i32
+    check Protobuf.decode(Protobuf.encode(fod), FullOfDefaults).a.isNone()
+    check Protobuf.decode(Protobuf.encode(fod), FullOfDefaults).b.isSome()
+    check Protobuf.decode(Protobuf.encode(fod), FullOfDefaults).b.get().a.get() == 123'i32
