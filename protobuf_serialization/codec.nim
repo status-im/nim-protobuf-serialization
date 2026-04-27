@@ -75,6 +75,8 @@ type
   SomePrimitive* = SomeVarint | SomeFixed64 | SomeFixed32
     ## Types that may appear packed
 
+  SomeProto* = SomeVarint | SomeFixed64 | SomeLengthDelim | SomeFixed32
+
 const
   GroupWireKinds = {
     3'u8, 4'u8  # StartGroup, EndGroup
