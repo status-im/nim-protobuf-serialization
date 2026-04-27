@@ -7,16 +7,17 @@
 # This file may not be copied, modified, or distributed except according to
 # those terms.
 
-import unittest2, results
+{.push raises: [], gcsafe.}
 
-import ../protobuf_serialization
-import ../protobuf_serialization/codec
-import ../protobuf_serialization/sizer
-import ../protobuf_serialization/internal
+import
+  pkg/results,
+  ../[reader, writer, sizer, internal, format]
 
-template flatType[T](value: Opt[T]): type = T
+export results
 
-template isOptional(_: type Protobuf, FieldType: type Opt): bool =
+template flatType*[T](value: Opt[T]): type = T
+
+template isOptional*(_: type Protobuf, FieldType: type Opt): bool =
   true
 
 proc computeFieldSize*(
@@ -42,11 +43,11 @@ proc writeField*(
   if fieldVal.isSome():
     stream.writeField(fieldNum, fieldVal.get(), InnerProtoType, skipDefault)
 
-proc readFieldInto(
-  stream: InputStream,
-  value: var Opt,
-  header: FieldHeader,
-  ProtoType: type ProtobufExt
+proc readFieldInto*(
+    stream: InputStream,
+    value: var Opt,
+    header: FieldHeader,
+    ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
   protoType(InnerProtoType, ProtoType.RootType, flatType(value), ProtoType.fieldName)
   var val: typeof(value.get())
@@ -55,19 +56,3 @@ proc readFieldInto(
     true
   else:
     false
-
-type
-  OneOption {.proto2.} = object
-    a {.fieldNumber: 1, pint.}: Opt[int32]
-
-  FullOfDefaults {.proto2.} = object
-    a {.fieldNumber: 2.}: Opt[string]
-    b {.fieldNumber: 3.}: Opt[OneOption]
-
-suite "Test results Opt[T]":
-  test "Handles default":
-    var fod: FullOfDefaults = FullOfDefaults(b: Opt.some(OneOption(a: Opt.some(123'i32))))
-    check:
-      Protobuf.decode(Protobuf.encode(fod), FullOfDefaults).a.isNone()
-      Protobuf.decode(Protobuf.encode(fod), FullOfDefaults).b.isSome()
-      Protobuf.decode(Protobuf.encode(fod), FullOfDefaults).b.get().a.get() == 123'i32
