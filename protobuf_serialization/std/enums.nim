@@ -42,18 +42,18 @@ func checkedEnumAssign[E: enum, I: SomeInteger](res: var E, value: I): bool =
     res = cast[E](value)
     true
 
-func computeFieldSize*[T: enum](
+func computeFieldSize*(
     fieldNum: int,
-    fieldVal: T,
+    fieldVal: enum,
     ProtoType: type ProtobufExt,
     skipDefault: static bool
 ): int =
   computeFieldSize(fieldNum, int32(fieldVal.ord()), pint32, skipDefault)
 
-proc writeField*[T: enum](
+proc writeField*(
     stream: OutputStream,
     fieldNum: int,
-    fieldVal: T,
+    fieldVal: enum,
     ProtoType: type ProtobufExt,
     skipDefault: static bool = false
 ) {.raises: [IOError].} =
@@ -61,9 +61,9 @@ proc writeField*[T: enum](
   #  {.fatal: $T & " definition must contain a constant that maps to zero".}
   writeField(stream, fieldNum, int32(fieldVal.ord()), pint32, skipDefault)
 
-proc readFieldInto*[T: enum](
+proc readFieldInto*(
     stream: InputStream,
-    value: var T,
+    value: var (enum),  # Nim 1.6 requires parens
     header: FieldHeader,
     ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
