@@ -8,13 +8,12 @@ import
 
 func computeObjectSize*[T: object](value: T): int
 
-func computeFieldSize(
-    fieldNum: int, fieldVal: auto, ProtoType: type UnsupportedType,
+func computeFieldSize*[T: not PBOption](
+    fieldNum: int, fieldVal: T, ProtoType: type ProtobufExt,
     _: static bool) =
-  # TODO turn this into an extension point
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
-func computeFieldSize[T: object and not PBOption](
+func computeFieldSize*[T: object and not PBOption](
     fieldNum: int, fieldVal: T, ProtoType: type pbytes,
     skipDefault: static bool): int =
   let
@@ -95,7 +94,7 @@ func computeObjectSize*[T: object](value: T): int =
     type
       FlatType = flatType(fieldVal)
 
-    protoType(ProtoType, T, FlatType, fieldName)
+    protoType(ProtoType, T, typeof(fieldVal), fieldName)
 
     let fieldSize = when FlatType is seq and FlatType isnot seq[byte]:
       const

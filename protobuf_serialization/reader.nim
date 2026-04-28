@@ -19,7 +19,7 @@ proc readFieldInto*[T: not seq and not PBOption](
   stream: InputStream,
   value: var T,
   header: FieldHeader,
-  ProtoType: type UnsupportedType
+  ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
@@ -29,7 +29,7 @@ proc readFieldInto*[T: object and not PBOption](
   header: FieldHeader,
   ProtoType: type pbytes
 ): bool {.raises: [SerializationError, IOError].} =
-  if header.kind() == WireKind.LengthDelim:
+  if header.kind() == wireKind(ProtoType):
     let len = stream.readLength()
     if len > 0:
       # TODO: https://github.com/status-im/nim-faststreams/issues/31
@@ -48,24 +48,6 @@ proc readFieldInto*[T: object and not PBOption](
     true
   else:
     false
-
-when defined(ConformanceTest):
-  proc readFieldInto*[T: enum](
-    stream: InputStream,
-    value: var T,
-    header: FieldHeader,
-    ProtoType: type
-  ): bool {.raises: [SerializationError, IOError].} =
-    # TODO: This function doesn't work for proto2 edge cases. Make it work
-    when 0 notin T and T.isProto3():
-      {.fatal: $T & " definition must contain a constant that maps to zero".}
-    if header.kind() == WireKind.Varint:
-      let enumValue = stream.readValue(ProtoType)
-      if not checkedEnumAssign(value, enumValue.int32):
-        discard checkedEnumAssign(value, 0)
-      true
-    else:
-      false
 
 proc readFieldInto*[T: not object and not enum and (seq[byte] or not seq)](
   stream: InputStream,
@@ -94,7 +76,11 @@ proc readFieldInto*[T: not byte](
   ProtoType: type
 ): bool {.raises: [SerializationError, IOError].} =
   value.add(default(T))
-  stream.readFieldInto(value[^1], header, ProtoType)
+  if not stream.readFieldInto(value[^1], header, ProtoType):
+    value.setLen(value.len - 1)
+    false
+  else:
+    true
 
 proc readFieldInto*(
   stream: InputStream,
@@ -138,6 +124,7 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
 
   while stream.readable():
     let header = stream.readHeader()
+    let pos = stream.pos()
     var i = -1
     var knownField = false
 
@@ -167,7 +154,7 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
         when isProto2:
           if not silent and knownField: requiredSets.excl i
 
-    if not knownField:
+    if not knownField and pos == stream.pos():
       case header.kind():
       of WireKind.Varint: stream.skipValue(puint64)
       of WireKind.Fixed64: stream.skipValue(fixed64)
