@@ -10,7 +10,7 @@
 {.push raises: [], gcsafe.}
 
 import
-  stew/objects,
+  std/[macros, typetraits],
   ../[reader, writer, sizer]
 
 ## This is not conformant with protobuf enums. It implements
@@ -18,6 +18,29 @@ import
 ## So, unknown values cannot be serialized back.
 ## It can be used in proto2, with this caveat.
 ## A int32 pint can be used instead of this, which is conformant with proto3.
+
+# TODO: https://github.com/status-im/nim-stew/pull/271
+
+func hasHoles(T: type enum): bool =
+  const ret = int64(T.high.ord) - int64(T.low.ord) != int64(enumLen(T) - 1)
+  ret
+
+func contains[I: SomeInteger](e: type[enum], v: I): bool =
+  when I is uint64:
+    if v > int64.high.uint64:
+      return false
+  when e.hasHoles():
+    v.int64 in enumRangeInt64(e)
+  else:
+    v.int64 in e.low.int64 .. e.high.int64
+
+func checkedEnumAssign[E: enum, I: SomeInteger](res: var E, value: I): bool =
+  bind contains
+  if value notin E:
+    false
+  else:
+    res = cast[E](value)
+    true
 
 func computeFieldSize*[T: enum](
     fieldNum: int,
