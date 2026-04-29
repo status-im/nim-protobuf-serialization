@@ -50,6 +50,7 @@ proc writeField*[T: not byte](
     ProtoType: type SomeProto,
     skipDefault: static bool = false
 ) {.raises: [IOError].} =
+  static: doAssert not skipDefault
   for i in 0 ..< fieldVal.len:
     # don't skip defaults so as to preserve length
     stream.writeField(fieldNum, fieldVal[i], ProtoType, false)
@@ -83,7 +84,7 @@ proc writeField*(
     stream: OutputStream, fieldNum: int, fieldVal: PBOption, ProtoType: type,
     skipDefault: static bool = false) {.raises: [IOError].} =
   if fieldVal.isSome():
-    stream.writeField(fieldNum, fieldVal.get(), ProtoType, skipDefault)
+    stream.writeField(fieldNum, fieldVal.get(), ProtoType, false)
 
 proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].} =
   const

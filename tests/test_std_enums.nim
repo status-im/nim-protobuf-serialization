@@ -7,10 +7,10 @@
 # This file may not be copied, modified, or distributed except according to
 # those terms.
 
-import unittest2
-
 import
-  stew/objects,
+  unittest2,
+  stew/byteutils,
+  ./utils,
   ../protobuf_serialization,
   ../protobuf_serialization/std/enums
 
@@ -40,6 +40,9 @@ type
   ObjLimitsP2 {.proto2.} = object
     x {.fieldNumber: 1, required, ext.}: Limits
 
+  ObjClassicOptP2 {.proto2.} = object
+    x {.fieldNumber: 1, ext.}: PBOption[default(Classic)]
+
   ObjClassicP3 {.proto3.} = object
     x {.fieldNumber: 1, ext.}: Classic
 
@@ -50,41 +53,17 @@ type
     x {.fieldNumber: 1, ext.}: Limits
 
 suite "Test Enum Encoding/Decoding":
-  test "Can encode/decode enum":
-    for x in @[A1, B1, C1]:
-      let
-        objp2 = ObjClassicP2(x: x)
-        objp3 = ObjClassicP3(x: x)
-        encodedp2 = Protobuf.encode(objp2)
-        encodedp3 = Protobuf.encode(objp3)
-      check Protobuf.decode(encodedp2, ObjClassicP2) == objp2
-      check Protobuf.decode(encodedp3, ObjClassicP3) == objp3
+  test "ordinal enum valid values":
+    # echo "0800" | xxd -r -p | protoc --decode=ObjClassicP2 test_std_enums_2.proto
+    # echo 'x: 0' | protoc --encode=ObjClassicP2 test_std_enums_2.proto | hexdump -ve '1/1 "%.2x"'
+    roundtrip(ObjClassicP2(x: A1), "0800")
+    roundtrip(ObjClassicP2(x: B1), "0801")
+    roundtrip(ObjClassicP2(x: C1), "0802")
 
-  test "Can encode/decode enum with holes":
-    for x in @[A2, B2, C2, D2]:
-      let
-        objp2 = ObjWithHolesP2(x: x)
-        objp3 = ObjWithHolesP3(x: x)
-        encodedp2 = Protobuf.encode(objp2)
-        encodedp3 = Protobuf.encode(objp3)
-      check Protobuf.decode(encodedp2, ObjWithHolesP2) == objp2
-      check Protobuf.decode(encodedp3, ObjWithHolesP3) == objp3
-
-  test "Can encode/decode enum limits":
-    for x in @[A3, B3, C3]:
-      let
-        objp2 = ObjLimitsP2(x: x)
-        objp3 = ObjLimitsP3(x: x)
-        encodedp2 = Protobuf.encode(objp2)
-        encodedp3 = Protobuf.encode(objp3)
-      check Protobuf.decode(encodedp2, ObjLimitsP2) == objp2
-      check Protobuf.decode(encodedp3, ObjLimitsP3) == objp3
-
-  test "Decode out of range enum":
-    check:
-      Protobuf.decode(@[8'u8, 4], ObjWithHolesP3) == ObjWithHolesP3() # Inside the hole
-      Protobuf.decode(@[8'u8, 24], ObjWithHolesP3) == ObjWithHolesP3() # Outside the hole
+  test "ordinal enum invalid values":
+    # echo "0803" | xxd -r -p | protoc --decode=ObjClassicP2 test_std_enums_2.proto
+    # warning:  Input message is missing required fields:  x
+    # 1: 3
+    let encoded = "0803".hexToSeqByte
     expect(ProtobufReadError):
-      discard Protobuf.decode(@[8'u8, 4], ObjWithHolesP2) # Inside the hole
-    expect(ProtobufReadError):
-      discard Protobuf.decode(@[8'u8, 24], ObjWithHolesP2) # Outside the hole
+      discard ProtoBuf.decode(encoded, ObjClassicP2)

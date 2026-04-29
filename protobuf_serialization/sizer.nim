@@ -27,7 +27,7 @@ func computeFieldSize*[T: object and not PBOption](
     computeSize(puint64(size)) +
     size
 
-proc computeFieldSize*[T: not object](
+proc computeFieldSize*[T: not object and (seq[byte] or not seq)](
     fieldNum: int, fieldVal: T,
     ProtoType: type SomeScalar, skipDefault: static bool): int =
   when skipDefault:
@@ -54,8 +54,18 @@ when defined(ConformanceTest):
     else:
       0
 
-proc computeSizePacked*[T: not byte, ProtoType: SomePrimitive](
-    values: openArray[T], _: type ProtoType): int =
+proc computeFieldSize*[T: not byte](
+    fieldNum: int, fieldVal: openArray[T],
+    ProtoType: type SomeProto, skipDefault: static bool): int =
+  static: doAssert not skipDefault
+  var dataSize = 0
+  for i in 0 ..< fieldVal.len:
+    # don't skip defaults so as to preserve length
+    dataSize += computeFieldSize(fieldNum, fieldVal[i], ProtoType, false)
+  dataSize
+
+proc computeSizePacked*[T: not byte](
+    values: openArray[T], ProtoType: type SomePrimitive): int =
   const canCopyMem =
     ProtoType is SomeFixed32 or ProtoType is SomeFixed64 or ProtoType is pbool
   when canCopyMem:
@@ -66,8 +76,8 @@ proc computeSizePacked*[T: not byte, ProtoType: SomePrimitive](
       total += computeSize(ProtoType(item))
     total
 
-proc computeFieldSizePacked*[ProtoType: SomePrimitive](
-    field: int, values: openArray, _: type ProtoType): int =
+proc computeFieldSizePacked*(
+    field: int, values: openArray, ProtoType: type SomePrimitive): int =
   # Packed encoding uses a length-delimited field byte length of the sum of the
   # byte lengths of each field followed by the header-free contents
   if values.len == 0:
@@ -91,23 +101,18 @@ func computeObjectSize*[T: object](value: T): int =
     const
       fieldNum = T.fieldNumberOf(fieldName)
 
-    type
-      FlatType = flatType(fieldVal)
-
     protoType(ProtoType, T, typeof(fieldVal), fieldName)
 
-    let fieldSize = when FlatType is seq and FlatType isnot seq[byte]:
+    #type
+    #  FlatType = flatType(fieldVal)
+
+    let fieldSize = when typeof(fieldVal) is seq and typeof(fieldVal) isnot seq[byte]:
       const
         isPacked = T.isPacked(fieldName).get(isProto3)
       when isPacked and ProtoType is SomePrimitive:
         computeFieldSizePacked(fieldNum, fieldVal, ProtoType)
       else:
-        var dataSize = 0
-        for i in 0..<fieldVal.len:
-          # don't skip defaults so as to preserve length
-          dataSize += computeFieldSize(fieldNum, fieldVal[i], ProtoType, false)
-        dataSize
-
+        computeFieldSize(fieldNum, fieldVal, ProtoType, false)
     else:
       computeFieldSize(fieldNum, fieldVal, ProtoType, isProto3)
 

@@ -13,6 +13,8 @@ import
   std/[macros, typetraits],
   ../[reader, writer, sizer, internal]
 
+from stew/objects import enumRangeInt64
+
 ## This is not conformant with protobuf enums. It implements
 ## *Closed* enums, but unknown values are not stored at all.
 ## So, unknown values cannot be serialized back.
@@ -21,7 +23,7 @@ import
 
 # TODO: https://github.com/status-im/nim-stew/pull/271
 
-func hasHoles(T: type enum): bool =
+template hasHoles(T: type enum): bool =
   const ret = int64(T.high.ord) - int64(T.low.ord) != int64(enumLen(T) - 1)
   ret
 
@@ -42,13 +44,38 @@ func checkedEnumAssign[E: enum, I: SomeInteger](res: var E, value: I): bool =
     res = cast[E](value)
     true
 
+proc validateEnumType(T: type enum, ProtoType: type ProtobufExt) =
+  bind contains
+  when 0 notin T and ProtoType.RootType.isProto3():
+    {.fatal: $T & " definition must contain a constant that maps to zero".}
+
 func computeFieldSize*(
     fieldNum: int,
     fieldVal: enum,
     ProtoType: type ProtobufExt,
     skipDefault: static bool
 ): int =
+  validateEnumType(typeof(fieldVal), ProtoType)
   computeFieldSize(fieldNum, int32(fieldVal.ord()), pint32, skipDefault)
+
+func computeFieldSize*(
+    fieldNum: int,
+    fieldVal: seq[enum],
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool
+): int =
+  static: doAssert not skipDefault
+  validateEnumType(typeof(fieldVal[0]), ProtoType)
+  const
+    isProto3 = ProtoType.RootType.isProto3()
+    isPacked = ProtoType.RootType.isPacked(ProtoType.fieldName).get(isProto3)
+  when isPacked:
+    computeFieldSizePacked(fieldNum, fieldVal, pint32)
+  else:
+    var dataSize = 0
+    for i in 0 ..< fieldVal.len:
+      dataSize += computeFieldSize(fieldNum, fieldVal[i], ProtoType, false)
+    dataSize
 
 proc writeField*(
     stream: OutputStream,
@@ -57,8 +84,7 @@ proc writeField*(
     ProtoType: type ProtobufExt,
     skipDefault: static bool = false
 ) {.raises: [IOError].} =
-  #when 0 notin T:
-  #  {.fatal: $T & " definition must contain a constant that maps to zero".}
+  validateEnumType(typeof(fieldVal), ProtoType)
   writeField(stream, fieldNum, int32(fieldVal.ord()), pint32, skipDefault)
 
 proc writeField*(
@@ -68,8 +94,7 @@ proc writeField*(
     ProtoType: type ProtobufExt,
     skipDefault: static bool = false
 ) {.raises: [IOError].} =
-  #when 0 notin T:
-  #  {.fatal: $T & " definition must contain a constant that maps to zero".}
+  validateEnumType(typeof(fieldVal[0]), ProtoType)
   const
     isProto3 = ProtoType.RootType.isProto3()
     isPacked = ProtoType.RootType.isPacked(ProtoType.fieldName).get(isProto3)
@@ -85,9 +110,7 @@ proc readFieldInto*(
     header: FieldHeader,
     ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
-  # TODO: This function doesn't work for proto2 edge cases. Make it work
-  #when 0 notin T and T.isProto3():
-  #  {.fatal: $T & " definition must contain a constant that maps to zero".}
+  validateEnumType(typeof(value), ProtoType)
   if header.kind() == wireKind(pint32):
     let enumValue = stream.readValue(pint32)
     if checkedEnumAssign(value, enumValue.int32):
@@ -104,6 +127,7 @@ proc readFieldInto*(
   header: FieldHeader,
   ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
+  validateEnumType(typeof(value[0]), ProtoType)
   if header.kind() == wireKind(pbytes):
     var vals = default(seq[int32])
     let ret = stream.readFieldPackedInto(vals, header, pint32)
