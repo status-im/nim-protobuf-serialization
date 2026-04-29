@@ -15,7 +15,7 @@ export inputs, serialization, codec, types
 
 proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false) {.raises: [SerializationError, IOError].}
 
-proc readFieldInto*[T: not seq and not PBOption](
+proc readFieldInto*[T: not PBOption](
   stream: InputStream,
   value: var T,
   header: FieldHeader,
@@ -49,7 +49,7 @@ proc readFieldInto*[T: object and not PBOption](
   else:
     false
 
-proc readFieldInto*[T: not object and not enum and (seq[byte] or not seq)](
+proc readFieldInto*[T: not object and (seq[byte] or not seq)](
   stream: InputStream,
   value: var T,
   header: FieldHeader,
@@ -73,7 +73,7 @@ proc readFieldInto*[T: not byte](
   stream: InputStream,
   value: var seq[T],
   header: FieldHeader,
-  ProtoType: type
+  ProtoType: type SomeProto
 ): bool {.raises: [SerializationError, IOError].} =
   var val = default(T)
   if stream.readFieldInto(val, header, ProtoType):
@@ -107,7 +107,7 @@ proc readFieldPackedInto*[T](
     inner = memoryInput(bytes)
     headerElm = FieldHeader.init(header.number, wireKind(ProtoType))
   while inner.readable():
-    value.add(default(T))
+    value.add default(T)
     let r = inner.readFieldInto(value[^1], headerElm, ProtoType)
     doAssert r
   true

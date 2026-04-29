@@ -33,7 +33,7 @@ proc writeField*[T: object and not PBOption](
   stream.writeValue(puint64(size))
   stream.writeObject(fieldVal)
 
-proc writeField*[T: not object](
+proc writeField*[T: not object and (seq[byte] or not seq)](
     stream: OutputStream, fieldNum: int, fieldVal: T,
     ProtoType: type SomeScalar, skipDefault: static bool = false) {.raises: [IOError].} =
   when skipDefault:
@@ -42,6 +42,17 @@ proc writeField*[T: not object](
       return
 
   stream.writeField(fieldNum, ProtoType(fieldVal))
+
+proc writeField*[T: not byte](
+    stream: OutputStream,
+    fieldNum: int,
+    fieldVal: openArray[T],
+    ProtoType: type SomeProto,
+    skipDefault: static bool = false
+) {.raises: [IOError].} =
+  for i in 0 ..< fieldVal.len:
+    # don't skip defaults so as to preserve length
+    stream.writeField(fieldNum, fieldVal[i], ProtoType, false)
 
 proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
     output: OutputStream, field: int, values: openArray[T], _: type ProtoType) {.raises: [IOError].} =
@@ -84,10 +95,10 @@ proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].
     const
       fieldNum = T.fieldNumberOf(fieldName)
 
+    protoType(ProtoType, T, typeof(fieldVal), fieldName)
+
     type
       FlatType = flatType(fieldVal)
-
-    protoType(ProtoType, T, typeof(fieldVal), fieldName)
 
     when FlatType is seq and FlatType isnot seq[byte]:
       const
@@ -95,10 +106,7 @@ proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].
       when isPacked and ProtoType is SomePrimitive:
         stream.writeFieldPacked(fieldNum, fieldVal, ProtoType)
       else:
-        for i in 0..<fieldVal.len:
-          # don't skip defaults so as to preserve length
-          stream.writeField(fieldNum, fieldVal[i], ProtoType, false)
-
+        stream.writeField(fieldNum, fieldVal, ProtoType)
     elif FlatType is ref and defined(ConformanceTest):
       if not fieldVal.isNil():
         stream.writeField(fieldNum, fieldVal[], ProtoType)

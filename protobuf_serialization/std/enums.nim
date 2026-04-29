@@ -11,7 +11,7 @@
 
 import
   std/[macros, typetraits],
-  ../[reader, writer, sizer]
+  ../[reader, writer, sizer, internal]
 
 ## This is not conformant with protobuf enums. It implements
 ## *Closed* enums, but unknown values are not stored at all.
@@ -61,6 +61,24 @@ proc writeField*(
   #  {.fatal: $T & " definition must contain a constant that maps to zero".}
   writeField(stream, fieldNum, int32(fieldVal.ord()), pint32, skipDefault)
 
+proc writeField*(
+    stream: OutputStream,
+    fieldNum: int,
+    fieldVal: seq[enum],
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool = false
+) {.raises: [IOError].} =
+  #when 0 notin T:
+  #  {.fatal: $T & " definition must contain a constant that maps to zero".}
+  const
+    isProto3 = ProtoType.RootType.isProto3()
+    isPacked = ProtoType.RootType.isPacked(ProtoType.fieldName).get(isProto3)
+  when isPacked:
+    writeFieldPacked(stream, fieldNum, fieldVal, pint32)
+  else:
+    for i in 0 ..< fieldVal.len:
+      stream.writeField(fieldNum, fieldVal[i], ProtoType, false)
+
 proc readFieldInto*(
     stream: InputStream,
     value: var (enum),  # Nim 1.6 requires parens
@@ -79,3 +97,25 @@ proc readFieldInto*(
       false
   else:
     false
+
+proc readFieldInto*(
+  stream: InputStream,
+  value: var seq[enum],
+  header: FieldHeader,
+  ProtoType: type ProtobufExt
+): bool {.raises: [SerializationError, IOError].} =
+  if header.kind() == wireKind(pbytes):
+    var vals = default(seq[int32])
+    let ret = stream.readFieldPackedInto(vals, header, pint32)
+    for val in vals:
+      value.add default(typeof(value[0]))
+      if not checkedEnumAssign(value[^1], val.int32):
+        value.setLen(value.len - 1)
+    ret
+  else:
+    value.add default(typeof(value[0]))
+    if not stream.readFieldInto(value[^1], header, ProtoType):
+      value.setLen(value.len - 1)
+      false
+    else:
+      true
