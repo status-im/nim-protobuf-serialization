@@ -115,7 +115,7 @@ suite "Test Encoding of Protobuf 2 Semantics":
     roundtrip(FixedOption(c: pbSome(1'u32)), "1d01000000")
     roundtrip(FixedOption(d: pbSome(1'u64)), "210100000000000000")
 
-  test "invalid type does not set PBOption":
+  test "unexpected type does not set PBOption":
     # echo "0801" | xxd -r -p | protoc --decode=FixedOption test_protobuf2_semantics.proto
     # 1: 1
     let encoded = "0801".hexToSeqByte
