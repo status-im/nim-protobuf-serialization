@@ -93,8 +93,12 @@ proc readFieldInto*[T: not byte](
   header: FieldHeader,
   ProtoType: type
 ): bool {.raises: [SerializationError, IOError].} =
-  value.add(default(T))
-  stream.readFieldInto(value[^1], header, ProtoType)
+  var val = default(T)
+  if stream.readFieldInto(val, header, ProtoType):
+    value.add move(val)
+    true
+  else:
+    false
 
 proc readFieldInto*(
   stream: InputStream,
