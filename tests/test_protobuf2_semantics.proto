@@ -1,8 +1,31 @@
 syntax = "proto2";
 
+message Required {
+  optional int32 a = 1;
+  required int32 b = 2;
+}
+
+message FullOfDefaults {
+  optional string a = 3;
+  optional Required b = 4;
+}
+
+message SeqContainer {
+  repeated bool data = 5;
+}
+
+message SeqString {
+  repeated string data = 6;
+}
+
+message FloatOption {
+  optional float x = 1;
+  optional double y = 2;
+}
+
 message FixedOption {
-  optional fixed32 a = 1;
-  optional fixed64 b = 2;
-  optional sfixed32 c = 3;
-  optional sfixed64 d = 4;
+  optional sfixed32 a = 1;
+  optional sfixed64 b = 2;
+  optional fixed32 c = 3;
+  optional fixed64 d = 4;
 }
