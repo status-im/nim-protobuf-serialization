@@ -102,7 +102,11 @@ proc readFieldInto*(
   header: FieldHeader,
   ProtoType: type
 ): bool {.raises: [SerializationError, IOError].} =
-  stream.readFieldInto(value.mget(), header, ProtoType)
+  if stream.readFieldInto(value.mget(), header, ProtoType):
+    true
+  else:
+    reset(value)
+    false
 
 proc readFieldPackedInto*[T](
   stream: InputStream,
