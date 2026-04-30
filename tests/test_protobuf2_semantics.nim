@@ -119,7 +119,7 @@ suite "Test Encoding of Protobuf 2 Semantics":
     # echo "0801" | xxd -r -p | protoc --decode=FixedOption test_protobuf2_semantics.proto
     # 1: 1
     let encoded = "0801".hexToSeqByte
-    check ProtoBuf.decode(encoded, FixedOption) == FixedOption()
+    check Protobuf.decode(encoded, FixedOption) == FixedOption()
 
   test "pbSome ergonomic":
     check:
