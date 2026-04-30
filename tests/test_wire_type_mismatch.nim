@@ -14,6 +14,9 @@ type
 
   Fixed64Obj {.proto3.} = object
     x {.fieldNumber: 1, fixed.}: int64
+  
+  Repeated {.proto3.} = object
+    x {.fieldNumber: 1, pint.}: seq[int64]
 
 suite "Test wire type mismatches length":
   test "Varint instead of length":
@@ -154,3 +157,16 @@ suite "Test wire type mismatches fixed64":
     let encoded = "0901000000000000000a0161".hexToSeqByte
     check Protobuf.decode(encoded, Fixed64Obj) == Fixed64Obj(x: 1)
 
+suite "Test wire type mismatches repeated varint":
+  test "repeated fixed32 instead of varint":
+    # echo "0D01000000" | xxd -r -p | protoc --decode=Repeated test_wire_type_mismatch.proto
+    # 1: 0x00000001
+    let encoded = "0D01000000".hexToSeqByte
+    check Protobuf.decode(encoded, Repeated) == Repeated()
+
+  test "repeated fixed32 instead of varint variant 1":
+    # echo "08010D01000000" | xxd -r -p | protoc --decode=Repeated test_wire_type_mismatch.proto
+    # x: 1
+    # 1: 0x00000001
+    let encoded = "08010D01000000".hexToSeqByte
+    check Protobuf.decode(encoded, Repeated) == Repeated(x: @[1])

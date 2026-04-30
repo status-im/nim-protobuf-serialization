@@ -15,3 +15,7 @@ message Fixed32Obj {
 message Fixed64Obj {
   sfixed64 x = 1;
 }
+
+message Repeated {
+  repeated int64 x = 1;
+}
