@@ -7,9 +7,11 @@
 # This file may not be copied, modified, or distributed except according to
 # those terms.
 
-import unittest2
-
-import ../protobuf_serialization
+import
+  unittest2,
+  stew/byteutils,
+  ./utils,
+  ../protobuf_serialization
 
 type
   Required {.proto2.} = object
@@ -106,17 +108,18 @@ suite "Test Encoding of Protobuf 2 Semantics":
     check Protobuf.decode(Protobuf.encode(v), FloatOption) == v
 
   test "Option[Fixed] in object":
-    var x = FixedOption(a: PBOption[0'i32].pbSome(1'i32))
-    check Protobuf.decode(Protobuf.encode(x), FixedOption) == x
+    # echo "0d01000000" | xxd -r -p | protoc --decode=FixedOption test_protobuf2_semantics.proto
+    # echo 'a: 1' | protoc --encode=FixedOption test_protobuf2_semantics.proto | hexdump -ve '1/1 "%.2x"'
+    roundtrip(FixedOption(a: pbSome(1'i32)), "0d01000000")
+    roundtrip(FixedOption(b: pbSome(1'i64)), "110100000000000000")
+    roundtrip(FixedOption(c: pbSome(1'u32)), "1d01000000")
+    roundtrip(FixedOption(d: pbSome(1'u64)), "210100000000000000")
 
-    var y = FixedOption(b: PBOption[0'i64].pbSome(1'i64))
-    check Protobuf.decode(Protobuf.encode(y), FixedOption) == y
-
-    var z = FixedOption(c: PBOption[0'u32].pbSome(1'u32))
-    check Protobuf.decode(Protobuf.encode(z), FixedOption) == z
-
-    var v = FixedOption(d: PBOption[0'u64].pbSome(1'u64))
-    check Protobuf.decode(Protobuf.encode(v), FixedOption) == v
+  test "invalid type does not set PBOption":
+    # echo "0801" | xxd -r -p | protoc --decode=FixedOption test_protobuf2_semantics.proto
+    # 1: 1
+    let encoded = "0801".hexToSeqByte
+    check ProtoBuf.decode(encoded, FixedOption) == FixedOption()
 
   test "pbSome ergonomic":
     check:

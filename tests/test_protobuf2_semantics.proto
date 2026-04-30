@@ -1,0 +1,8 @@
+syntax = "proto2";
+
+message FixedOption {
+  optional fixed32 a = 1;
+  optional fixed64 b = 2;
+  optional sfixed32 c = 3;
+  optional sfixed64 d = 4;
+}
