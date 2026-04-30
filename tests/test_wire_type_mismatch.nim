@@ -170,3 +170,11 @@ suite "Test wire type mismatches repeated varint":
     # 1: 0x00000001
     let encoded = "08010D01000000".hexToSeqByte
     check Protobuf.decode(encoded, Repeated) == Repeated(x: @[1])
+
+  test "repeated Length instead of varint variant 1":
+    # echo "08010a0161" | xxd -r -p | protoc --decode=Repeated test_wire_type_mismatch.proto
+    # x: 1
+    # x: 97
+    # this decodes "a" because Length-defined are packed values
+    let encoded = "08010a0161".hexToSeqByte
+    check Protobuf.decode(encoded, Repeated) == Repeated(x: @[1, 97])
