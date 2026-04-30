@@ -66,7 +66,7 @@ suite "Test Enum Encoding/Decoding":
     # 1: 3
     let encoded = "0803".hexToSeqByte
     expect(ProtobufReadError):
-      discard ProtoBuf.decode(encoded, ObjClassicP2)
+      discard Protobuf.decode(encoded, ObjClassicP2)
 
   test "proto2 enum with holes valid values":
     # echo 'x: 0' | protoc --encode=ObjWithHolesP2 test_std_enums_2.proto | hexdump -ve '1/1 "%.2x"'
@@ -86,7 +86,7 @@ suite "Test Enum Encoding/Decoding":
     # 1: 5
     let encoded = "0805".hexToSeqByte
     expect(ProtobufReadError):
-      discard ProtoBuf.decode(encoded, ObjWithHolesP2)
+      discard Protobuf.decode(encoded, ObjWithHolesP2)
 
   test "proto2 enum with int32 limits valid values":
     roundtrip(ObjLimitsP2(x: B3), "0800")
@@ -101,7 +101,7 @@ suite "Test Enum Encoding/Decoding":
     # 1 is not in {int32.low, 0, int32.high}
     let encoded = "0801".hexToSeqByte
     expect(ProtobufReadError):
-      discard ProtoBuf.decode(encoded, ObjLimitsP2)
+      discard Protobuf.decode(encoded, ObjLimitsP2)
 
   test "proto2 optional enum":
     # pbNone: field absent, encodes to empty
@@ -115,7 +115,7 @@ suite "Test Enum Encoding/Decoding":
     # echo "0803" | xxd -r -p | protoc --decode=ObjClassicOptP2 test_std_enums_2.proto
     # 1: 3
     let encoded = "0803".hexToSeqByte
-    check ProtoBuf.decode(encoded, ObjClassicOptP2) == ObjClassicOptP2(x: pbNone(default(Classic)))
+    check Protobuf.decode(encoded, ObjClassicOptP2) == ObjClassicOptP2(x: pbNone(default(Classic)))
 
   test "proto3 ordinal enum":
     # proto3 default (0 = A1) is not written to the wire
@@ -127,7 +127,7 @@ suite "Test Enum Encoding/Decoding":
     # echo "0803" | xxd -r -p | protoc --decode=ObjClassicP3 test_std_enums_2.proto
     # (empty — unknown value silently dropped)
     let encoded = "0803".hexToSeqByte
-    check ProtoBuf.decode(encoded, ObjClassicP3) == ObjClassicP3(x: A1)
+    check Protobuf.decode(encoded, ObjClassicP3) == ObjClassicP3(x: A1)
 
   test "proto3 enum with holes":
     # A2=-10, not 0 so it is encoded; B2=0 is the proto3 default so it is skipped
