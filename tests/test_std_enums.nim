@@ -43,6 +43,12 @@ type
   ObjClassicOptP2 {.proto2.} = object
     x {.fieldNumber: 1, ext.}: PBOption[default(Classic)]
 
+  ObjRepeatedP2 {.proto2.} = object
+    x {.fieldNumber: 1, ext.}: seq[Classic]
+
+  ObjRepeatedPackedP2 {.proto2.} = object
+    x {.fieldNumber: 1, ext, packed: true.}: seq[Classic]
+
   ObjClassicP3 {.proto3.} = object
     x {.fieldNumber: 1, ext.}: Classic
 
@@ -51,6 +57,12 @@ type
 
   ObjLimitsP3 {.proto3.} = object
     x {.fieldNumber: 1, ext.}: Limits
+
+  ObjRepeatedP3 {.proto3.} = object
+    x {.fieldNumber: 1, ext.}: seq[Classic]
+
+  ObjRepeatedUnpackedP3 {.proto3.} = object
+    x {.fieldNumber: 1, ext, packed: false.}: seq[Classic]
 
 suite "Test Enum Encoding/Decoding":
   test "proto2 ordinal enum valid values":
@@ -117,6 +129,41 @@ suite "Test Enum Encoding/Decoding":
     let encoded = "0803".hexToSeqByte
     check Protobuf.decode(encoded, ObjClassicOptP2) == ObjClassicOptP2(x: pbNone(default(Classic)))
 
+  test "proto2 repeated enum":
+    # echo "080008010802" | xxd -r -p | protoc --decode=ObjRepeatedP2 test_std_enums_2.proto
+    # echo 'x: 0 x: 1 x: 2' | protoc --encode=ObjRepeatedP2 test_std_enums_2.proto | hexdump -ve '1/1 "%.2x"'
+    # roundtrip is unpacked for proto2
+    roundtrip(ObjRepeatedP2(x: @[A1, B1, C1]), "080008010802")
+    # echo "0a03000102" | xxd -r -p | protoc --decode=ObjRepeatedP2 test_std_enums_2.proto
+    # packed
+    let encoded = "0a03000102".hexToSeqByte
+    check Protobuf.decode(encoded, ObjRepeatedP2) == ObjRepeatedP2(x: @[A1, B1, C1])
+
+  test "proto2 repeated enum invalid":
+    # echo "080008030802" | xxd -r -p | protoc --decode=ObjRepeatedP2 test_std_enums_2.proto
+    # x: A1
+    # x: C1
+    # 1: 3
+    let encoded = "080008030802".hexToSeqByte
+    check Protobuf.decode(encoded, ObjRepeatedP2) == ObjRepeatedP2(x: @[A1, C1])
+
+  test "proto2 repeated enum packed":
+    # echo "0a03000102" | xxd -r -p | protoc --decode=ObjRepeatedPackedP2 test_std_enums_2.proto
+    # echo 'x: 0 x: 1 x: 2' | protoc --encode=ObjRepeatedPackedP2 test_std_enums_2.proto | hexdump -ve '1/1 "%.2x"'
+    roundtrip(ObjRepeatedPackedP2(x: @[A1, B1, C1]), "0a03000102")
+    # echo "080008010802" | xxd -r -p | protoc --decode=ObjRepeatedP2 test_std_enums_2.proto
+    # unpacked
+    let encoded = "080008010802".hexToSeqByte
+    check Protobuf.decode(encoded, ObjRepeatedPackedP2) == ObjRepeatedPackedP2(x: @[A1, B1, C1])
+
+  test "proto2 repeated enum packed invalid":
+    # echo "0a03000302" | xxd -r -p | protoc --decode=ObjRepeatedPackedP2 test_std_enums_2.proto
+    # x: A1
+    # x: C1
+    # 1: 3
+    let encoded = "0a03000302".hexToSeqByte
+    check Protobuf.decode(encoded, ObjRepeatedPackedP2) == ObjRepeatedPackedP2(x: @[A1, C1])
+
   test "proto3 ordinal enum":
     # proto3 default (0 = A1) is not written to the wire
     roundtrip(ObjClassicP3(x: A1), "")
@@ -124,8 +171,9 @@ suite "Test Enum Encoding/Decoding":
     roundtrip(ObjClassicP3(x: C1), "0802")
 
   test "proto3 unknown enum value is silently mapped to zero":
-    # echo "0803" | xxd -r -p | protoc --decode=ObjClassicP3 test_std_enums_2.proto
-    # (empty — unknown value silently dropped)
+    # echo "0803" | xxd -r -p | protoc --decode=ObjClassicP3 test_std_enums_3.proto
+    # x: 3
+    # closed enum drops x: 3
     let encoded = "0803".hexToSeqByte
     check Protobuf.decode(encoded, ObjClassicP3) == ObjClassicP3(x: A1)
 
@@ -140,3 +188,40 @@ suite "Test Enum Encoding/Decoding":
     roundtrip(ObjLimitsP3(x: A3), "0880808080f8ffffffff01")
     roundtrip(ObjLimitsP3(x: C3), "08ffffffff07")
     roundtrip(ObjLimitsP3(x: B3), "")
+
+  test "proto3 repeated enum":
+    # echo "0a03000102" | xxd -r -p | protoc --decode=ObjRepeatedP3 test_std_enums_3.proto
+    # echo 'x: 0 x: 1 x: 2' | protoc --encode=ObjRepeatedP3 test_std_enums_3.proto | hexdump -ve '1/1 "%.2x"'
+    # roundtrip is packed for proto3
+    roundtrip(ObjRepeatedP3(x: @[A1, B1, C1]), "0a03000102")
+    # echo "0a03000102" | xxd -r -p | protoc --decode=ObjRepeatedP3 test_std_enums_3.proto
+    # unpacked
+    let encoded = "080008010802".hexToSeqByte
+    check Protobuf.decode(encoded, ObjRepeatedP3) == ObjRepeatedP3(x: @[A1, B1, C1])
+
+  test "proto3 repeated enum invalid":
+    # echo "0a03000302" | xxd -r -p | protoc --decode=ObjRepeatedP3 test_std_enums_3.proto
+    # x: A1
+    # x: 3
+    # x: C1
+    # closed enum drops x: 3
+    let encoded = "0a03000302".hexToSeqByte
+    check Protobuf.decode(encoded, ObjRepeatedP3) == ObjRepeatedP3(x: @[A1, C1])
+
+  test "proto3 repeated enum unpacked":
+    # echo "080008010802" | xxd -r -p | protoc --decode=ObjRepeatedUnpackedP3 test_std_enums_3.proto
+    # echo 'x: 0 x: 1 x: 2' | protoc --encode=ObjRepeatedUnpackedP3 test_std_enums_3.proto | hexdump -ve '1/1 "%.2x"'
+    roundtrip(ObjRepeatedUnpackedP3(x: @[A1, B1, C1]), "080008010802")
+    # echo "0a03000102" | xxd -r -p | protoc --decode=ObjRepeatedP3 test_std_enums_3.proto
+    # packed
+    let encoded = "0a03000102".hexToSeqByte
+    check Protobuf.decode(encoded, ObjRepeatedUnpackedP3) == ObjRepeatedUnpackedP3(x: @[A1, B1, C1])
+
+  test "proto3 repeated enum unpacked invalid":
+    # echo "080008030802" | xxd -r -p | protoc --decode=ObjRepeatedUnpackedP3 test_std_enums_3.proto
+    # x: A1
+    # x: 3
+    # x: C1
+    # closed enum drops x: 3
+    let encoded = "080008030802".hexToSeqByte
+    check Protobuf.decode(encoded, ObjRepeatedUnpackedP3) == ObjRepeatedUnpackedP3(x: @[A1, C1])

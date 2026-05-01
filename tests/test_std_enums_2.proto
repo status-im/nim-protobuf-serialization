@@ -34,3 +34,11 @@ message ObjLimitsP2 {
 message ObjClassicOptP2 {
   optional Limits x = 1;
 }
+
+message ObjRepeatedP2 {
+  repeated Classic x = 1;
+}
+
+message ObjRepeatedPackedP2 {
+  repeated Classic x = 1 [packed = true];
+}

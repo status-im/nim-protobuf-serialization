@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+enum Classic {
+  A1 = 0;
+  B1 = 1;
+  C1 = 2;
+}
+
+enum WithHoles {
+  B2 = 0;
+  A2 = -10;
+  C2 = 10;
+  D2 = 11;
+}
+
+enum Limits {
+  B3 = 0;
+  A3 = -2147483648;
+  C3 = 2147483647;
+}
+
+message ObjClassicP3 {
+  Classic x = 1;
+}
+
+message ObjWithHolesP3 {
+  WithHoles x = 1;
+}
+
+message ObjLimitsP3 {
+  Limits x = 1;
+}
+
+message ObjRepeatedP3 {
+  repeated Classic x = 1;
+}
+
+message ObjRepeatedUnpackedP3 {
+  repeated Classic x = 1 [packed = false];
+}
