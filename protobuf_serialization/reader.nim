@@ -15,7 +15,15 @@ export inputs, serialization, codec, types
 
 proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false) {.raises: [SerializationError, IOError].}
 
-proc readFieldInto*[T: not PBOption](
+proc readFieldInto*[T: not seq and not PBOption](
+  stream: InputStream,
+  value: var T,
+  header: FieldHeader,
+  ProtoType: type ProtobufExt
+): bool {.raises: [SerializationError, IOError].} =
+  unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
+
+proc readFieldPackedInto*[T](
   stream: InputStream,
   value: var T,
   header: FieldHeader,
@@ -73,7 +81,7 @@ proc readFieldInto*[T: not byte](
   stream: InputStream,
   value: var seq[T],
   header: FieldHeader,
-  ProtoType: type SomeProto
+  ProtoType: type # SomeProto
 ): bool {.raises: [SerializationError, IOError].} =
   var val = default(T)
   if stream.readFieldInto(val, header, ProtoType):
@@ -94,7 +102,7 @@ proc readFieldInto*(
     reset(value)
     false
 
-proc readFieldPackedInto*[T](
+proc readFieldPackedInto*[T: not byte](
   stream: InputStream,
   value: var seq[T],
   header: FieldHeader,
@@ -113,6 +121,8 @@ proc readFieldPackedInto*[T](
   true
 
 proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false) {.raises: [SerializationError, IOError].} =
+  mixin supportsPacked, readFieldPackedInto
+
   const
     isProto2: bool = T.isProto2()
 
@@ -144,7 +154,7 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
         protoType(ProtoType, T, typeof(fieldVar), fieldName)
         # TODO should we allow reading packed fields into non-repeated fields?
         knownField =
-          when ProtoType is SomePrimitive and fieldVar is seq and fieldVar isnot seq[byte]:
+          when supportsPacked(typeof(fieldVar), ProtoType):
             if header.kind() == WireKind.LengthDelim:
               stream.readFieldPackedInto(fieldVar, header, ProtoType)
             else:

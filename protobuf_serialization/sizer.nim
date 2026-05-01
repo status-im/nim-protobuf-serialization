@@ -8,7 +8,7 @@ import
 
 func computeObjectSize*[T: object](value: T): int
 
-func computeFieldSize*[T: not PBOption](
+func computeFieldSize*[T: not openArray and not PBOption](
     fieldNum: int, fieldVal: T, ProtoType: type ProtobufExt,
     _: static bool) =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
@@ -55,9 +55,11 @@ when defined(ConformanceTest):
       0
 
 proc computeFieldSize*[T: not byte](
-    fieldNum: int, fieldVal: openArray[T],
-    ProtoType: type SomeProto, skipDefault: static bool): int =
-  static: doAssert not skipDefault
+    fieldNum: int, 
+    fieldVal: openArray[T],
+    ProtoType: type, # SomeProto,
+    skipDefault: static bool
+): int =
   var dataSize = 0
   for i in 0 ..< fieldVal.len:
     # don't skip defaults so as to preserve length
@@ -90,6 +92,8 @@ proc computeFieldSizePacked*(
     dataSize
 
 func computeObjectSize*[T: object](value: T): int =
+  mixin supportsPacked, computeFieldSizePacked, computeFieldSize
+
   const
     isProto2: bool = T.isProto2()
     isProto3: bool = T.isProto3()
@@ -100,21 +104,15 @@ func computeObjectSize*[T: object](value: T): int =
   enumInstanceSerializedFields(value, fieldName, fieldVal):
     const
       fieldNum = T.fieldNumberOf(fieldName)
+      isPacked = T.isPacked(fieldName).get(isProto3)
 
     protoType(ProtoType, T, typeof(fieldVal), fieldName)
 
-    #type
-    #  FlatType = flatType(fieldVal)
-
-    let fieldSize = when typeof(fieldVal) is seq and typeof(fieldVal) isnot seq[byte]:
-      const
-        isPacked = T.isPacked(fieldName).get(isProto3)
-      when isPacked and ProtoType is SomePrimitive:
+    let fieldSize =
+      when isPacked and supportsPacked(typeof(fieldVal), ProtoType):
         computeFieldSizePacked(fieldNum, fieldVal, ProtoType)
       else:
-        computeFieldSize(fieldNum, fieldVal, ProtoType, false)
-    else:
-      computeFieldSize(fieldNum, fieldVal, ProtoType, isProto3)
+        computeFieldSize(fieldNum, fieldVal, ProtoType, isProto3)
 
     total += fieldSize
 

@@ -58,24 +58,13 @@ func computeFieldSize*(
   validateEnumType(typeof(fieldVal), ProtoType)
   computeFieldSize(fieldNum, int32(fieldVal.ord()), pint32, skipDefault)
 
-func computeFieldSize*(
-    fieldNum: int,
-    fieldVal: seq[enum],
-    ProtoType: type ProtobufExt,
-    skipDefault: static bool
+# XXX add default computeFieldSizePacked for ProtobufExt in sizer.nim
+proc computeFieldSizePacked*(
+    field: int,
+    values: openArray[enum],
+    ProtoType: type ProtobufExt
 ): int =
-  static: doAssert not skipDefault
-  validateEnumType(typeof(fieldVal[0]), ProtoType)
-  const
-    isProto3 = ProtoType.RootType.isProto3()
-    isPacked = ProtoType.RootType.isPacked(ProtoType.fieldName).get(isProto3)
-  when isPacked:
-    computeFieldSizePacked(fieldNum, fieldVal, pint32)
-  else:
-    var dataSize = 0
-    for i in 0 ..< fieldVal.len:
-      dataSize += computeFieldSize(fieldNum, fieldVal[i], ProtoType, false)
-    dataSize
+  computeFieldSizePacked(field, values, pint32)
 
 proc writeField*(
     stream: OutputStream,
@@ -87,22 +76,14 @@ proc writeField*(
   validateEnumType(typeof(fieldVal), ProtoType)
   writeField(stream, fieldNum, int32(fieldVal.ord()), pint32, skipDefault)
 
-proc writeField*(
+# XXX add default writeFieldPacked for ProtobufExt in writer.nim
+proc writeFieldPacked*(
     stream: OutputStream,
     fieldNum: int,
-    fieldVal: seq[enum],
-    ProtoType: type ProtobufExt,
-    skipDefault: static bool = false
+    fieldVal: openArray[enum],
+    ProtoType: type ProtobufExt
 ) {.raises: [IOError].} =
-  validateEnumType(typeof(fieldVal[0]), ProtoType)
-  const
-    isProto3 = ProtoType.RootType.isProto3()
-    isPacked = ProtoType.RootType.isPacked(ProtoType.fieldName).get(isProto3)
-  when isPacked:
-    writeFieldPacked(stream, fieldNum, fieldVal, pint32)
-  else:
-    for i in 0 ..< fieldVal.len:
-      stream.writeField(fieldNum, fieldVal[i], ProtoType, false)
+  writeFieldPacked(stream, fieldNum, fieldVal, pint32)
 
 proc readFieldInto*(
     stream: InputStream,
@@ -121,25 +102,21 @@ proc readFieldInto*(
   else:
     false
 
-proc readFieldInto*(
+proc supportsPacked*(T: type enum, ProtoType: type ProtobufExt): bool = false
+proc supportsPacked*(T: type seq[enum], ProtoType: type ProtobufExt): bool = true
+
+proc readFieldPackedInto*(
   stream: InputStream,
   value: var seq[enum],
   header: FieldHeader,
   ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
-  validateEnumType(typeof(value[0]), ProtoType)
-  if header.kind() == wireKind(pbytes):
-    var vals = default(seq[int32])
-    let ret = stream.readFieldPackedInto(vals, header, pint32)
+  var vals = default(seq[int32])
+  if stream.readFieldPackedInto(vals, header, pint32):
+    var v = default(typeof(value[0]))
     for val in vals:
-      value.add default(typeof(value[0]))
-      if not checkedEnumAssign(value[^1], val.int32):
-        value.setLen(value.len - 1)
-    ret
+      if checkedEnumAssign(v, val.int32):
+        value.add v
+    true
   else:
-    value.add default(typeof(value[0]))
-    if not stream.readFieldInto(value[^1], header, ProtoType):
-      value.setLen(value.len - 1)
-      false
-    else:
-      true
+    false

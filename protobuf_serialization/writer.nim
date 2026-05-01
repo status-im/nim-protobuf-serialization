@@ -14,7 +14,7 @@ export outputs, serialization, codec, types
 
 proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].}
 
-proc writeField*[T: not PBOption](
+proc writeField*[T: not openArray and not PBOption](
     stream: OutputStream, fieldNum: int, fieldVal: T,
     ProtoType: type ProtobufExt, _: static bool = false) {.raises: [IOError].} =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
@@ -47,10 +47,9 @@ proc writeField*[T: not byte](
     stream: OutputStream,
     fieldNum: int,
     fieldVal: openArray[T],
-    ProtoType: type SomeProto,
+    ProtoType: type, # SomeProto,
     skipDefault: static bool = false
 ) {.raises: [IOError].} =
-  static: doAssert not skipDefault
   for i in 0 ..< fieldVal.len:
     # don't skip defaults so as to preserve length
     stream.writeField(fieldNum, fieldVal[i], ProtoType, false)
@@ -87,6 +86,8 @@ proc writeField*(
     stream.writeField(fieldNum, fieldVal.get(), ProtoType, false)
 
 proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].} =
+  mixin supportsPacked, writeFieldPacked
+
   const
     isProto2: bool = T.isProto2()
     isProto3: bool = T.isProto3()
@@ -95,20 +96,13 @@ proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].
   enumInstanceSerializedFields(value, fieldName, fieldVal):
     const
       fieldNum = T.fieldNumberOf(fieldName)
+      isPacked = T.isPacked(fieldName).get(isProto3)
 
     protoType(ProtoType, T, typeof(fieldVal), fieldName)
 
-    type
-      FlatType = flatType(fieldVal)
-
-    when FlatType is seq and FlatType isnot seq[byte]:
-      const
-        isPacked = T.isPacked(fieldName).get(isProto3)
-      when isPacked and ProtoType is SomePrimitive:
-        stream.writeFieldPacked(fieldNum, fieldVal, ProtoType)
-      else:
-        stream.writeField(fieldNum, fieldVal, ProtoType)
-    elif FlatType is ref and defined(ConformanceTest):
+    when isPacked and supportsPacked(typeof(fieldVal), ProtoType):
+      stream.writeFieldPacked(fieldNum, fieldVal, ProtoType)
+    elif typeof(fieldVal) is ref and defined(ConformanceTest):
       if not fieldVal.isNil():
         stream.writeField(fieldNum, fieldVal[], ProtoType)
     else:

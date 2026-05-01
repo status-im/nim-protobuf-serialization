@@ -17,8 +17,9 @@ export results
 
 template flatType*[T](value: Opt[T]): type = T
 
-template isOptional*(_: type Protobuf, FieldType: type Opt): bool =
-  true
+template isOptional*(_: type Protobuf, FieldType: type Opt): bool = true
+
+proc supportsPacked*(T: type Opt, ProtoType: type ProtobufExt): bool = false
 
 proc computeFieldSize*(
     fieldNum: int,

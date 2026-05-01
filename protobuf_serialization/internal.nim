@@ -45,6 +45,15 @@ proc isPacked*(T: type, fieldName: static string): Option[bool] {.compileTime.} 
 proc isRequired*(T: type, fieldName: static string): bool {.compileTime.} =
   T.hasCustomPragmaFixed(fieldName, required)
 
+proc supportsPacked*(T: type, ProtoType: type SomeProto): bool =
+  ProtoType is SomePrimitive and T is seq and T isnot seq[byte]
+
+proc supportsPacked*(T: type, ProtoType: type ProtobufExt): bool =
+  when T is PBOption:
+    false
+  else:
+    unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
+
 template isOptional(_: type Protobuf, FieldType: type): bool = false
 
 proc fieldNumberOf*(T: type, fieldName: static string): int {.compileTime.} =
