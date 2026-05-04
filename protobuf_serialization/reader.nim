@@ -139,7 +139,7 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
   while stream.readable():
     let header = stream.readHeader()
     let pos = stream.pos()
-    var i = -1
+    var i {.used.} = -1
     var knownField = false
 
     if not header.number().validFieldNumber(true):

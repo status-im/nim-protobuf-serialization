@@ -2,7 +2,6 @@ import macros, os, strutils
 
 import
   ../../protobuf_serialization,
-  ../../protobuf_serialization/std/enums,
   ../../protobuf_serialization/files/type_generator
 
 macro test() =

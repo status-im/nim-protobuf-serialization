@@ -20,7 +20,7 @@ func flatTypeInternal(value: auto): auto {.compileTime.} =
   else:
     value
 
-template flatType*(value: auto): type =
+template flatType*(T: type Protobuf, value: auto): type =
   typeof(flatTypeInternal(value))
 
 template unsupportedProtoType*(FieldType, RootType, fieldName: untyped): untyped =
@@ -67,9 +67,9 @@ template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped)
   mixin flatType, isExtension
 
   when FieldType is seq and FieldType isnot seq[byte]:
-    type FlatType = flatType(default(typeof(for a in default(FieldType): a)))
+    type FlatType = Protobuf.flatType(default(typeof(for a in default(FieldType): a)))
   else:
-    type FlatType = flatType(default(FieldType))
+    type FlatType = Protobuf.flatType(default(FieldType))
 
   const
     isPint = RootType.hasCustomPragmaFixed(fieldName, pint)
@@ -139,7 +139,7 @@ template elementType[T](_: type seq[T]): type = typeof(T)
 func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
   mixin flatType, isExtension
 
-  type FlatType = flatType(default(T))
+  type FlatType = Protobuf.flatType(default(T))
   when T is PBOption or isExtension(Protobuf, T):
     static: doAssert FlatType isnot T
     verifySerializable(FlatType)

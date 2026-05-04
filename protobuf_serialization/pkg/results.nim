@@ -15,7 +15,7 @@ import
 
 export results
 
-template flatType*[T](value: Opt[T]): type = T
+template flatType*[U](T: type Protobuf, value: Opt[U]): type = U
 
 func isExtension*(T: type Protobuf, FieldType: type Opt): bool = true
 
@@ -32,7 +32,7 @@ func computeFieldSize*(
     skipDefault: static bool
 ): int =
   validateOptType(typeof(value), ProtoType)
-  protoType(InnerProtoType, ProtoType.RootType, flatType(value), ProtoType.fieldName)
+  protoType(InnerProtoType, ProtoType.RootType, Protobuf.flatType(value), ProtoType.fieldName)
   if value.isSome():
     computeFieldSize(field, value.get(), InnerProtoType, skipDefault)
   else:
@@ -46,7 +46,7 @@ proc writeField*(
     skipDefault: static bool = false
 ) {.raises: [IOError].} =
   validateOptType(typeof(value), ProtoType)
-  protoType(InnerProtoType, ProtoType.RootType, flatType(value), ProtoType.fieldName)
+  protoType(InnerProtoType, ProtoType.RootType, Protobuf.flatType(value), ProtoType.fieldName)
   if value.isSome():
     stream.writeField(field, value.get(), InnerProtoType, skipDefault)
 
@@ -57,7 +57,7 @@ proc readFieldInto*(
     ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
   validateOptType(typeof(value), ProtoType)
-  protoType(InnerProtoType, ProtoType.RootType, flatType(value), ProtoType.fieldName)
+  protoType(InnerProtoType, ProtoType.RootType, Protobuf.flatType(value), ProtoType.fieldName)
   var val: typeof(value.get())
   if stream.readFieldInto(val, header, InnerProtoType):
     value = Opt.ok(val)
