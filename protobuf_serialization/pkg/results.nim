@@ -21,12 +21,17 @@ func isExtension*(T: type Protobuf, FieldType: type Opt): bool = true
 
 func supportsPacked*(T: type Opt, ProtoType: type ProtobufExt): bool = false
 
+func validateOptType(T: type Opt, ProtoType: type ProtobufExt) =
+  when ProtoType.RootType.isProto3():
+    {.fatal: $T & " Opt is only supported in proto2".}
+
 func computeFieldSize*(
     field: int,
     value: Opt,
     ProtoType: type ProtobufExt,
     skipDefault: static bool
 ): int =
+  validateOptType(typeof(value), ProtoType)
   protoType(InnerProtoType, ProtoType.RootType, flatType(value), ProtoType.fieldName)
   if value.isSome():
     computeFieldSize(field, value.get(), InnerProtoType, skipDefault)
@@ -40,6 +45,7 @@ proc writeField*(
     ProtoType: type ProtobufExt,
     skipDefault: static bool = false
 ) {.raises: [IOError].} =
+  validateOptType(typeof(value), ProtoType)
   protoType(InnerProtoType, ProtoType.RootType, flatType(value), ProtoType.fieldName)
   if value.isSome():
     stream.writeField(field, value.get(), InnerProtoType, skipDefault)
@@ -50,6 +56,7 @@ proc readFieldInto*(
     header: FieldHeader,
     ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
+  validateOptType(typeof(value), ProtoType)
   protoType(InnerProtoType, ProtoType.RootType, flatType(value), ProtoType.fieldName)
   var val: typeof(value.get())
   if stream.readFieldInto(val, header, InnerProtoType):

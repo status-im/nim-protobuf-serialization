@@ -66,6 +66,7 @@ func computeFieldSizePacked*(
     value: openArray[enum],
     ProtoType: type ProtobufExt
 ): int =
+  validateEnumType(typeof(value[0]), ProtoType)
   computeFieldSizePacked(field, value, pint32)
 
 proc writeField*(
@@ -84,6 +85,7 @@ proc writeFieldPacked*(
     value: openArray[enum],
     ProtoType: type ProtobufExt
 ) {.raises: [IOError].} =
+  validateEnumType(typeof(value[0]), ProtoType)
   writeFieldPacked(stream, field, value, pint32)
 
 proc readFieldInto*(
@@ -109,6 +111,7 @@ proc readFieldPackedInto*(
   header: FieldHeader,
   ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
+  validateEnumType(typeof(value[0]), ProtoType)
   var vals = default(seq[int32])
   if stream.readFieldPackedInto(vals, header, pint32):
     var v = default(typeof(value[0]))
