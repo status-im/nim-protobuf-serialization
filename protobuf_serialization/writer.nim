@@ -15,47 +15,51 @@ export outputs, serialization, codec, types
 proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].}
 
 proc writeField*[T: not openArray and not PBOption](
-    stream: OutputStream, fieldNum: int, fieldVal: T,
+    stream: OutputStream, field: int, value: T,
     ProtoType: type ProtobufExt, _: static bool = false) {.raises: [IOError].} =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
+proc writeFieldPacked*[T: not byte](
+    output: OutputStream, field: int, values: openArray[T], ProtoType: type ProtobufExt) {.raises: [IOError].} =
+  unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
+
 proc writeField*[T: object and not PBOption](
-    stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type pbytes,
+    stream: OutputStream, field: int, value: T, ProtoType: type pbytes,
     skipDefault: static bool = false) {.raises: [IOError].} =
   let
-    size = computeObjectSize(fieldVal)
+    size = computeObjectSize(value)
 
   when skipDefault:
     if size == 0:
       return
 
-  stream.writeValue(FieldHeader.init(fieldNum, ProtoType.wireKind()))
+  stream.writeValue(FieldHeader.init(field, ProtoType.wireKind()))
   stream.writeValue(puint64(size))
-  stream.writeObject(fieldVal)
+  stream.writeObject(value)
 
 proc writeField*[T: not object and (seq[byte] or not seq)](
-    stream: OutputStream, fieldNum: int, fieldVal: T,
+    stream: OutputStream, field: int, value: T,
     ProtoType: type SomeScalar, skipDefault: static bool = false) {.raises: [IOError].} =
   when skipDefault:
-    const def = default(typeof(fieldVal))
-    if fieldVal == def:
+    const def = default(typeof(value))
+    if value == def:
       return
 
-  stream.writeField(fieldNum, ProtoType(fieldVal))
+  stream.writeField(field, ProtoType(value))
 
 proc writeField*[T: not byte](
     stream: OutputStream,
-    fieldNum: int,
-    fieldVal: openArray[T],
+    field: int,
+    value: openArray[T],
     ProtoType: type, # SomeProto,
     skipDefault: static bool = false
 ) {.raises: [IOError].} =
-  for i in 0 ..< fieldVal.len:
+  for i in 0 ..< value.len:
     # don't skip defaults so as to preserve length
-    stream.writeField(fieldNum, fieldVal[i], ProtoType, false)
+    stream.writeField(field, value[i], ProtoType, false)
 
-proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
-    output: OutputStream, field: int, values: openArray[T], _: type ProtoType) {.raises: [IOError].} =
+proc writeFieldPacked*[T: not byte](
+    output: OutputStream, field: int, values: openArray[T], ProtoType: type SomePrimitive) {.raises: [IOError].} =
   # Packed encoding uses a length-delimited field byte length of the sum of the
   # byte lengths of each field followed by the header-free contents
   if values.len == 0:
@@ -80,10 +84,10 @@ proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
       output.write(toBytes(ProtoType(value)))
 
 proc writeField*(
-    stream: OutputStream, fieldNum: int, fieldVal: PBOption, ProtoType: type,
+    stream: OutputStream, field: int, value: PBOption, ProtoType: type,
     skipDefault: static bool = false) {.raises: [IOError].} =
-  if fieldVal.isSome():
-    stream.writeField(fieldNum, fieldVal.get(), ProtoType, false)
+  if value.isSome():
+    stream.writeField(field, value.get(), ProtoType, false)
 
 proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].} =
   mixin supportsPacked, writeFieldPacked

@@ -54,7 +54,7 @@ proc supportsPacked*(T: type, ProtoType: type ProtobufExt): bool =
   else:
     unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
-template isOptional(_: type Protobuf, FieldType: type): bool = false
+template isExtension(T: type Protobuf, FieldType: type): bool = false
 
 proc fieldNumberOf*(T: type, fieldName: static string): int {.compileTime.} =
   const fieldNum = T.getCustomPragmaFixed(fieldName, fieldNumber)
@@ -64,7 +64,7 @@ proc fieldNumberOf*(T: type, fieldName: static string): int {.compileTime.} =
     fieldNum
 
 template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped) =
-  mixin flatType, isOptional
+  mixin flatType, isExtension
 
   when FieldType is seq and FieldType isnot seq[byte]:
     type FlatType = flatType(default(typeof(for a in default(FieldType): a)))
@@ -85,7 +85,7 @@ template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped)
     else:
       fieldError RootType, fieldName, "`pint`, `sint` and `fixed` should only be used with integers"
 
-  when RootType.hasCustomPragmaFixed(fieldName, ext) or isOptional(Protobuf, FieldType):
+  when RootType.hasCustomPragmaFixed(fieldName, ext) or isExtension(Protobuf, FieldType):
     type InnerType = ProtobufExt[FieldType, RootType, fieldName]
   elif FlatType is float64:
     type InnerType = pdouble
@@ -137,10 +137,10 @@ template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped)
 template elementType[T](_: type seq[T]): type = typeof(T)
 
 func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
-  mixin flatType, isOptional
+  mixin flatType, isExtension
 
   type FlatType = flatType(default(T))
-  when T is PBOption or isOptional(Protobuf, T):
+  when T is PBOption or isExtension(Protobuf, T):
     static: doAssert FlatType isnot T
     verifySerializable(FlatType)
   elif FlatType is int | uint:
@@ -167,12 +167,12 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
     enumInstanceSerializedFields(inst, fieldName, fieldVar):
       when isProto2 and not T.isRequired(fieldName) and
           fieldVar isnot (seq or PBOption) and
-          not isOptional(Protobuf, typeof(fieldVar)):
+          not isExtension(Protobuf, typeof(fieldVar)):
         fieldError T, fieldName, "proto2 requires every field to either have the required pragma attached or be a repeated field/PBOption."
       when isProto3 and (
         T.hasCustomPragmaFixed(fieldName, required) or
         fieldVar is PBOption or
-        isOptional(Protobuf, typeof(fieldVar))
+        isExtension(Protobuf, typeof(fieldVar))
       ):
         fieldError T, fieldName, "The required pragma/PBOption type can only be used with proto2."
 

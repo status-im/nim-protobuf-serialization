@@ -9,83 +9,87 @@ import
 func computeObjectSize*[T: object](value: T): int
 
 func computeFieldSize*[T: not openArray and not PBOption](
-    fieldNum: int, fieldVal: T, ProtoType: type ProtobufExt,
+    field: int, value: T, ProtoType: type ProtobufExt,
     _: static bool) =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
+func computeFieldSizePacked*(
+    field: int, values: openArray, ProtoType: type ProtobufExt): int =
+  unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
+
 func computeFieldSize*[T: object and not PBOption](
-    fieldNum: int, fieldVal: T, ProtoType: type pbytes,
+    field: int, value: T, ProtoType: type pbytes,
     skipDefault: static bool): int =
   let
-    size = computeObjectSize(fieldVal)
+    size = computeObjectSize(value)
 
   when skipDefault:
     if size == 0:
       return 0
 
-  computeSize(FieldHeader.init(fieldNum, ProtoType.wireKind())) +
+  computeSize(FieldHeader.init(field, ProtoType.wireKind())) +
     computeSize(puint64(size)) +
     size
 
-proc computeFieldSize*[T: not object and (seq[byte] or not seq)](
-    fieldNum: int, fieldVal: T,
+func computeFieldSize*[T: not object and (seq[byte] or not seq)](
+    field: int, value: T,
     ProtoType: type SomeScalar, skipDefault: static bool): int =
   when skipDefault:
-    const def = default(typeof(fieldVal))
-    if fieldVal == def:
+    const def = default(typeof(value))
+    if value == def:
       return
 
-  computeSize(fieldNum, ProtoType(fieldVal))
+  computeSize(field, ProtoType(value))
 
-proc computeFieldSize*(
-    fieldNum: int, fieldVal: PBOption, ProtoType: type,
+func computeFieldSize*(
+    field: int, value: PBOption, ProtoType: type,
     skipDefault: static bool): int =
-  if fieldVal.isSome(): # TODO required field checking
-    computeFieldSize(fieldNum, fieldVal.get(), ProtoType, skipDefault)
+  if value.isSome(): # TODO required field checking
+    computeFieldSize(field, value.get(), ProtoType, skipDefault)
   else:
     0
 
 when defined(ConformanceTest):
-  proc computeFieldSize*[T](
-    fieldNum: int, fieldVal: ref T,
+  func computeFieldSize*[T](
+    field: int, value: ref T,
     ProtoType: type pbytes, skipDefault: static bool): int =
-    if not fieldVal.isNil():
-      computeFieldSize(fieldNum, fieldVal[], ProtoType, skipDefault)
+    if not value.isNil():
+      computeFieldSize(field, value[], ProtoType, skipDefault)
     else:
       0
 
-proc computeFieldSize*[T: not byte](
-    fieldNum: int, 
-    fieldVal: openArray[T],
+func computeFieldSize*[T: not byte](
+    field: int, 
+    value: openArray[T],
     ProtoType: type, # SomeProto,
     skipDefault: static bool
 ): int =
   var dataSize = 0
-  for i in 0 ..< fieldVal.len:
+  for i in 0 ..< value.len:
     # don't skip defaults so as to preserve length
-    dataSize += computeFieldSize(fieldNum, fieldVal[i], ProtoType, false)
+    dataSize += computeFieldSize(field, value[i], ProtoType, false)
   dataSize
 
-proc computeSizePacked*[T: not byte](
-    values: openArray[T], ProtoType: type SomePrimitive): int =
+func computeSizePacked*[T: not byte](
+    value: openArray[T], ProtoType: type SomePrimitive): int =
   const canCopyMem =
     ProtoType is SomeFixed32 or ProtoType is SomeFixed64 or ProtoType is pbool
   when canCopyMem:
-    values.len() * sizeof(T)
+    value.len() * sizeof(T)
   else:
     var total = 0
-    for item in values:
+    for item in value:
       total += computeSize(ProtoType(item))
     total
 
-proc computeFieldSizePacked*(
-    field: int, values: openArray, ProtoType: type SomePrimitive): int =
+func computeFieldSizePacked*(
+    field: int, value: openArray, ProtoType: type SomePrimitive): int =
   # Packed encoding uses a length-delimited field byte length of the sum of the
   # byte lengths of each field followed by the header-free contents
-  if values.len == 0:
+  if value.len == 0:
     return 0
   let
-    dataSize = computeSizePacked(values, ProtoType)
+    dataSize = computeSizePacked(value, ProtoType)
 
   computeSize(FieldHeader.init(field, WireKind.LengthDelim)) +
     computeSize(puint64(dataSize)) +

@@ -44,46 +44,47 @@ func checkedEnumAssign[E: enum, I: SomeInteger](res: var E, value: I): bool =
     res = cast[E](value)
     true
 
-proc validateEnumType(T: type enum, ProtoType: type ProtobufExt) =
+func supportsPacked*(T: type enum, ProtoType: type ProtobufExt): bool = false
+func supportsPacked*(T: type seq[enum], ProtoType: type ProtobufExt): bool = true
+
+func validateEnumType(T: type enum, ProtoType: type ProtobufExt) =
   bind contains
   when 0 notin T and ProtoType.RootType.isProto3():
     {.fatal: $T & " definition must contain a constant that maps to zero".}
 
 func computeFieldSize*(
-    fieldNum: int,
-    fieldVal: enum,
+    field: int,
+    value: enum,
     ProtoType: type ProtobufExt,
     skipDefault: static bool
 ): int =
-  validateEnumType(typeof(fieldVal), ProtoType)
-  computeFieldSize(fieldNum, int32(fieldVal.ord()), pint32, skipDefault)
+  validateEnumType(typeof(value), ProtoType)
+  computeFieldSize(field, int32(value.ord()), pint32, skipDefault)
 
-# XXX add default computeFieldSizePacked for ProtobufExt in sizer.nim
-proc computeFieldSizePacked*(
+func computeFieldSizePacked*(
     field: int,
-    values: openArray[enum],
+    value: openArray[enum],
     ProtoType: type ProtobufExt
 ): int =
-  computeFieldSizePacked(field, values, pint32)
+  computeFieldSizePacked(field, value, pint32)
 
 proc writeField*(
     stream: OutputStream,
-    fieldNum: int,
-    fieldVal: enum,
+    field: int,
+    value: enum,
     ProtoType: type ProtobufExt,
     skipDefault: static bool = false
 ) {.raises: [IOError].} =
-  validateEnumType(typeof(fieldVal), ProtoType)
-  writeField(stream, fieldNum, int32(fieldVal.ord()), pint32, skipDefault)
+  validateEnumType(typeof(value), ProtoType)
+  writeField(stream, field, int32(value.ord()), pint32, skipDefault)
 
-# XXX add default writeFieldPacked for ProtobufExt in writer.nim
 proc writeFieldPacked*(
     stream: OutputStream,
-    fieldNum: int,
-    fieldVal: openArray[enum],
+    field: int,
+    value: openArray[enum],
     ProtoType: type ProtobufExt
 ) {.raises: [IOError].} =
-  writeFieldPacked(stream, fieldNum, fieldVal, pint32)
+  writeFieldPacked(stream, field, value, pint32)
 
 proc readFieldInto*(
     stream: InputStream,
@@ -101,9 +102,6 @@ proc readFieldInto*(
       false
   else:
     false
-
-proc supportsPacked*(T: type enum, ProtoType: type ProtobufExt): bool = false
-proc supportsPacked*(T: type seq[enum], ProtoType: type ProtobufExt): bool = true
 
 proc readFieldPackedInto*(
   stream: InputStream,

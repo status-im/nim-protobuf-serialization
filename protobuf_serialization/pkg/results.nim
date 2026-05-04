@@ -17,32 +17,32 @@ export results
 
 template flatType*[T](value: Opt[T]): type = T
 
-template isOptional*(_: type Protobuf, FieldType: type Opt): bool = true
+func isExtension*(T: type Protobuf, FieldType: type Opt): bool = true
 
-proc supportsPacked*(T: type Opt, ProtoType: type ProtobufExt): bool = false
+func supportsPacked*(T: type Opt, ProtoType: type ProtobufExt): bool = false
 
-proc computeFieldSize*(
-    fieldNum: int,
-    fieldVal: Opt,
+func computeFieldSize*(
+    field: int,
+    value: Opt,
     ProtoType: type ProtobufExt,
     skipDefault: static bool
 ): int =
-  protoType(InnerProtoType, ProtoType.RootType, flatType(fieldVal), ProtoType.fieldName)
-  if fieldVal.isSome():
-    computeFieldSize(fieldNum, fieldVal.get(), InnerProtoType, skipDefault)
+  protoType(InnerProtoType, ProtoType.RootType, flatType(value), ProtoType.fieldName)
+  if value.isSome():
+    computeFieldSize(field, value.get(), InnerProtoType, skipDefault)
   else:
     0
 
 proc writeField*(
     stream: OutputStream,
-    fieldNum: int,
-    fieldVal: Opt,
+    field: int,
+    value: Opt,
     ProtoType: type ProtobufExt,
     skipDefault: static bool = false
 ) {.raises: [IOError].} =
-  protoType(InnerProtoType, ProtoType.RootType, flatType(fieldVal), ProtoType.fieldName)
-  if fieldVal.isSome():
-    stream.writeField(fieldNum, fieldVal.get(), InnerProtoType, skipDefault)
+  protoType(InnerProtoType, ProtoType.RootType, flatType(value), ProtoType.fieldName)
+  if value.isSome():
+    stream.writeField(field, value.get(), InnerProtoType, skipDefault)
 
 proc readFieldInto*(
     stream: InputStream,
