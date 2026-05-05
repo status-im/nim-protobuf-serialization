@@ -8,79 +8,96 @@ import
 
 func computeObjectSize*[T: object](value: T): int
 
-func computeFieldSize(
-    fieldNum: int, fieldVal: auto, ProtoType: type UnsupportedType,
+func computeFieldSize*[T: not openArray and not PBOption](
+    field: int, value: T, ProtoType: type ProtobufExt,
     _: static bool) =
-  # TODO turn this into an extension point
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
-func computeFieldSize[T: object and not PBOption](
-    fieldNum: int, fieldVal: T, ProtoType: type pbytes,
+func computeFieldSizePacked*(
+    field: int, values: openArray, ProtoType: type ProtobufExt): int =
+  unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
+
+func computeFieldSize*[T: object and not PBOption](
+    field: int, value: T, ProtoType: type pbytes,
     skipDefault: static bool): int =
   let
-    size = computeObjectSize(fieldVal)
+    size = computeObjectSize(value)
 
   when skipDefault:
     if size == 0:
       return 0
 
-  computeSize(FieldHeader.init(fieldNum, ProtoType.wireKind())) +
+  computeSize(FieldHeader.init(field, ProtoType.wireKind())) +
     computeSize(puint64(size)) +
     size
 
-proc computeFieldSize*[T: not object](
-    fieldNum: int, fieldVal: T,
+func computeFieldSize*[T: not object and (seq[byte] or not seq)](
+    field: int, value: T,
     ProtoType: type SomeScalar, skipDefault: static bool): int =
   when skipDefault:
-    const def = default(typeof(fieldVal))
-    if fieldVal == def:
+    const def = default(typeof(value))
+    if value == def:
       return
 
-  computeSize(fieldNum, ProtoType(fieldVal))
+  computeSize(field, ProtoType(value))
 
-proc computeFieldSize*(
-    fieldNum: int, fieldVal: PBOption, ProtoType: type,
+func computeFieldSize*(
+    field: int, value: PBOption, ProtoType: type,
     skipDefault: static bool): int =
-  if fieldVal.isSome(): # TODO required field checking
-    computeFieldSize(fieldNum, fieldVal.get(), ProtoType, skipDefault)
+  if value.isSome(): # TODO required field checking
+    computeFieldSize(field, value.get(), ProtoType, skipDefault)
   else:
     0
 
 when defined(ConformanceTest):
-  proc computeFieldSize*[T](
-    fieldNum: int, fieldVal: ref T,
+  func computeFieldSize*[T](
+    field: int, value: ref T,
     ProtoType: type pbytes, skipDefault: static bool): int =
-    if not fieldVal.isNil():
-      computeFieldSize(fieldNum, fieldVal[], ProtoType, skipDefault)
+    if not value.isNil():
+      computeFieldSize(field, value[], ProtoType, skipDefault)
     else:
       0
 
-proc computeSizePacked*[T: not byte, ProtoType: SomePrimitive](
-    values: openArray[T], _: type ProtoType): int =
+func computeFieldSize*[T: not byte](
+    field: int, 
+    value: openArray[T],
+    ProtoType: type, # SomeProto,
+    skipDefault: static bool
+): int =
+  var dataSize = 0
+  for i in 0 ..< value.len:
+    # don't skip defaults so as to preserve length
+    dataSize += computeFieldSize(field, value[i], ProtoType, false)
+  dataSize
+
+func computeSizePacked*[T: not byte](
+    value: openArray[T], ProtoType: type SomePrimitive): int =
   const canCopyMem =
     ProtoType is SomeFixed32 or ProtoType is SomeFixed64 or ProtoType is pbool
   when canCopyMem:
-    values.len() * sizeof(T)
+    value.len() * sizeof(T)
   else:
     var total = 0
-    for item in values:
+    for item in value:
       total += computeSize(ProtoType(item))
     total
 
-proc computeFieldSizePacked*[ProtoType: SomePrimitive](
-    field: int, values: openArray, _: type ProtoType): int =
+func computeFieldSizePacked*(
+    field: int, value: openArray, ProtoType: type SomePrimitive): int =
   # Packed encoding uses a length-delimited field byte length of the sum of the
   # byte lengths of each field followed by the header-free contents
-  if values.len == 0:
+  if value.len == 0:
     return 0
   let
-    dataSize = computeSizePacked(values, ProtoType)
+    dataSize = computeSizePacked(value, ProtoType)
 
   computeSize(FieldHeader.init(field, WireKind.LengthDelim)) +
     computeSize(puint64(dataSize)) +
     dataSize
 
 func computeObjectSize*[T: object](value: T): int =
+  mixin supportsPacked, computeFieldSizePacked, computeFieldSize
+
   const
     isProto2: bool = T.isProto2()
     isProto3: bool = T.isProto3()
@@ -91,26 +108,15 @@ func computeObjectSize*[T: object](value: T): int =
   enumInstanceSerializedFields(value, fieldName, fieldVal):
     const
       fieldNum = T.fieldNumberOf(fieldName)
+      isPacked = T.isPacked(fieldName).get(isProto3)
 
-    type
-      FlatType = flatType(fieldVal)
+    protoType(ProtoType, T, typeof(fieldVal), fieldName)
 
-    protoType(ProtoType, T, FlatType, fieldName)
-
-    let fieldSize = when FlatType is seq and FlatType isnot seq[byte]:
-      const
-        isPacked = T.isPacked(fieldName).get(isProto3)
-      when isPacked and ProtoType is SomePrimitive:
+    let fieldSize =
+      when isPacked and supportsPacked(typeof(fieldVal), ProtoType):
         computeFieldSizePacked(fieldNum, fieldVal, ProtoType)
       else:
-        var dataSize = 0
-        for i in 0..<fieldVal.len:
-          # don't skip defaults so as to preserve length
-          dataSize += computeFieldSize(fieldNum, fieldVal[i], ProtoType, false)
-        dataSize
-
-    else:
-      computeFieldSize(fieldNum, fieldVal, ProtoType, isProto3)
+        computeFieldSize(fieldNum, fieldVal, ProtoType, isProto3)
 
     total += fieldSize
 

@@ -19,7 +19,15 @@ proc readFieldInto*[T: not seq and not PBOption](
   stream: InputStream,
   value: var T,
   header: FieldHeader,
-  ProtoType: type UnsupportedType
+  ProtoType: type ProtobufExt
+): bool {.raises: [SerializationError, IOError].} =
+  unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
+
+proc readFieldPackedInto*[T](
+  stream: InputStream,
+  value: var T,
+  header: FieldHeader,
+  ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
@@ -29,7 +37,7 @@ proc readFieldInto*[T: object and not PBOption](
   header: FieldHeader,
   ProtoType: type pbytes
 ): bool {.raises: [SerializationError, IOError].} =
-  if header.kind() == WireKind.LengthDelim:
+  if header.kind() == wireKind(ProtoType):
     let len = stream.readLength()
     if len > 0:
       # TODO: https://github.com/status-im/nim-faststreams/issues/31
@@ -49,25 +57,7 @@ proc readFieldInto*[T: object and not PBOption](
   else:
     false
 
-when defined(ConformanceTest):
-  proc readFieldInto*[T: enum](
-    stream: InputStream,
-    value: var T,
-    header: FieldHeader,
-    ProtoType: type
-  ): bool {.raises: [SerializationError, IOError].} =
-    # TODO: This function doesn't work for proto2 edge cases. Make it work
-    when 0 notin T and T.isProto3():
-      {.fatal: $T & " definition must contain a constant that maps to zero".}
-    if header.kind() == WireKind.Varint:
-      let enumValue = stream.readValue(ProtoType)
-      if not checkedEnumAssign(value, enumValue.int32):
-        discard checkedEnumAssign(value, 0)
-      true
-    else:
-      false
-
-proc readFieldInto*[T: not object and not enum and (seq[byte] or not seq)](
+proc readFieldInto*[T: not object and (seq[byte] or not seq)](
   stream: InputStream,
   value: var T,
   header: FieldHeader,
@@ -91,7 +81,7 @@ proc readFieldInto*[T: not byte](
   stream: InputStream,
   value: var seq[T],
   header: FieldHeader,
-  ProtoType: type
+  ProtoType: type # SomeProto
 ): bool {.raises: [SerializationError, IOError].} =
   var val = default(T)
   if stream.readFieldInto(val, header, ProtoType):
@@ -112,7 +102,7 @@ proc readFieldInto*(
     reset(value)
     false
 
-proc readFieldPackedInto*[T](
+proc readFieldPackedInto*[T: not byte](
   stream: InputStream,
   value: var seq[T],
   header: FieldHeader,
@@ -125,12 +115,14 @@ proc readFieldPackedInto*[T](
     inner = memoryInput(bytes)
     headerElm = FieldHeader.init(header.number, wireKind(ProtoType))
   while inner.readable():
-    value.add(default(T))
+    value.add default(T)
     let r = inner.readFieldInto(value[^1], headerElm, ProtoType)
     doAssert r
   true
 
 proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false) {.raises: [SerializationError, IOError].} =
+  mixin supportsPacked, readFieldPackedInto
+
   const
     isProto2: bool = T.isProto2()
 
@@ -146,7 +138,8 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
 
   while stream.readable():
     let header = stream.readHeader()
-    var i = -1
+    let pos = stream.pos()
+    var i {.used.} = -1
     var knownField = false
 
     if not header.number().validFieldNumber(true):
@@ -161,7 +154,7 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
         protoType(ProtoType, T, typeof(fieldVar), fieldName)
         # TODO should we allow reading packed fields into non-repeated fields?
         knownField =
-          when ProtoType is SomePrimitive and fieldVar is seq and fieldVar isnot seq[byte]:
+          when supportsPacked(typeof(fieldVar), ProtoType):
             if header.kind() == WireKind.LengthDelim:
               stream.readFieldPackedInto(fieldVar, header, ProtoType)
             else:
@@ -175,7 +168,7 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
         when isProto2:
           if not silent and knownField: requiredSets.excl i
 
-    if not knownField:
+    if not knownField and pos == stream.pos():
       case header.kind():
       of WireKind.Varint: stream.skipValue(puint64)
       of WireKind.Fixed64: stream.skipValue(fixed64)

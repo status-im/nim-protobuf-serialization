@@ -1,9 +1,8 @@
-import macros, os
+import macros, os, strutils
 
-import strutils
-
-import ../../protobuf_serialization
-import ../../protobuf_serialization/files/type_generator
+import
+  ../../protobuf_serialization,
+  ../../protobuf_serialization/files/type_generator
 
 macro test() =
   var
@@ -36,7 +35,7 @@ macro test() =
           VIDEO = 6
 
         SearchRequest* {.proto3.} = object
-          corpus* {.fieldNumber: 4.}: Corpus
+          corpus* {.fieldNumber: 4, ext.}: Corpus
           result_per_page* {.fieldNumber: 3, pint.}: int32
           page_number* {.fieldNumber: 2, pint.}: int32
           query* {.fieldNumber: 1.}: string

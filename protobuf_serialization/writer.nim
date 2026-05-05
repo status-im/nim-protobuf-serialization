@@ -14,38 +14,52 @@ export outputs, serialization, codec, types
 
 proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].}
 
-proc writeField*(
-    stream: OutputStream, fieldNum: int, fieldVal: auto,
-    ProtoType: type UnsupportedType, _: static bool = false) {.raises: [IOError].} =
-  # TODO turn this into an extension point
+proc writeField*[T: not openArray and not PBOption](
+    stream: OutputStream, field: int, value: T,
+    ProtoType: type ProtobufExt, _: static bool = false) {.raises: [IOError].} =
+  unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
+
+proc writeFieldPacked*[T: not byte](
+    output: OutputStream, field: int, values: openArray[T], ProtoType: type ProtobufExt) {.raises: [IOError].} =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
 proc writeField*[T: object and not PBOption](
-    stream: OutputStream, fieldNum: int, fieldVal: T, ProtoType: type pbytes,
+    stream: OutputStream, field: int, value: T, ProtoType: type pbytes,
     skipDefault: static bool = false) {.raises: [IOError].} =
   let
-    size = computeObjectSize(fieldVal)
+    size = computeObjectSize(value)
 
   when skipDefault:
     if size == 0:
       return
 
-  stream.writeValue(FieldHeader.init(fieldNum, ProtoType.wireKind()))
+  stream.writeValue(FieldHeader.init(field, ProtoType.wireKind()))
   stream.writeValue(puint64(size))
-  stream.writeObject(fieldVal)
+  stream.writeObject(value)
 
-proc writeField*[T: not object and not enum](
-    stream: OutputStream, fieldNum: int, fieldVal: T,
+proc writeField*[T: not object and (seq[byte] or not seq)](
+    stream: OutputStream, field: int, value: T,
     ProtoType: type SomeScalar, skipDefault: static bool = false) {.raises: [IOError].} =
   when skipDefault:
-    const def = default(typeof(fieldVal))
-    if fieldVal == def:
+    const def = default(typeof(value))
+    if value == def:
       return
 
-  stream.writeField(fieldNum, ProtoType(fieldVal))
+  stream.writeField(field, ProtoType(value))
 
-proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
-    output: OutputStream, field: int, values: openArray[T], _: type ProtoType) {.raises: [IOError].} =
+proc writeField*[T: not byte](
+    stream: OutputStream,
+    field: int,
+    value: openArray[T],
+    ProtoType: type, # SomeProto,
+    skipDefault: static bool = false
+) {.raises: [IOError].} =
+  for i in 0 ..< value.len:
+    # don't skip defaults so as to preserve length
+    stream.writeField(field, value[i], ProtoType, false)
+
+proc writeFieldPacked*[T: not byte](
+    output: OutputStream, field: int, values: openArray[T], ProtoType: type SomePrimitive) {.raises: [IOError].} =
   # Packed encoding uses a length-delimited field byte length of the sum of the
   # byte lengths of each field followed by the header-free contents
   if values.len == 0:
@@ -69,28 +83,15 @@ proc writeFieldPacked*[T: not byte, ProtoType: SomePrimitive](
     for value in values:
       output.write(toBytes(ProtoType(value)))
 
-when defined(ConformanceTest):
-  proc writeField[T: enum](
-      stream: OutputStream,
-      fieldNum: int,
-      fieldVal: T,
-      ProtoType: type,
-      skipDefault: static bool = false
-  ) {.raises: [IOError].} =
-    when 0 notin T:
-      {.fatal: $T & " definition must contain a constant that maps to zero".}
-    when skipDefault:
-      if fieldVal.ord() == 0:
-        return
-    stream.writeField(fieldNum, pint32(fieldVal.ord()))
-
 proc writeField*(
-    stream: OutputStream, fieldNum: int, fieldVal: PBOption, ProtoType: type,
+    stream: OutputStream, field: int, value: PBOption, ProtoType: type,
     skipDefault: static bool = false) {.raises: [IOError].} =
-  if fieldVal.isSome():
-    stream.writeField(fieldNum, fieldVal.get(), ProtoType, skipDefault)
+  if value.isSome():
+    stream.writeField(field, value.get(), ProtoType, false)
 
 proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].} =
+  mixin supportsPacked, writeFieldPacked
+
   const
     isProto2: bool = T.isProto2()
     isProto3: bool = T.isProto3()
@@ -99,23 +100,13 @@ proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].
   enumInstanceSerializedFields(value, fieldName, fieldVal):
     const
       fieldNum = T.fieldNumberOf(fieldName)
+      isPacked = T.isPacked(fieldName).get(isProto3)
 
-    type
-      FlatType = flatType(fieldVal)
+    protoType(ProtoType, T, typeof(fieldVal), fieldName)
 
-    protoType(ProtoType, T, FlatType, fieldName)
-
-    when FlatType is seq and FlatType isnot seq[byte]:
-      const
-        isPacked = T.isPacked(fieldName).get(isProto3)
-      when isPacked and ProtoType is SomePrimitive:
-        stream.writeFieldPacked(fieldNum, fieldVal, ProtoType)
-      else:
-        for i in 0..<fieldVal.len:
-          # don't skip defaults so as to preserve length
-          stream.writeField(fieldNum, fieldVal[i], ProtoType, false)
-
-    elif FlatType is ref and defined(ConformanceTest):
+    when isPacked and supportsPacked(typeof(fieldVal), ProtoType):
+      stream.writeFieldPacked(fieldNum, fieldVal, ProtoType)
+    elif typeof(fieldVal) is ref and defined(ConformanceTest):
       if not fieldVal.isNil():
         stream.writeField(fieldNum, fieldVal[], ProtoType)
     else:

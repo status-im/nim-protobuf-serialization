@@ -12,9 +12,7 @@ export hasCustomPragmaFixed
 
 import serialization
 
-import ./[codec, types]
-
-type UnsupportedType*[FieldType; RootType; fieldName: static string] = object
+import ./[codec, types, format]
 
 func flatTypeInternal(value: auto): auto {.compileTime.} =
   when value is PBOption:
@@ -22,13 +20,11 @@ func flatTypeInternal(value: auto): auto {.compileTime.} =
   else:
     value
 
-template flatType*(value: auto): type =
+template flatType*(T: type Protobuf, value: auto): type =
   typeof(flatTypeInternal(value))
 
-macro unsupportedProtoType*(FieldType, RootType, fieldName: typed): untyped =
-  # TODO turn this into an extension point
-  # TODO fix RootType printing
-  error "Serializing " & humaneTypeName(FieldType) & " as field type is not supported: " & humaneTypeName(RootType) & "." & repr(fieldName)
+template unsupportedProtoType*(FieldType, RootType, fieldName: untyped): untyped =
+  {.fatal: "Serializing " & $FieldType & " as field type is not supported: " & $RootType & "." & fieldName.}
 
 template fieldError(T: type, name, msg: static string) =
   {.fatal: $T & "." & name & ": " & msg.}
@@ -49,6 +45,17 @@ proc isPacked*(T: type, fieldName: static string): Option[bool] {.compileTime.} 
 proc isRequired*(T: type, fieldName: static string): bool {.compileTime.} =
   T.hasCustomPragmaFixed(fieldName, required)
 
+proc supportsPacked*(T: type, ProtoType: type SomeProto): bool =
+  ProtoType is SomePrimitive and T is seq and T isnot seq[byte]
+
+proc supportsPacked*(T: type, ProtoType: type ProtobufExt): bool =
+  when T is PBOption:
+    false
+  else:
+    unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
+
+template isExtension(T: type Protobuf, FieldType: type): bool = false
+
 proc fieldNumberOf*(T: type, fieldName: static string): int {.compileTime.} =
   const fieldNum = T.getCustomPragmaFixed(fieldName, fieldNumber)
   when fieldNum is NimNode:
@@ -57,12 +64,12 @@ proc fieldNumberOf*(T: type, fieldName: static string): int {.compileTime.} =
     fieldNum
 
 template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped) =
-  mixin flatType
+  mixin flatType, isExtension
 
   when FieldType is seq and FieldType isnot seq[byte]:
-    type FlatType = flatType(default(typeof(for a in default(FieldType): a)))
+    type FlatType = Protobuf.flatType(default(typeof(for a in default(FieldType): a)))
   else:
-    type FlatType = flatType(default(FieldType))
+    type FlatType = Protobuf.flatType(default(FieldType))
 
   const
     isPint = RootType.hasCustomPragmaFixed(fieldName, pint)
@@ -78,7 +85,9 @@ template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped)
     else:
       fieldError RootType, fieldName, "`pint`, `sint` and `fixed` should only be used with integers"
 
-  when FlatType is float64:
+  when RootType.hasCustomPragmaFixed(fieldName, ext) or isExtension(Protobuf, FieldType):
+    type InnerType = ProtobufExt[FieldType, RootType, fieldName]
+  elif FlatType is float64:
     type InnerType = pdouble
   elif FlatType is float32:
     type InnerType = pfloat
@@ -110,34 +119,36 @@ template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped)
       fieldError RootType, fieldName, "Must not annotate `uint64` fields with `sint`"
     else:
       type InnerType = fixed64
-
   elif FlatType is bool:
     type InnerType = pbool
   elif FlatType is string:
     type InnerType = pstring
   elif FlatType is seq[byte]:
     type InnerType = pbytes
-  elif FlatType is enum:
-    type InnerType = penum
+  #elif FlatType is enum:
+  #  type InnerType = penum
   elif FlatType is object:
     type InnerType = pbytes
   elif FlatType is ref and defined(ConformanceTest):
     type InnerType = pbytes
   else:
-    type InnerType = UnsupportedType[FieldType, RootType, fieldName]
+    unsupportedProtoType(FieldType, RootType, fieldName)
 
 template elementType[T](_: type seq[T]): type = typeof(T)
 
 func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
-  type FlatType = flatType(default(T))
-  when T is PBOption:
+  mixin flatType, isExtension
+
+  type FlatType = Protobuf.flatType(default(T))
+  when T is PBOption or isExtension(Protobuf, T):
+    static: doAssert FlatType isnot T
     verifySerializable(FlatType)
   elif FlatType is int | uint:
     {.fatal: $T & ": Serializing a number requires specifying the amount of bits via the type.".}
   elif FlatType is seq:
     when FlatType isnot seq[byte]:
       when defined(ConformanceTest):
-        return # TODO make it work in case of recursivity
+        discard # TODO make it work in case of recursivity
         # type List = object (value: Value)
         # type Value = object (list: List)
       else:
@@ -154,12 +165,14 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
       {.fatal: $T & ": missing {.proto2.} or {.proto3.}".}
 
     enumInstanceSerializedFields(inst, fieldName, fieldVar):
-      when isProto2 and not T.isRequired(fieldName):
-        when fieldVar isnot (seq or PBOption):
-          fieldError T, fieldName, "proto2 requires every field to either have the required pragma attached or be a repeated field/PBOption."
+      when isProto2 and not T.isRequired(fieldName) and
+          fieldVar isnot (seq or PBOption) and
+          not isExtension(Protobuf, typeof(fieldVar)):
+        fieldError T, fieldName, "proto2 requires every field to either have the required pragma attached or be a repeated field/PBOption."
       when isProto3 and (
         T.hasCustomPragmaFixed(fieldName, required) or
-        (fieldVar is PBOption)
+        fieldVar is PBOption or
+        isExtension(Protobuf, typeof(fieldVar))
       ):
         fieldError T, fieldName, "The required pragma/PBOption type can only be used with proto2."
 
@@ -173,4 +186,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
         raiseAssert $T & "." & fieldName & ": Field number was used twice on two different fields: " & $fieldNum
 
       type FieldType = typeof(fieldVar)
-      verifySerializable(FieldType)
+      when FieldType is object and T.hasCustomPragmaFixed(fieldName, ext):
+        discard  # do nothing for object extensions
+      else:
+        verifySerializable(FieldType)

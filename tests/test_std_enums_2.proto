@@ -1,0 +1,44 @@
+syntax = "proto2";
+
+enum Classic {
+  A1 = 0;
+  B1 = 1;
+  C1 = 2;
+}
+
+enum WithHoles {
+  A2 = -10;
+  B2 = 0;
+  C2 = 10;
+  D2 = 11;
+}
+
+enum Limits {
+  A3 = -2147483648;
+  B3 = 0;
+  C3 = 2147483647;
+}
+
+message ObjClassicP2 {
+  required Classic x = 1;
+}
+
+message ObjWithHolesP2 {
+  required WithHoles x = 1;
+}
+
+message ObjLimitsP2 {
+  required Limits x = 1;
+}
+
+message ObjClassicOptP2 {
+  optional Limits x = 1;
+}
+
+message ObjRepeatedP2 {
+  repeated Classic x = 1;
+}
+
+message ObjRepeatedPackedP2 {
+  repeated Classic x = 1 [packed = true];
+}
