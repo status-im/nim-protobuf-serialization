@@ -50,7 +50,7 @@ func supportsPacked*(T: type seq[enum], ProtoType: type ProtobufExt): bool = tru
 func validateEnumType(T: type enum, ProtoType: type ProtobufExt) =
   bind contains
   when 0 notin T and ProtoType.RootType.isProto3():
-    fieldError ProtoType.RootType, ProtoType.fieldName, $T & " definition must contain a constant that maps to zero."
+    {.fatal: $T & " definition must contain a constant that maps to zero".}
 
 func computeFieldSize*(
     field: int,

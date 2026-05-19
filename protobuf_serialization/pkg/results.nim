@@ -23,9 +23,7 @@ func supportsPacked*(T: type Opt, ProtoType: type ProtobufExt): bool = false
 
 func validateOptType(T: type Opt, ProtoType: type ProtobufExt) =
   when ProtoType.RootType.isProto3():
-    fieldError ProtoType.RootType, ProtoType.fieldName, $T & " Opt is only supported in proto2."
-  when Protobuf.flatType(default(T)) is Opt:
-    fieldError ProtoType.RootType, ProtoType.fieldName, $T & " Nested Opt is not allowed."
+    {.fatal: $T & " Opt is only supported in proto2".}
 
 func computeFieldSize*(
     field: int,

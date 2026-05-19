@@ -26,7 +26,7 @@ template flatType*(T: type Protobuf, value: auto): type =
 template unsupportedProtoType*(FieldType, RootType, fieldName: untyped): untyped =
   {.fatal: "Serializing " & $FieldType & " as field type is not supported: " & $RootType & "." & fieldName.}
 
-template fieldError*(T: type, name, msg: static string) =
+template fieldError(T: type, name, msg: static string) =
   {.fatal: $T & "." & name & ": " & msg.}
 
 proc isProto2*(T: type): bool {.compileTime.} = T.hasCustomPragma(proto2)
