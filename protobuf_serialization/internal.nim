@@ -186,7 +186,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
         raiseAssert $T & "." & fieldName & ": Field number was used twice on two different fields: " & $fieldNum
 
       type FieldType = typeof(fieldVar)
-      when FieldType is object and T.hasCustomPragmaFixed(fieldName, ext):
+      when T.hasCustomPragmaFixed(fieldName, ext):
         discard  # do nothing for object extensions
       else:
         verifySerializable(FieldType)
