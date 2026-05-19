@@ -26,7 +26,7 @@ template flatType*(T: type Protobuf, value: auto): type =
 template unsupportedProtoType*(FieldType, RootType, fieldName: untyped): untyped =
   {.fatal: "Serializing " & $FieldType & " as field type is not supported: " & $RootType & "." & fieldName.}
 
-template fieldError(T: type, name, msg: static string) =
+template fieldError*(T: type, name, msg: static string) =
   {.fatal: $T & "." & name & ": " & msg.}
 
 proc isProto2*(T: type): bool {.compileTime.} = T.hasCustomPragma(proto2)
@@ -141,7 +141,6 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
 
   type FlatType = Protobuf.flatType(default(T))
   when T is PBOption or isExtension(Protobuf, T):
-    static: doAssert FlatType isnot T
     verifySerializable(FlatType)
   elif FlatType is int | uint:
     {.fatal: $T & ": Serializing a number requires specifying the amount of bits via the type.".}
@@ -185,8 +184,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
       if fieldNumberSet.containsOrIncl(fieldNum):
         raiseAssert $T & "." & fieldName & ": Field number was used twice on two different fields: " & $fieldNum
 
-      type FieldType = typeof(fieldVar)
       when T.hasCustomPragmaFixed(fieldName, ext):
-        discard  # do nothing for object extensions
+        discard  # do nothing for extensions; they should validate on read/write
       else:
-        verifySerializable(FieldType)
+        verifySerializable(typeof(fieldVar))

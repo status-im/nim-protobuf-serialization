@@ -34,3 +34,12 @@ suite "Test results Opt[T]":
     # 1: 1
     let encoded = "0801".hexToSeqByte
     check Protobuf.decode(encoded, FullOfDefaults) == FullOfDefaults()
+
+  test "nested Opt should not compile":
+    type NestedOpt {.proto2.} = object
+      a {.fieldNumber: 1.}: Opt[Opt[string]]
+
+    template nestedOpt(): untyped =
+      discard Protobuf.encode(NestedOpt(a: Opt.some(Opt.some("abc"))))
+
+    nestedOpt()
