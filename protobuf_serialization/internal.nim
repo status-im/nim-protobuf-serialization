@@ -141,7 +141,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
 
   type FlatType = Protobuf.flatType(default(T))
   when T is PBOption or isExtension(Protobuf, T):
-    static: doAssert FlatType isnot T
+    static: doAssert FlatType isnot T  # avoid infinite recursion
     verifySerializable(FlatType)
   elif FlatType is int | uint:
     {.fatal: $T & ": Serializing a number requires specifying the amount of bits via the type.".}
@@ -185,8 +185,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
       if fieldNumberSet.containsOrIncl(fieldNum):
         raiseAssert $T & "." & fieldName & ": Field number was used twice on two different fields: " & $fieldNum
 
-      type FieldType = typeof(fieldVar)
-      when FieldType is object and T.hasCustomPragmaFixed(fieldName, ext):
-        discard  # do nothing for object extensions
+      when T.hasCustomPragmaFixed(fieldName, ext):
+        discard  # do nothing for extensions; they should validate on read/write
       else:
-        verifySerializable(FieldType)
+        verifySerializable(typeof(fieldVar))
