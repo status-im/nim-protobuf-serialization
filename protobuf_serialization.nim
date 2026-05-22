@@ -3,8 +3,8 @@ import sets
 import serialization
 export serialization
 
-import protobuf_serialization/[internal, types, reader, sizer, writer, format]
-export types, reader, sizer, writer, format
+import protobuf_serialization/[internal, types, reader, sizer, writer, format, extension]
+export types, reader, sizer, writer, format, extension
 
 Protobuf.setReader ProtobufReader
 Protobuf.setWriter ProtobufWriter, PreferredOutput = seq[byte]

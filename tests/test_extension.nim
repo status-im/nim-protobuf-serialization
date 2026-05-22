@@ -35,8 +35,7 @@ type
   Proto3Int32ExtSeq {.proto3.} = object
     a {.fieldNumber: 1, ext.}: seq[Int32Ext]
 
-func supportsPacked(T: type Int32Ext, ProtoType: type ProtobufExt): bool = false
-func supportsPacked(T: type seq[Int32Ext], ProtoType: type ProtobufExt): bool = false
+Protobuf.extensionDefaults(Int32Ext, defaultSeq = true, packed = false)
 
 func computeFieldSize(
     field: int,

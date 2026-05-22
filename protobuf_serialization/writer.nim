@@ -14,7 +14,7 @@ export outputs, serialization, codec, types
 
 proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].}
 
-proc writeField*[T: not openArray and not PBOption](
+proc writeField*[T: not PBOption](
     stream: OutputStream, field: int, value: T,
     ProtoType: type ProtobufExt, _: static bool = false) {.raises: [IOError].} =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
@@ -51,7 +51,7 @@ proc writeField*[T: not byte](
     stream: OutputStream,
     field: int,
     value: openArray[T],
-    ProtoType: type, # SomeProto,
+    ProtoType: type SomeProto,
     skipDefault: static bool = false
 ) {.raises: [IOError].} =
   for i in 0 ..< value.len:

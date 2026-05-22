@@ -15,7 +15,7 @@ export inputs, serialization, codec, types
 
 proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false) {.raises: [SerializationError, IOError].}
 
-proc readFieldInto*[T: not seq and not PBOption](
+proc readFieldInto*[T: not PBOption](
   stream: InputStream,
   value: var T,
   header: FieldHeader,
@@ -81,7 +81,7 @@ proc readFieldInto*[T: not byte](
   stream: InputStream,
   value: var seq[T],
   header: FieldHeader,
-  ProtoType: type # SomeProto
+  ProtoType: type SomeProto
 ): bool {.raises: [SerializationError, IOError].} =
   var val = default(T)
   if stream.readFieldInto(val, header, ProtoType):

@@ -8,7 +8,7 @@ import
 
 func computeObjectSize*[T: object](value: T): int
 
-func computeFieldSize*[T: not openArray and not PBOption](
+func computeFieldSize*[T: not PBOption](
     field: int, value: T, ProtoType: type ProtobufExt,
     _: static bool) =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
@@ -61,7 +61,7 @@ when defined(ConformanceTest):
 func computeFieldSize*[T: not byte](
     field: int, 
     value: openArray[T],
-    ProtoType: type, # SomeProto,
+    ProtoType: type SomeProto,
     skipDefault: static bool
 ): int =
   var dataSize = 0

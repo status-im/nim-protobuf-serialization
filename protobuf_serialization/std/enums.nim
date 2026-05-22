@@ -11,7 +11,7 @@
 
 import
   std/[macros, typetraits],
-  ../[reader, writer, sizer, internal]
+  ../[reader, writer, sizer, internal, extension]
 
 from stew/objects import enumRangeInt64
 
@@ -44,8 +44,7 @@ func checkedEnumAssign[E: enum, I: SomeInteger](res: var E, value: I): bool =
     res = cast[E](value)
     true
 
-func supportsPacked*(T: type enum, ProtoType: type ProtobufExt): bool = false
-func supportsPacked*(T: type seq[enum], ProtoType: type ProtobufExt): bool = true
+Protobuf.extensionDefaults(enum, defaultSeq = true, packed = true)
 
 func validateEnumType(T: type enum, ProtoType: type ProtobufExt) =
   bind contains

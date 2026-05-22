@@ -11,15 +11,15 @@
 
 import
   pkg/results,
-  ../[reader, writer, sizer, internal, format]
+  ../[reader, writer, sizer, internal, format, extension]
 
 export results
+
+Protobuf.extensionDefaults(Opt, defaultSeq = false, packed = false)
 
 template flatType*[U](T: type Protobuf, value: Opt[U]): type = U
 
 func isExtension*(T: type Protobuf, FieldType: type Opt): bool = true
-
-func supportsPacked*(T: type Opt, ProtoType: type ProtobufExt): bool = false
 
 func validateOptType(T: type Opt, ProtoType: type ProtobufExt) =
   when ProtoType.RootType.isProto3():
