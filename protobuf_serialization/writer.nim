@@ -14,7 +14,7 @@ export outputs, serialization, codec, types
 
 proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].}
 
-proc writeField*[T: not openArray and not PBOption](
+proc writeField*[T: not seq and not PBOption](
     stream: OutputStream, field: int, value: T,
     ProtoType: type ProtobufExt, _: static bool = false) {.raises: [IOError].} =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
@@ -22,6 +22,16 @@ proc writeField*[T: not openArray and not PBOption](
 proc writeFieldPacked*[T: not byte](
     output: OutputStream, field: int, values: openArray[T], ProtoType: type ProtobufExt) {.raises: [IOError].} =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
+
+proc writeField*[T](
+    stream: OutputStream,
+    field: int,
+    value: seq[T],
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool = false
+) {.raises: [IOError], deprecated: "use extensionDefaults".} =
+  for i in 0 ..< value.len:
+    stream.writeField(field, value[i], ProtoType, false)
 
 proc writeField*[T: object and not PBOption](
     stream: OutputStream, field: int, value: T, ProtoType: type pbytes,
@@ -51,7 +61,7 @@ proc writeField*[T: not byte](
     stream: OutputStream,
     field: int,
     value: openArray[T],
-    ProtoType: type, # SomeProto,
+    ProtoType: type SomeProto,
     skipDefault: static bool = false
 ) {.raises: [IOError].} =
   for i in 0 ..< value.len:

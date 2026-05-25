@@ -8,7 +8,7 @@ import
 
 func computeObjectSize*[T: object](value: T): int
 
-func computeFieldSize*[T: not openArray and not PBOption](
+func computeFieldSize*[T: not seq and not PBOption](
     field: int, value: T, ProtoType: type ProtobufExt,
     _: static bool) =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
@@ -16,6 +16,17 @@ func computeFieldSize*[T: not openArray and not PBOption](
 func computeFieldSizePacked*(
     field: int, values: openArray, ProtoType: type ProtobufExt): int =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
+
+func computeFieldSize*[T](
+    field: int, 
+    value: seq[T],
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool
+): int {.deprecated: "use extensionDefaults".} =
+  var dataSize = 0
+  for i in 0 ..< value.len:
+    dataSize += computeFieldSize(field, value[i], ProtoType, false)
+  dataSize
 
 func computeFieldSize*[T: object and not PBOption](
     field: int, value: T, ProtoType: type pbytes,
@@ -61,7 +72,7 @@ when defined(ConformanceTest):
 func computeFieldSize*[T: not byte](
     field: int, 
     value: openArray[T],
-    ProtoType: type, # SomeProto,
+    ProtoType: type SomeProto,
     skipDefault: static bool
 ): int =
   var dataSize = 0

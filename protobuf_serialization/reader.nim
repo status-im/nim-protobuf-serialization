@@ -31,6 +31,19 @@ proc readFieldPackedInto*[T](
 ): bool {.raises: [SerializationError, IOError].} =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
+proc readFieldInto*[T: not PBOption](
+  stream: InputStream,
+  value: var seq[T],
+  header: FieldHeader,
+  ProtoType: type ProtobufExt
+): bool {.raises: [SerializationError, IOError], deprecated: "use extensionDefaults".} =
+  var val = default(typeof(value[0]))
+  if stream.readFieldInto(val, header, ProtoType):
+    value.add move(val)
+    true
+  else:
+    false
+
 proc readFieldInto*[T: object and not PBOption](
   stream: InputStream,
   value: var T,
@@ -81,7 +94,7 @@ proc readFieldInto*[T: not byte](
   stream: InputStream,
   value: var seq[T],
   header: FieldHeader,
-  ProtoType: type # SomeProto
+  ProtoType: type SomeProto
 ): bool {.raises: [SerializationError, IOError].} =
   var val = default(T)
   if stream.readFieldInto(val, header, ProtoType):
