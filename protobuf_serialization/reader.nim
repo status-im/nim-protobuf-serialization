@@ -15,7 +15,7 @@ export inputs, serialization, codec, types
 
 proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false) {.raises: [SerializationError, IOError].}
 
-proc readFieldInto*[T: not PBOption](
+proc readFieldInto*[T: not seq and not PBOption](
   stream: InputStream,
   value: var T,
   header: FieldHeader,
@@ -30,6 +30,19 @@ proc readFieldPackedInto*[T](
   ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
+
+proc readFieldInto*[T: not PBOption](
+  stream: InputStream,
+  value: var seq[T],
+  header: FieldHeader,
+  ProtoType: type ProtobufExt
+): bool {.raises: [SerializationError, IOError], deprecated: "use extensionDefaults".} =
+  var val = default(typeof(value[0]))
+  if stream.readFieldInto(val, header, ProtoType):
+    value.add move(val)
+    true
+  else:
+    false
 
 proc readFieldInto*[T: object and not PBOption](
   stream: InputStream,

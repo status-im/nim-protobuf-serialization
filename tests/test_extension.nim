@@ -129,39 +129,41 @@ proc readFieldInto(
 ): bool {.raises: [SerializationError, IOError].} =
   readFieldInto(stream, value.x, header, pint32)
 
-func computeFieldSize(
-    field: int, 
-    value: seq[Int32Ext2],
-    ProtoType: type ProtobufExt,
-    skipDefault: static bool
-): int =
-  var dataSize = 0
-  for i in 0 ..< value.len:
-    dataSize += computeFieldSize(field, value[i], ProtoType, false)
-  dataSize
+# TODO: when true: once read/write/sizer for seq[T], type[ProtobufExt] are removed
+when false:
+  func computeFieldSize(
+      field: int, 
+      value: seq[Int32Ext2],
+      ProtoType: type ProtobufExt,
+      skipDefault: static bool
+  ): int =
+    var dataSize = 0
+    for i in 0 ..< value.len:
+      dataSize += computeFieldSize(field, value[i], ProtoType, false)
+    dataSize
 
-proc writeField(
-    stream: OutputStream,
-    field: int,
-    value: seq[Int32Ext2],
-    ProtoType: type ProtobufExt,
-    skipDefault: static bool = false
-) {.raises: [IOError].} =
-  for i in 0 ..< value.len:
-    stream.writeField(field, value[i], ProtoType, false)
+  proc writeField(
+      stream: OutputStream,
+      field: int,
+      value: seq[Int32Ext2],
+      ProtoType: type ProtobufExt,
+      skipDefault: static bool = false
+  ) {.raises: [IOError].} =
+    for i in 0 ..< value.len:
+      stream.writeField(field, value[i], ProtoType, false)
 
-proc readFieldInto(
-  stream: InputStream,
-  value: var seq[Int32Ext2],
-  header: FieldHeader,
-  ProtoType: type ProtobufExt
-): bool {.raises: [SerializationError, IOError].} =
-  var val = default(typeof(value[0]))
-  if stream.readFieldInto(val, header, ProtoType):
-    value.add move(val)
-    true
-  else:
-    false
+  proc readFieldInto(
+    stream: InputStream,
+    value: var seq[Int32Ext2],
+    header: FieldHeader,
+    ProtoType: type ProtobufExt
+  ): bool {.raises: [SerializationError, IOError].} =
+    var val = default(typeof(value[0]))
+    if stream.readFieldInto(val, header, ProtoType):
+      value.add move(val)
+      true
+    else:
+      false
 
 suite "Test seq[T] serializer":
   test "custom seq[Int32Ext2] serializer":

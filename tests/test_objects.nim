@@ -68,12 +68,12 @@ suite "Test Object Encoding/Decoding":
     writer.writeField(3, obj.f, pbytes)
     writer.writeField(4, pstring(obj.g))
 
-    let result = Protobuf.decode(writer.getOutput(), type(Wrapped))
-    check result.d == obj.d
-    check result.f == obj.f
-    check result.g == obj.g
-    check result.e == 0
-    check result.h == false
+    let ret = Protobuf.decode(writer.getOutput(), type(Wrapped))
+    check ret.d == obj.d
+    check ret.f == obj.f
+    check ret.g == obj.g
+    check ret.e == 0
+    check ret.h == false
 
   test "Can encode/decode out of order object":
     let

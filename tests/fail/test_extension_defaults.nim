@@ -37,3 +37,7 @@ proc readFieldInto(
   readFieldInto(stream, value.x, header, pint32)
 
 discard Protobuf.encode(Proto2Int32Ext())
+discard Protobuf.decode(default(seq[byte]), Proto2Int32Ext)
+
+# TODO: remove once read/write/sizer for seq[T], type[ProtobufExt] are removed
+quit(1)
