@@ -44,6 +44,14 @@ proc readFieldInto*[T: not PBOption](
   else:
     false
 
+# TODO: upgrade stew to >= 0.5.0 and use stew/shims/sequninit
+when not declared(newSeqUninit):
+  template newSeqUninit[T](len: Natural): seq[T] =
+    when T is SomeNumber:
+      newSeqUninitialized[T](len)
+    else:
+      newSeq[T](len)
+
 proc readFieldInto*[T: object and not PBOption](
   stream: InputStream,
   value: var T,
@@ -62,7 +70,7 @@ proc readFieldInto*[T: object and not PBOption](
       if inputLen.isSome() and len > inputLen.get():
         raise (ref ProtobufValueError)(msg: "Missing bytes: " & $len)
 
-      var tmp = newSeqUninitialized[byte](len)
+      var tmp = newSeqUninit[byte](len)
       if not stream.readInto(tmp):
         raise (ref ProtobufValueError)(msg: "not enough bytes")
       memoryInput(tmp).readValueInternal(value)
