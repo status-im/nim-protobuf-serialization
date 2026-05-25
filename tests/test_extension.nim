@@ -94,3 +94,75 @@ suite "Test Int32Ext":
     roundtrip(Proto3Int32ExtSeq(a: @[Int32Ext(x: 0'i32)]), "0800")
     roundtrip(default(Proto3Int32ExtSeq), "")
     roundtrip(Proto3Int32ExtSeq(a: @[Int32Ext(x: 1'i32), Int32Ext(x: 0'i32)]), "08010800")
+
+type
+  Int32Ext2 = object
+    x: int32
+
+  Proto3Int32Ext2 {.proto3.} = object
+    a {.fieldNumber: 1, ext.}: seq[Int32Ext2]
+
+Protobuf.extensionDefaults(Int32Ext2, defaultSeq = false, packed = false)
+
+func computeFieldSize(
+    field: int,
+    value: Int32Ext2,
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool
+): int =
+  computeFieldSize(field, value.x, pint32, skipDefault)
+
+proc writeField(
+    stream: OutputStream,
+    field: int,
+    value: Int32Ext2,
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool = false
+) {.raises: [IOError].} =
+  writeField(stream, field, value.x, pint32, skipDefault)
+
+proc readFieldInto(
+    stream: InputStream,
+    value: var Int32Ext2,
+    header: FieldHeader,
+    ProtoType: type ProtobufExt
+): bool {.raises: [SerializationError, IOError].} =
+  readFieldInto(stream, value.x, header, pint32)
+
+func computeFieldSize(
+    field: int, 
+    value: seq[Int32Ext2],
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool
+): int =
+  var dataSize = 0
+  for i in 0 ..< value.len:
+    dataSize += computeFieldSize(field, value[i], ProtoType, false)
+  dataSize
+
+proc writeField(
+    stream: OutputStream,
+    field: int,
+    value: seq[Int32Ext2],
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool = false
+) {.raises: [IOError].} =
+  for i in 0 ..< value.len:
+    stream.writeField(field, value[i], ProtoType, false)
+
+proc readFieldInto(
+  stream: InputStream,
+  value: var seq[Int32Ext2],
+  header: FieldHeader,
+  ProtoType: type ProtobufExt
+): bool {.raises: [SerializationError, IOError].} =
+  var val = default(typeof(value[0]))
+  if stream.readFieldInto(val, header, ProtoType):
+    value.add move(val)
+    true
+  else:
+    false
+
+suite "Test seq[T] serializer":
+  test "custom seq[Int32Ext2] serializer":
+    roundtrip(Proto3Int32Ext2(a: @[Int32Ext2(x: 1'i32)]), "0801")

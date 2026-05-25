@@ -14,15 +14,25 @@ import ./[types, format]
 export types, format
 
 template extensionDefaults*(
-    Format: type Protobuf, ExtType: type, defaultSeq = true, packed = false
+    Format: type Protobuf,
+    ExtType: type,
+    defaultWriteSeq = false,
+    defaultReadSeq = false,
+    defaultSeq = false,
+    packed = false
 ): untyped =
+  ## Generate default procedures for the extension.
+  ## - ``defaultSeq`` generates default ``seq[ExtType]``
+  ##   writer and reader.
+  ## - ``packed`` enables packed procedures overload support.
+
   func supportsPacked*(_: type ExtType, ProtoType: type ProtobufExt): bool =
     false
 
   func supportsPacked*(_: type seq[ExtType], ProtoType: type ProtobufExt): bool =
     packed
 
-  when defaultSeq:
+  when defaultWriteSeq or defaultSeq:
     func computeFieldSize*(
         field: int, 
         value: seq[ExtType],
@@ -44,6 +54,7 @@ template extensionDefaults*(
       for i in 0 ..< value.len:
         stream.writeField(field, value[i], ProtoType, false)
 
+  when defaultReadSeq or defaultSeq:
     proc readFieldInto*(
       stream: InputStream,
       value: var seq[ExtType],
