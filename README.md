@@ -81,14 +81,50 @@ type
     c {.fieldNumber: 3, required, sint.}: int32
 ```
 
+**Type Extensions**
+
+`nim-protobuf-serialization` can encode and decode custom types if they themselves are annotated. However, you can define custom logic to encode and decode a particular field using _type extensions_.
+
+Type extensions are procs that define encode and decode logic for a given type:
+
+- `func supportsPacked*(T: type MyType, ProtoType: type ProtobufExt): bool`
+- `func supportsPacked*(T: type seq[MyType], ProtoType: type ProtobufExt): bool`
+- `func computeFieldSize*(field: int, value: MyType, ProtoType: type ProtobufExt, skipDefault: static bool): int`
+- `proc writeField*(stream: OutputStream, field: int, value: MyType, ProtoType: type ProtobufExt, skipDefault: static bool = false) {.raises: [IOError].}`
+- `proc readFieldInto*(stream: InputStream, value: var MyType, header: FieldHeader, ProtoType: type ProtobufExt): bool {.raises: [SerializationError, IOError].}`
+- `proc readFieldInto*(stream: InputStream, value: var seq[MyType], header: FieldHeader, ProtoType: type ProtobufExt): bool {.raises: [SerializationError, IOError].}`
+  - if not provided, an attempt to apply the single item variant of `readFieldInto` to each item of the sequence will be made
+
+Fields that use type extensions are annotated with `{.ext.}` pragma:
+
+```nim
+from mymodule import MyType
+
+type
+  Z {.proto2.} = object
+    a {.fieldNumber: 1, required, ext.}: MyType   # Annotated with {.ext.}, will be encoded and decoded using custom procs.
+    b {.fieldNumber: 2, required, sint}: int32
+```
+
+Note that the types being extend shouldn't be annotated itself:
+
+```nim
+type
+  MyType* = object   # No {.proto2.} or {.proto3.} needed.
+    c: seq[string]   # Regular, unannotated fields.
+    d: OtherType     # Custom types are allowed (and shouldn't be annoted too).
+```
+
+Type extensions are great way make a type serializable without annotating all of its related types.
+
 ## License
 
 Licensed and distributed under either of
 
-* MIT license: [LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT
+- MIT license: [LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT
 
 or
 
-* Apache License, Version 2.0, ([LICENSE-APACHEv2](LICENSE-APACHEv2) or http://www.apache.org/licenses/LICENSE-2.0)
+- Apache License, Version 2.0, ([LICENSE-APACHEv2](LICENSE-APACHEv2) or http://www.apache.org/licenses/LICENSE-2.0)
 
 at your option. These files may not be copied, modified, or distributed except according to those terms.
