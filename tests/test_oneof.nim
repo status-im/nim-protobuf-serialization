@@ -45,6 +45,10 @@ suite "Test oneof":
     let encoded = "10010801".hexToSeqByte
     check Protobuf.decode(encoded, OneOfObj) == OneOfObj(one: OneOfKind.x, x: 1)
 
+  test "oneof field 1 and 2 set":
+    let encoded = "0801".hexToSeqByte
+    check Protobuf.encode(OneOfObj(one: OneOfKind.x, x: 1, y: 1)) == encoded
+
 type
   OneOfKind1 {.pure.} = enum
     unset
@@ -75,6 +79,9 @@ suite "Test many oneof":
     check Protobuf.decode(encoded, OneOfManyObj) == OneOfManyObj(
       one: OneOfKind1.a, a: 1
     )
+    check Protobuf.encode(OneOfManyObj(
+      one: OneOfKind1.a, a: 1
+    )) == encoded
 
   test "many oneof field 3 set":
     let encoded = "1801".hexToSeqByte
