@@ -163,6 +163,9 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
     enumInstanceSerializedFields(value, fieldName, fieldVar):
       inc i
       when isOneof(fieldVar):
+        # For repeated, and in general need to create a flat type out of fieldVar
+        # set values before returning from readValueInternal but that wont work either
+        # when the seq is in a nested message
         enumOneofFields(fieldVar, kind, fieldName2, fieldVar2):
           const fieldNum = typeof(fieldVar).fieldNumberOf(fieldName2)
           if headerNum == fieldNum:
@@ -177,7 +180,6 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
         const fieldNum = T.fieldNumberOf(fieldName)
         if headerNum == fieldNum:
           protoType(ProtoType, T, typeof(fieldVar), fieldName)
-          # TODO should we allow reading packed fields into non-repeated fields?
           knownField = stream.readFieldInto(fieldVar, header, ProtoType)
 
           when isProto2:
