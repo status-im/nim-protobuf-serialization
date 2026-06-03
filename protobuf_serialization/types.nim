@@ -120,9 +120,9 @@ template pbSome*(value: untyped): untyped =
 template pbNone*(value: untyped): untyped =
   PBOption[value]()
 
-func init*(opt: var PBOption, val: sink auto) =
+func init*(opt: var PBOption, val: auto) =
   opt.some = true
-  opt.value = move(val)
+  opt.value = val
 
 converter toValue*(opt: PBOption): auto {.inline.} =
   opt.get()
