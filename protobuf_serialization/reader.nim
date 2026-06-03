@@ -85,15 +85,7 @@ proc readFieldInto*[T: not object and (seq[byte] or not seq)](
   ProtoType: type SomeProto
 ): bool {.raises: [SerializationError, IOError].} =
   if header.kind() == wireKind(ProtoType):
-    when ProtoType is SomeVarint:
-      assign(value, T(stream.readValue(ProtoType)))
-    elif ProtoType is SomeFixed64:
-      assign(value, T(stream.readValue(ProtoType)))
-    elif ProtoType is SomeLengthDelim:
-      assign(value, T(stream.readValue(ProtoType)))
-    else:
-      static: doAssert ProtoType is SomeFixed32
-      assign(value, T(stream.readValue(ProtoType)))
+    assign(value, T(stream.readValue(ProtoType)))
     true
   else:
     false
@@ -117,10 +109,11 @@ proc readFieldInto*(
   header: FieldHeader,
   ProtoType: type
 ): bool {.raises: [SerializationError, IOError].} =
-  if stream.readFieldInto(value.mget(), header, ProtoType):
+  var val: typeof(value.get())
+  if stream.readFieldInto(val, header, ProtoType):
+    init(value, move(val))
     true
   else:
-    reset(value)
     false
 
 proc readFieldPackedInto*[T: not byte](

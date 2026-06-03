@@ -19,6 +19,7 @@ import
   test_groups,
   test_objects,
   test_pkg_results,
+  test_pkg_results_enums,
   test_empty,
   test_repeated,
   test_std_enums,
