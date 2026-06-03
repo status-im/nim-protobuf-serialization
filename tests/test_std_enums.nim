@@ -123,6 +123,12 @@ suite "Test Enum Encoding/Decoding":
     roundtrip(ObjClassicOptP2(x: pbSome(B1)), "0801")
     roundtrip(ObjClassicOptP2(x: pbSome(C1)), "0802")
 
+  test "proto2 optional multiple enums":
+    # echo "08020801" | xxd -r -p | protoc --decode=ObjClassicOptP2 test_std_enums_2.proto
+    # x: B1
+    let encoded = "08020801".hexToSeqByte
+    check Protobuf.decode(encoded, ObjClassicOptP2) == ObjClassicOptP2(x: pbSome(B1))
+
   test "proto2 optional enum invalid":
     # echo "0803" | xxd -r -p | protoc --decode=ObjClassicOptP2 test_std_enums_2.proto
     # 1: 3
