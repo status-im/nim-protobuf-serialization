@@ -117,17 +117,22 @@ func computeObjectSize*[T: object](value: T): int =
 
   var total = 0
   enumInstanceSerializedFields(value, fieldName, fieldVal):
-    const
-      fieldNum = T.fieldNumberOf(fieldName)
-      isPacked = T.isPacked(fieldName).get(isProto3)
-
-    protoType(ProtoType, T, typeof(fieldVal), fieldName)
-
-    let fieldSize =
-      when isPacked and supportsPacked(typeof(fieldVal), ProtoType):
-        computeFieldSizePacked(fieldNum, fieldVal, ProtoType)
-      else:
-        computeFieldSize(fieldNum, fieldVal, ProtoType, isProto3)
+    var fieldSize = 0
+    when T.isOneof(fieldName):
+      oneofCaseOf(typeof(fieldVal), fieldVal, fVal, fName):
+        const fieldNum = typeof(fieldVal).fieldNumberOf(fName)
+        protoType(ProtoType, typeof(fieldVal), typeof(fVal), fName)
+        fieldSize = computeFieldSize(fieldNum, fVal, ProtoType, false)
+    else:
+      const
+        fieldNum = T.fieldNumberOf(fieldName)
+        isPacked = T.isPacked(fieldName).get(isProto3)
+      protoType(ProtoType, T, typeof(fieldVal), fieldName)
+      fieldSize =
+        when isPacked and supportsPacked(typeof(fieldVal), ProtoType):
+          computeFieldSizePacked(fieldNum, fieldVal, ProtoType)
+        else:
+          computeFieldSize(fieldNum, fieldVal, ProtoType, isProto3)
 
     total += fieldSize
 

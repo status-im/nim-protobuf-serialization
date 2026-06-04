@@ -100,6 +100,33 @@ macro setOneof*(
   quote do:
     `fieldVar` = typeof(`fieldVar`)(`kind`: `kVal`, `field`: move(`fVal`))
 
+macro oneofCaseOf*(T: type, value, fVar, fName, body: untyped): untyped =
+  result = newStmtList()
+  var caseStmt = newSeq[NimNode]()
+  let typeImpl = getType(T)[1].getImpl()
+  var enumTyp: NimNode = nil
+  for field in recordFields(typeImpl):
+    if field.caseField == nil:
+      doAssert enumTyp == nil
+      enumTyp = field.typ
+      caseStmt.add newDotExpr(value, ident($field.name.skipPragma))
+    else:
+      doAssert enumTyp != nil
+      let branchVal = field.caseBranch[0]
+      let fieldName = newLit($field.name.skipPragma)
+      let fieldVal = newDotExpr(value, ident($field.name.skipPragma))
+      let body2 = quote do:
+        const `fName` = `fieldName`
+        template `fVar`(): untyped =
+          `fieldVal`
+        `body`
+      caseStmt.add newTree(nnkOfBranch, branchVal, body2)
+  doAssert caseStmt.len > 0
+  let defVal = quote do: default(typeof(`enumTyp`))
+  let discardStmt = quote do: discard
+  caseStmt.add newTree(nnkOfBranch, defVal, discardStmt)
+  result.add newTree(nnkCaseStmt, caseStmt)
+
 template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped) =
   mixin flatType, isExtension
 

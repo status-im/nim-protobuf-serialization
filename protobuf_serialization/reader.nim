@@ -166,11 +166,11 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
         enumOneofFields(typeof(fieldVar), kName, kVal, fName, fTyp):
           const fieldNum = typeof(fieldVar).fieldNumberOf(fName)
           if headerNum == fieldNum:
-            var value = default(fTyp)
+            var val = default(fTyp)
             protoType(ProtoType, typeof(fieldVar), fTyp, fName)
-            knownField = stream.readFieldInto(value, header, ProtoType)
+            knownField = stream.readFieldInto(val, header, ProtoType)
             if knownField:
-              setOneof(fieldVar, kName, kVal, fName, value)
+              setOneof(fieldVar, kName, kVal, fName, val)
       else:
         const fieldNum = T.fieldNumberOf(fieldName)
         if headerNum == fieldNum:
