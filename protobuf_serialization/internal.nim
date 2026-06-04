@@ -74,7 +74,7 @@ macro enumOneofFields*(T: type, kName, kVal, fName, fTyp, body: untyped): untype
   for field in recordFields(typeImpl):
     if field.caseField == nil:
       if not field.isDiscriminator:
-        error repr(typeImpl[0].skipPragma) & "." & $field.name.skipPragma & ": unexpected oneof field"
+        error repr(typeImpl[0].skipPragma) & "." & $field.name.skipPragma & ": unexpected oneof field; field must be within a `case` branch"
       if discriminatorCount > 0:
         error repr(typeImpl[0].skipPragma) & "." & $field.name.skipPragma & ": only one `case` is allowed"
       inc discriminatorCount
@@ -229,19 +229,29 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
       isProto3 = T.isProto3()
     when isProto2 == isProto3:
       {.fatal: $T & ": missing {.proto2.} or {.proto3.}".}
+    when T.hasCustomPragma(oneof):
+      {.fatal: $T & ": unexpected oneof value; missing {.oneof.} field?".}
 
     enumInstanceSerializedFields(inst, fieldName, fieldVal):
       template fieldValTyp(): untyped =
         typeof(fieldVal)
 
       when T.isOneof(fieldName):
-        when fieldValTyp.isProto2() == fieldValTyp.isProto3():
-          fieldError T, fieldName, $fieldValTyp & " requires either {.proto2.} or {.proto3.}"
-        when not fieldValTyp.hasCustomPragma(oneof):
-          fieldError T, fieldName, $fieldValTyp & " missing {.oneof.}"
+        when T.hasCustomPragmaFixed(fieldName, required):
+          fieldError T, fieldName, "Oneof cannot be {.required.}"
+        elif T.hasCustomPragmaFixed(fieldName, fieldNumber):
+          fieldError T, fieldName, "Oneof cannot be {.fieldNumber: N.}"
+        elif fieldValTyp is seq:
+          fieldError T, fieldName, $fieldValTyp & " Oneof cannot be seq / repeated"
+        elif fieldValTyp is PBOption:
+          fieldError T, fieldName, $fieldValTyp & " Oneof cannot be PBOption"
+        elif fieldValTyp.isProto2() == fieldValTyp.isProto3():
+          fieldError T, fieldName, $fieldValTyp & " object requires either {.proto2.} or {.proto3.}"
+        elif not fieldValTyp.hasCustomPragma(oneof):
+          fieldError T, fieldName, $fieldValTyp & " object missing {.oneof.}"
         enumOneofFields(fieldValTyp, kName, kVal, fName, fTyp):
           when kVal == default(typeof(kVal)):
-            fieldError fieldValTyp, fName, "oneof default unset value branch must not contain any field"
+            fieldError fieldValTyp, fName, "Oneof branch of default value (unset) must not contain any field"
           protoType(ProtoType {.used.}, fieldValTyp, fTyp, fName)
           const fieldNum = fieldValTyp.fieldNumberOf(fName)
           when not validFieldNumber(fieldNum, strict = true):
@@ -250,6 +260,12 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
             raiseAssert $T & "." & fieldName & ": " & $fieldValTyp & "." & fName & ": Field number was used twice on two different fields: " & $fieldNum
           when fieldValTyp.hasCustomPragmaFixed(fName, ext):
             discard
+          elif fTyp is seq and fTyp isnot seq[byte]:
+            fieldError fieldValTyp, fName, "Oneof field cannot be seq[T] / repeated"
+          elif fTyp is PBOption:
+            fieldError fieldValTyp, fName, "Oneof field cannot be PBOption"
+          elif fTyp.hasCustomPragma(oneof):
+            fieldError fieldValTyp, fName, "Oneof field cannot be oneof (nested)"
           else:
             verifySerializable(fTyp)
       else:
