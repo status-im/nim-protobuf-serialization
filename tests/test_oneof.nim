@@ -17,7 +17,7 @@ type
     x
     y
 
-  OneOf1 {.oneof.} = object
+  OneOf1 {.proto3, oneof.} = object
     case kind: Kind1
     of Kind1.unset:
       discard
@@ -78,7 +78,7 @@ suite "Test oneof":
       ret.one.x == 1
 
 type
-  OneOf2 {.oneof.} = object
+  OneOf2 {.proto3, oneof.} = object
     case kind: Kind1
     of Kind1.unset:
       discard

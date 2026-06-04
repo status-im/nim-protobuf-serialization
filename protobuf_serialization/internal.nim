@@ -70,6 +70,7 @@ macro enumOneofFields*(T: type, kName, kVal, fName, fTyp, body: untyped): untype
   result = newStmtList()
   let typeImpl = getType(T)[1].getImpl()
   var discriminatorCount = 0
+  var lastBranch: NimNode = nil
   for field in recordFields(typeImpl):
     if field.caseField == nil:
       if not field.isDiscriminator:
@@ -77,20 +78,23 @@ macro enumOneofFields*(T: type, kName, kVal, fName, fTyp, body: untyped): untype
       if discriminatorCount > 0:
         error repr(typeImpl[0].skipPragma) & "." & $field.name.skipPragma & ": only one `case` is allowed"
       inc discriminatorCount
-      continue
-    let discriminatorName = newLit($field.caseField[0].skipPragma)
-    let fieldName = newLit($field.name.skipPragma)
-    let branchVal = field.caseBranch[0]
-    let fieldTyp = field.typ
-    result.add quote do:
-      block:
-        const `kName` = `discriminatorName`
-        const `fName` = `fieldName`
-        template `kVal`(): untyped =
-          `branchVal`
-        template `fTyp`(): untyped =
-          `fieldTyp`
-        `body`
+    else:
+      let discriminatorName = newLit($field.caseField[0].skipPragma)
+      let fieldName = newLit($field.name.skipPragma)
+      let fieldTyp = field.typ
+      let branchVal = field.caseBranch[0]
+      if branchVal == lastBranch:
+        error repr(typeImpl[0].skipPragma) & "." & $field.name.skipPragma & ": only one field is allowed per branch"
+      lastBranch = branchVal
+      result.add quote do:
+        block:
+          const `kName` {.used.} = `discriminatorName`
+          const `fName` {.used.} = `fieldName`
+          template `kVal`(): untyped {.used.} =
+            `branchVal`
+          template `fTyp`(): untyped {.used.} =
+            `fieldTyp`
+          `body`
 
 macro setOneof*(
     fieldVar: var object, kName: static[string], kVal: untyped, fName: static[string], fVal: untyped
@@ -117,8 +121,8 @@ macro oneofCaseOf*(T: type, value, fVar, fName, body: untyped): untyped =
       let fieldName = newLit($field.name.skipPragma)
       let fieldVal = newDotExpr(value, ident($field.name.skipPragma))
       let body2 = quote do:
-        const `fName` = `fieldName`
-        template `fVar`(): untyped =
+        const `fName` {.used.} = `fieldName`
+        template `fVar`(): untyped {.used.} =
           `fieldVal`
         `body`
       caseStmt.add newTree(nnkOfBranch, branchVal, body2)
@@ -226,22 +230,41 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
     when isProto2 == isProto3:
       {.fatal: $T & ": missing {.proto2.} or {.proto3.}".}
 
-    enumInstanceSerializedFields(inst, fieldName, fieldVar):
+    enumInstanceSerializedFields(inst, fieldName, fieldVal):
+      template fieldValTyp(): untyped =
+        typeof(fieldVal)
+
       when T.isOneof(fieldName):
-        discard # XXX verify
+        when fieldValTyp.isProto2() == fieldValTyp.isProto3():
+          fieldError T, fieldName, $fieldValTyp & " requires either {.proto2.} or {.proto3.}"
+        when not fieldValTyp.hasCustomPragma(oneof):
+          fieldError T, fieldName, $fieldValTyp & " missing {.oneof.}"
+        enumOneofFields(fieldValTyp, kName, kVal, fName, fTyp):
+          when kVal == default(typeof(kVal)):
+            fieldError fieldValTyp, fName, "oneof default unset value branch must not contain any field"
+          protoType(ProtoType {.used.}, fieldValTyp, fTyp, fName)
+          const fieldNum = fieldValTyp.fieldNumberOf(fName)
+          when not validFieldNumber(fieldNum, strict = true):
+            fieldError fieldValTyp, fName, "Field numbers must be in the range [1..2^29-1]"
+          if fieldNumberSet.containsOrIncl(fieldNum):
+            raiseAssert $T & "." & fieldName & ": " & $fieldValTyp & "." & fName & ": Field number was used twice on two different fields: " & $fieldNum
+          when fieldValTyp.hasCustomPragmaFixed(fName, ext):
+            discard
+          else:
+            verifySerializable(fTyp)
       else:
         when isProto2 and not T.isRequired(fieldName) and
-            fieldVar isnot (seq or PBOption) and
-            not isExtension(Protobuf, typeof(fieldVar)):
+            fieldVal isnot (seq or PBOption) and
+            not isExtension(Protobuf, fieldValTyp):
           fieldError T, fieldName, "proto2 requires every field to either have the required pragma attached or be a repeated field/PBOption."
         when isProto3 and (
           T.hasCustomPragmaFixed(fieldName, required) or
-          fieldVar is PBOption or
-          isExtension(Protobuf, typeof(fieldVar))
+          fieldVal is PBOption or
+          isExtension(Protobuf, fieldValTyp)
         ):
           fieldError T, fieldName, "The required pragma/PBOption type can only be used with proto2."
 
-        protoType(ProtoType {.used.}, T, typeof(fieldVar), fieldName) # Ensure we can form a ProtoType
+        protoType(ProtoType {.used.}, T, fieldValTyp, fieldName) # Ensure we can form a ProtoType
 
         const fieldNum = T.fieldNumberOf(fieldName)
         when not validFieldNumber(fieldNum, strict = true):
@@ -253,4 +276,4 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
         when T.hasCustomPragmaFixed(fieldName, ext):
           discard  # do nothing for extensions; they should validate on read/write
         else:
-          verifySerializable(typeof(fieldVar))
+          verifySerializable(fieldValTyp)
