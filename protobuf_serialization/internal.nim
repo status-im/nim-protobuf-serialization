@@ -69,8 +69,14 @@ proc isOneof*(T: type, fieldName: static string): bool {.compileTime.} =
 macro enumOneofFields*(T: type, kName, kVal, fName, fTyp, body: untyped): untyped =
   result = newStmtList()
   let typeImpl = getType(T)[1].getImpl()
+  var discriminatorCount = 0
   for field in recordFields(typeImpl):
     if field.caseField == nil:
+      if not field.isDiscriminator:
+        error repr(typeImpl[0].skipPragma) & "." & $field.name.skipPragma & ": unexpected oneof field"
+      if discriminatorCount > 0:
+        error repr(typeImpl[0].skipPragma) & "." & $field.name.skipPragma & ": only one `case` is allowed"
+      inc discriminatorCount
       continue
     let discriminatorName = newLit($field.caseField[0].skipPragma)
     let fieldName = newLit($field.name.skipPragma)
