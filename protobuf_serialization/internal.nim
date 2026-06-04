@@ -66,32 +66,33 @@ proc fieldNumberOf*(T: type, fieldName: static string): int {.compileTime.} =
 proc isOneof*(T: type, fieldName: static string): bool {.compileTime.} =
   T.hasCustomPragmaFixed(fieldName, oneof)
 
-proc getEnumTy(T: NimNode): NimNode =
-  let enumType = T.getTypeImpl()[1]
-  let impl = enumType.getTypeImpl()
-  expectKind(impl, nnkEnumTy)
-  impl
-
-macro enumEnumValues*(T: type enum, enumValue, body: untyped): untyped =
+macro enumOneofFields*(T: type, kName, kVal, fName, fTyp, body: untyped): untyped =
   result = newStmtList()
-  for val in getEnumTy(T):
-    if val.kind == nnkEmpty:
+  let typeImpl = getType(T)[1].getImpl()
+  for field in recordFields(typeImpl):
+    if field.caseField == nil:
       continue
+    let discriminatorName = newLit($field.caseField[0].skipPragma)
+    let fieldName = newLit($field.name.skipPragma)
+    let branchVal = field.caseBranch[0]
+    let fieldTyp = field.typ
     result.add quote do:
       block:
-        const `enumValue` = `val`
+        const `kName` = `discriminatorName`
+        const `fName` = `fieldName`
+        template `kVal`(): untyped =
+          `branchVal`
+        template `fTyp`(): untyped =
+          `fieldTyp`
         `body`
 
-macro resetField(obj: object, fieldName: static string): untyped =
-  let fieldVar = newDotExpr(obj, ident fieldName)
+macro setOneof*(
+    fieldVar: var object, kName: static[string], kVal: untyped, fName: static[string], fVal: untyped
+): untyped =
+  let kind = ident(kName)
+  let field = ident(fName)
   quote do:
-    `fieldVar` = default(typeof(`fieldVar`))
-
-proc resetOneof*(value: var object, setVal: enum) =
-  enumEnumValues(typeof(setVal), enumValue):
-    when ord(enumValue) != 0:
-      if setVal != enumValue:
-        resetField(value, $enumValue)
+    `fieldVar` = typeof(`fieldVar`)(`kind`: `kVal`, `field`: move(`fVal`))
 
 template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped) =
   mixin flatType, isExtension
@@ -195,27 +196,30 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
       {.fatal: $T & ": missing {.proto2.} or {.proto3.}".}
 
     enumInstanceSerializedFields(inst, fieldName, fieldVar):
-      when isProto2 and not T.isRequired(fieldName) and
-          fieldVar isnot (seq or PBOption) and
-          not isExtension(Protobuf, typeof(fieldVar)):
-        fieldError T, fieldName, "proto2 requires every field to either have the required pragma attached or be a repeated field/PBOption."
-      when isProto3 and (
-        T.hasCustomPragmaFixed(fieldName, required) or
-        fieldVar is PBOption or
-        isExtension(Protobuf, typeof(fieldVar))
-      ):
-        fieldError T, fieldName, "The required pragma/PBOption type can only be used with proto2."
-
-      protoType(ProtoType {.used.}, T, typeof(fieldVar), fieldName) # Ensure we can form a ProtoType
-
-      const fieldNum = T.fieldNumberOf(fieldName)
-      when not validFieldNumber(fieldNum, strict = true):
-        fieldError T, fieldName, "Field numbers must be in the range [1..2^29-1]"
-
-      if fieldNumberSet.containsOrIncl(fieldNum):
-        raiseAssert $T & "." & fieldName & ": Field number was used twice on two different fields: " & $fieldNum
-
-      when T.hasCustomPragmaFixed(fieldName, ext):
-        discard  # do nothing for extensions; they should validate on read/write
+      when T.isOneof(fieldName):
+        discard # XXX verify
       else:
-        verifySerializable(typeof(fieldVar))
+        when isProto2 and not T.isRequired(fieldName) and
+            fieldVar isnot (seq or PBOption) and
+            not isExtension(Protobuf, typeof(fieldVar)):
+          fieldError T, fieldName, "proto2 requires every field to either have the required pragma attached or be a repeated field/PBOption."
+        when isProto3 and (
+          T.hasCustomPragmaFixed(fieldName, required) or
+          fieldVar is PBOption or
+          isExtension(Protobuf, typeof(fieldVar))
+        ):
+          fieldError T, fieldName, "The required pragma/PBOption type can only be used with proto2."
+
+        protoType(ProtoType {.used.}, T, typeof(fieldVar), fieldName) # Ensure we can form a ProtoType
+
+        const fieldNum = T.fieldNumberOf(fieldName)
+        when not validFieldNumber(fieldNum, strict = true):
+          fieldError T, fieldName, "Field numbers must be in the range [1..2^29-1]"
+
+        if fieldNumberSet.containsOrIncl(fieldNum):
+          raiseAssert $T & "." & fieldName & ": Field number was used twice on two different fields: " & $fieldNum
+
+        when T.hasCustomPragmaFixed(fieldName, ext):
+          discard  # do nothing for extensions; they should validate on read/write
+        else:
+          verifySerializable(typeof(fieldVar))

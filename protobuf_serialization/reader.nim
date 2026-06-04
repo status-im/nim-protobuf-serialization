@@ -162,38 +162,34 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
 
     enumInstanceSerializedFields(value, fieldName, fieldVar):
       inc i
-      when isOneof(fieldVar):
-        # For repeated, and in general need to create a flat type out of fieldVar
-        # set values before returning from readValueInternal but that wont work either
-        # when the seq is in a nested message
-        enumOneofFields(fieldVar, kind, fieldName2, fieldVar2):
-          const fieldNum = typeof(fieldVar).fieldNumberOf(fieldName2)
+      when T.isOneof(fieldName):
+        enumOneofFields(typeof(fieldVar), kName, kVal, fName, fTyp):
+          const fieldNum = typeof(fieldVar).fieldNumberOf(fName)
           if headerNum == fieldNum:
-            var value = default(typeof(fieldVar2))
-            protoType(ProtoType, typeof(fieldVar), typeof(fieldVar2), fieldName2)
+            var value = default(fTyp)
+            protoType(ProtoType, typeof(fieldVar), fTyp, fName)
             knownField = stream.readFieldInto(value, header, ProtoType)
             if knownField:
-              fieldVar = typeof(fieldVar)(kind: discriminator)
-              fieldVar2 = move(value)
-              setOneof(fieldVar, kind, value)
+              setOneof(fieldVar, kName, kVal, fName, value)
       else:
         const fieldNum = T.fieldNumberOf(fieldName)
         if headerNum == fieldNum:
           protoType(ProtoType, T, typeof(fieldVar), fieldName)
-          knownField = stream.readFieldInto(fieldVar, header, ProtoType)
+          # TODO should we allow reading packed fields into non-repeated fields?
+          knownField =
+            when supportsPacked(typeof(fieldVar), ProtoType):
+              if header.kind() == WireKind.LengthDelim:
+                stream.readFieldPackedInto(fieldVar, header, ProtoType)
+              else:
+                stream.readFieldInto(fieldVar, header, ProtoType)
+            elif typeof(fieldVar) is ref and defined(ConformanceTest):
+              fieldVar = new typeof(fieldVar)
+              stream.readFieldInto(fieldVar[], header, ProtoType)
+            else:
+              stream.readFieldInto(fieldVar, header, ProtoType)
 
           when isProto2:
             if not silent and knownField: requiredSets.excl i
-
-    if knownField:
-      for fieldName, fieldVar in fieldPairs(value):
-        when T.isOneof(fieldName):
-          enumEnumValues(typeof(fieldVar), enumValue):
-            when ord(enumValue) != 0:
-              const fieldNum = T.fieldNumberOf($enumValue)
-              if headerNum == fieldNum:
-                fieldVar = enumValue
-                resetOneof(value, enumValue)
 
     if not knownField and pos == stream.pos():
       case header.kind():
