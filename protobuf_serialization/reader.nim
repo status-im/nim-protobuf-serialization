@@ -160,33 +160,33 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
     if not headerNum.validFieldNumber(true):
       raise newException(ProtobufReadError, "Invalid field number: " & $headerNum)
 
-    enumInstanceSerializedFields(value, fieldName, fieldVar):
+    enumInstanceSerializedFields(value, fieldName, fieldVal):
       inc i
       when T.isOneof(fieldName):
-        enumOneofFields(typeof(fieldVar), kName, kVal, fName, fTyp):
-          const fieldNum = typeof(fieldVar).fieldNumberOf(fName)
+        enumOneofFields(typeof(fieldVal), kName, kVal, fName, fTyp):
+          const fieldNum = typeof(fieldVal).fieldNumberOf(fName)
           if headerNum == fieldNum:
             var val = default(fTyp)
-            protoType(ProtoType, typeof(fieldVar), fTyp, fName)
+            protoType(ProtoType, typeof(fieldVal), fTyp, fName)
             knownField = stream.readFieldInto(val, header, ProtoType)
             if knownField:
-              setOneof(fieldVar, kName, kVal, fName, val)
+              setOneof(fieldVal, kName, kVal, fName, val)
       else:
         const fieldNum = T.fieldNumberOf(fieldName)
         if headerNum == fieldNum:
-          protoType(ProtoType, T, typeof(fieldVar), fieldName)
+          protoType(ProtoType, T, typeof(fieldVal), fieldName)
           # TODO should we allow reading packed fields into non-repeated fields?
           knownField =
-            when supportsPacked(typeof(fieldVar), ProtoType):
+            when supportsPacked(typeof(fieldVal), ProtoType):
               if header.kind() == WireKind.LengthDelim:
-                stream.readFieldPackedInto(fieldVar, header, ProtoType)
+                stream.readFieldPackedInto(fieldVal, header, ProtoType)
               else:
-                stream.readFieldInto(fieldVar, header, ProtoType)
-            elif typeof(fieldVar) is ref and defined(ConformanceTest):
-              fieldVar = new typeof(fieldVar)
-              stream.readFieldInto(fieldVar[], header, ProtoType)
+                stream.readFieldInto(fieldVal, header, ProtoType)
+            elif typeof(fieldVal) is ref and defined(ConformanceTest):
+              fieldVal = new typeof(fieldVal)
+              stream.readFieldInto(fieldVal[], header, ProtoType)
             else:
-              stream.readFieldInto(fieldVar, header, ProtoType)
+              stream.readFieldInto(fieldVal, header, ProtoType)
 
           when isProto2:
             if not silent and knownField: requiredSets.excl i
