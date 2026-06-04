@@ -238,13 +238,13 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
 
       when T.isOneof(fieldName):
         when T.hasCustomPragmaFixed(fieldName, required):
-          fieldError T, fieldName, "Oneof cannot be {.required.}"
+          fieldError T, fieldName, "Oneof can't be {.required.}"
         elif T.hasCustomPragmaFixed(fieldName, fieldNumber):
-          fieldError T, fieldName, "Oneof cannot be {.fieldNumber: N.}"
+          fieldError T, fieldName, "Oneof can't be {.fieldNumber: N.}"
         elif fieldValTyp is seq:
-          fieldError T, fieldName, $fieldValTyp & " Oneof cannot be seq / repeated"
+          fieldError T, fieldName, $fieldValTyp & " Oneof can't be seq / repeated"
         elif fieldValTyp is PBOption:
-          fieldError T, fieldName, $fieldValTyp & " Oneof cannot be PBOption"
+          fieldError T, fieldName, $fieldValTyp & " Oneof can't be PBOption"
         elif fieldValTyp.isProto2() == fieldValTyp.isProto3():
           fieldError T, fieldName, $fieldValTyp & " object requires either {.proto2.} or {.proto3.}"
         elif not fieldValTyp.hasCustomPragma(oneof):
@@ -261,11 +261,11 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
           when fieldValTyp.hasCustomPragmaFixed(fName, ext):
             discard
           elif fTyp is seq and fTyp isnot seq[byte]:
-            fieldError fieldValTyp, fName, "Oneof field cannot be seq[T] / repeated"
+            fieldError fieldValTyp, fName, "Oneof field can't be seq[T] / repeated"
           elif fTyp is PBOption:
-            fieldError fieldValTyp, fName, "Oneof field cannot be PBOption"
+            fieldError fieldValTyp, fName, "Oneof field can't be PBOption"
           elif fTyp.hasCustomPragma(oneof):
-            fieldError fieldValTyp, fName, "Oneof field cannot be oneof (nested)"
+            fieldError fieldValTyp, fName, "Oneof field can't be oneof (nested)"
           else:
             verifySerializable(fTyp)
       else:
