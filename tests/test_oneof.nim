@@ -37,6 +37,14 @@ suite "Test oneof":
       ret.one.kind == Kind1.unset
       Protobuf.encode(ret) == encoded
 
+  test "oneof field 1 set to default":
+    let encoded = "0800".hexToSeqByte
+    let ret = Protobuf.decode(encoded, Obj1)
+    check:
+      ret.one.kind == Kind1.x
+      ret.one.x == 0
+      Protobuf.encode(ret) == encoded
+
   test "oneof field 1 set":
     # echo 'x: 1' | protoc --encode=OneOfObj test_oneof.proto | hexdump -ve '1/1 "%.2x"'
     # 0801
@@ -92,6 +100,15 @@ suite "Test many oneof":
       ret.two.kind == Kind1.unset
       Protobuf.encode(ret) == encoded
 
+  test "many oneof field 1 set to default":
+    let encoded = "0800".hexToSeqByte
+    let ret = Protobuf.decode(encoded, Obj2)
+    check:
+      ret.one.kind == Kind1.x
+      ret.one.x == 0
+      ret.two.kind == Kind1.unset
+      Protobuf.encode(ret) == encoded
+
   test "many oneof field 1 set":
     let encoded = "0801".hexToSeqByte
     let ret = Protobuf.decode(encoded, Obj2)
@@ -99,6 +116,15 @@ suite "Test many oneof":
       ret.one.kind == Kind1.x
       ret.one.x == 1
       ret.two.kind == Kind1.unset
+      Protobuf.encode(ret) == encoded
+
+  test "many oneof field 3 set to default":
+    let encoded = "1800".hexToSeqByte
+    let ret = Protobuf.decode(encoded, Obj2)
+    check:
+      ret.one.kind == Kind1.unset
+      ret.two.kind == Kind1.x
+      ret.two.x == 0
       Protobuf.encode(ret) == encoded
 
   test "many oneof field 3 set":
@@ -120,6 +146,16 @@ suite "Test many oneof":
       ret.two.x == 1
       Protobuf.encode(ret) == encoded
 
+  test "many oneof field 1 and 3 set to default":
+    let encoded = "08001800".hexToSeqByte
+    let ret = Protobuf.decode(encoded, Obj2)
+    check:
+      ret.one.kind == Kind1.x
+      ret.one.x == 0
+      ret.two.kind == Kind1.x
+      ret.two.x == 0
+      Protobuf.encode(ret) == encoded
+
   test "many oneof field 1 and 3 set variant":
     let encoded = "1001200108011801".hexToSeqByte
     let ret = Protobuf.decode(encoded, Obj2)
@@ -128,6 +164,16 @@ suite "Test many oneof":
       ret.one.x == 1
       ret.two.kind == Kind1.x
       ret.two.x == 1
+
+  test "many oneof field 2 and 4 set to default":
+    let encoded = "10002000".hexToSeqByte
+    let ret = Protobuf.decode(encoded, Obj2)
+    check:
+      ret.one.kind == Kind1.y
+      ret.one.y == 0
+      ret.two.kind == Kind1.y
+      ret.two.y == 0
+      Protobuf.encode(ret) == encoded
 
   test "many oneof field 2 and 4 set":
     let encoded = "10012001".hexToSeqByte
