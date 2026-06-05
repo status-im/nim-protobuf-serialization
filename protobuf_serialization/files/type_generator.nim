@@ -122,6 +122,11 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
         for field in msg.fields:
           if field.kind == ProtoType.Oneof:
             # Oneof does not allow: map, repeated, optional
+            let field = ProtoNode(
+              kind: ProtoType.Oneof,
+              oneofName: msg.messageName & field.oneofName.capitalizeAscii(),
+              oneof: field.oneof
+            )
             queue.add(field)
             # Add oneof case field enum
             var enumVals = @[ProtoNode(kind: ProtoType.EnumVal, fieldName: "unset", num: 0)]
@@ -130,7 +135,7 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
               enumVals.add ProtoNode(kind: ProtoType.EnumVal, fieldName: f.name, num: i + 1)
             queue.add ProtoNode(
               kind: ProtoType.Enum,
-              enumName: field.oneofName.capitalizeAscii() & "Kind",
+              enumName: field.oneofName & "Kind",
               values: enumVals
             )
           elif field.kind == ProtoType.Field and field.protoType.startsWith("map<"):
@@ -171,7 +176,7 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
             newIntLitNode(enumField.num)
           ))
       elif next.kind == ProtoType.Oneof:
-        name = next.oneofName.capitalizeAscii()
+        name = next.oneofName
         let caseKind = ident(name & "Kind")
         let caseOf = newNimNode(nnkRecCase).add(
           newIdentDefs(newNimNode(nnkPostfix).add(ident("*"), ident("kind")), caseKind),
@@ -234,8 +239,7 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
                 ),
                 newNimNode(nnkPragma).add(ident("oneof"))
               ),
-              # XXX namespace
-              ident(field.oneofName.capitalizeAscii()),
+              ident(next.messageName & field.oneofName.capitalizeAscii()),
               newEmptyNode()
             ))
           of ProtoType.Field:
