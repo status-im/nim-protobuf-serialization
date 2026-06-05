@@ -96,11 +96,7 @@ proc readFieldInto*(
   validateEnumType(typeof(value), ProtoType)
   if header.kind() == wireKind(pint32):
     let enumValue = stream.readValue(pint32)
-    if checkedEnumAssign(value, enumValue.int32):
-      true
-    else:
-      discard checkedEnumAssign(value, 0)
-      false
+    checkedEnumAssign(value, enumValue.int32)
   else:
     false
 
