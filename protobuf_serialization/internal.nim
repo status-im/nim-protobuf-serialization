@@ -66,6 +66,15 @@ proc fieldNumberOf*(T: type, fieldName: static string): int {.compileTime.} =
 proc isOneof*(T: type, fieldName: static string): bool {.compileTime.} =
   T.hasCustomPragmaFixed(fieldName, oneof)
 
+proc stripped(n: NimNode): NimNode =
+  case n.kind
+  of nnkPostfix: stripped(n[1])
+  of nnkPragmaExpr: stripped(n[0])
+  of nnkIdentDefs: stripped(n[0])
+  else:
+    #doAssert n.kind == nnkIdent
+    n
+
 macro enumOneofFields*(T: type, kName, kVal, fName, fTyp, body: untyped): untyped =
   result = newStmtList()
   let typeImpl = getType(T)[1].getImpl()
@@ -74,17 +83,17 @@ macro enumOneofFields*(T: type, kName, kVal, fName, fTyp, body: untyped): untype
   for field in recordFields(typeImpl):
     if field.caseField == nil:
       if not field.isDiscriminator:
-        error repr(typeImpl[0].skipPragma) & "." & $field.name.skipPragma & ": unexpected oneof field; field must be within a `case` branch"
+        error repr(typeImpl[0].stripped) & "." & $field.name.stripped & ": unexpected oneof field; field must be within a `case` branch"
       if discriminatorCount > 0:
-        error repr(typeImpl[0].skipPragma) & "." & $field.name.skipPragma & ": only one `case` is allowed"
+        error repr(typeImpl[0].stripped) & "." & $field.name.stripped & ": only one `case` is allowed"
       inc discriminatorCount
     else:
-      let discriminatorName = newLit($field.caseField[0].skipPragma)
-      let fieldName = newLit($field.name.skipPragma)
+      let discriminatorName = newLit($field.caseField[0].stripped)
+      let fieldName = newLit($field.name.stripped)
       let fieldTyp = field.typ
       let branchVal = field.caseBranch[0]
       if branchVal == lastBranch:
-        error repr(typeImpl[0].skipPragma) & "." & $field.name.skipPragma & ": only one field is allowed per branch"
+        error repr(typeImpl[0].stripped) & "." & $field.name.stripped & ": only one field is allowed per branch"
       lastBranch = branchVal
       result.add quote do:
         block:
@@ -110,7 +119,7 @@ macro oneofCaseOf*(T: type, value, fVar, fName, body: untyped): untyped =
   for field in recordFields(typeImpl):
     if field.caseField == nil:
       doAssert caseStmt.len == 0
-      caseStmt.add newDotExpr(value, ident($field.name.skipPragma))
+      caseStmt.add newDotExpr(value, ident($field.name.stripped))
       let enumTyp = field.typ
       let defVal = quote do: default(typeof(`enumTyp`))
       let discardStmt = quote do: discard
@@ -118,8 +127,8 @@ macro oneofCaseOf*(T: type, value, fVar, fName, body: untyped): untyped =
     else:
       doAssert caseStmt.len > 0
       let branchVal = field.caseBranch[0]
-      let fieldName = newLit($field.name.skipPragma)
-      let fieldVal = newDotExpr(value, ident($field.name.skipPragma))
+      let fieldName = newLit($field.name.stripped)
+      let fieldVal = newDotExpr(value, ident($field.name.stripped))
       let body2 = quote do:
         const `fName` {.used.} = `fieldName`
         template `fVar`(): untyped {.used.} =
