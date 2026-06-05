@@ -24,6 +24,9 @@ type
   ObjClassicOptP2 {.proto2.} = object
     x {.fieldNumber: 1, ext.}: Opt[Classic]
 
+  ObjClassicOptP3 {.proto3.} = object
+    x {.fieldNumber: 1, ext.}: Opt[Classic]
+
 suite "Test Opt[enum] Encoding/Decoding":
   test "proto2 optional enum":
     # pbNone: field absent, encodes to empty
@@ -55,3 +58,28 @@ suite "Test Opt[enum] Encoding/Decoding":
     block:
       let encoded = "08030801".hexToSeqByte
       check Protobuf.decode(encoded, ObjClassicOptP2) == ObjClassicOptP2(x: Opt.some(B1))
+
+  test "proto3 optional enum":
+    # pbNone: field absent, encodes to empty
+    roundtrip(ObjClassicOptP3(x: Opt.none(Classic)), "")
+    # pbSome: field present, encoded even when value matches the default int (0)
+    roundtrip(ObjClassicOptP3(x: Opt.some(A1)), "0800")
+    roundtrip(ObjClassicOptP3(x: Opt.some(B1)), "0801")
+    roundtrip(ObjClassicOptP3(x: Opt.some(C1)), "0802")
+
+  test "proto3 optional multiple enums":
+    let encoded = "08020801".hexToSeqByte
+    check Protobuf.decode(encoded, ObjClassicOptP3) == ObjClassicOptP3(x: Opt.some(B1))
+
+  test "proto3 optional enum invalid":
+    let encoded = "0803".hexToSeqByte
+    check Protobuf.decode(encoded, ObjClassicOptP3) == ObjClassicOptP3(x: Opt.none(Classic))
+
+  test "proto3 optional enum + invalid":
+    block:
+      let encoded = "08010803".hexToSeqByte
+      check Protobuf.decode(encoded, ObjClassicOptP3) == ObjClassicOptP3(x: Opt.some(B1))
+    block:
+      let encoded = "08030801".hexToSeqByte
+      check Protobuf.decode(encoded, ObjClassicOptP3) == ObjClassicOptP3(x: Opt.some(B1))
+
