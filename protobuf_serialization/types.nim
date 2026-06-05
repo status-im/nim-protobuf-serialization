@@ -45,7 +45,7 @@ template packed*(v: bool) {.pragma.}
 template pint*() {.pragma.} # encode as `intXX`
 template sint*() {.pragma.} # encode as `sintXX`
 template fixed*() {.pragma.} # encode as `fixedXX`
-template ext*() {.pragma.}
+template ext*() {.pragma.} # encode and decode this field using custom procs
 
 func init*(
   T: type ProtobufWriter,
