@@ -39,3 +39,19 @@ message ErrorStatus {
   string message = 1;
   repeated google.protobuf.Any details = 2;
 }
+
+message TestOneOf {
+  int32 pre = 1;
+  oneof oneof_field {
+    uint32 oneof_uint32 = 3;
+    string oneof_string = 4;
+    bytes oneof_bytes = 5;
+    bool oneof_bool = 6;
+    uint64 oneof_uint64 = 7;
+    float oneof_float = 8;
+    double oneof_double = 9;
+    TestEnum oneof_enum = 10;
+    google.protobuf.Any oneof_any = 11;
+  }
+  int32 post = 2;
+}
