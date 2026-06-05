@@ -21,6 +21,7 @@ type
   FullOfDefaults {.proto2.} = object
     a {.fieldNumber: 3.}: PBOption["abc"]
     b {.fieldNumber: 4.}: PBOption[default(Required)]
+    c {.fieldNumber: 5, pint.}: PBOption[0'i32]
 
   SeqContainer {.proto2.} = object
     data {.fieldNumber: 5.}: seq[bool]
@@ -72,6 +73,15 @@ suite "Test Encoding of Protobuf 2 Semantics":
     # echo 'b: { b: 5 }' | protoc --encode=FullOfDefaults test_protobuf2_semantics.proto | hexdump -ve '1/1 "%.2x"'
     # 22021005
     roundtrip(FullOfDefaults(b: pbSome(Required(b: 5))), "22021005")
+    # echo 'a: "abc"' | protoc --encode=FullOfDefaults test_protobuf2_semantics.proto | hexdump -ve '1/1 "%.2x"'
+    # 1a03616263
+    roundtrip(FullOfDefaults(a: PBOption["abc"].pbSome("abc")), "1a03616263")
+    # echo 'a: "def"' | protoc --encode=FullOfDefaults test_protobuf2_semantics.proto | hexdump -ve '1/1 "%.2x"'
+    # 1a03646566
+    roundtrip(FullOfDefaults(a: PBOption["abc"].pbSome("def")), "1a03646566")
+    # echo 'c: 0' | protoc --encode=FullOfDefaults test_protobuf2_semantics.proto | hexdump -ve '1/1 "%.2x"'
+    roundtrip(FullOfDefaults(c: pbSome(0'i32)), "2800")
+    roundtrip(FullOfDefaults(c: pbNone(0'i32)), "")
     check:
       # PBOption is isNone when field is absent; get() returns the type default, not unset
       Protobuf.decode("1000".hexToSeqByte, Required).a.isNone()
