@@ -1,3 +1,12 @@
+Recommended.Proto2.ProtobufInput.OneofZeroMessage.ProtobufOutput # Output was not equivalent to reference message: deleted: oneof_nested_message: { a: 0 }
+Recommended.Proto2.ProtobufInput.OneofZeroMessageSetTwice.ProtobufOutput # Output was not equivalent to reference message: deleted: oneof_nested_message: { a: 1 }
+Recommended.Proto2.ProtobufInput.ValidDataOneofBinary.MESSAGE.DefaultValue.ProtobufOutput # Output was not equivalent to reference message: Expect: \202\007\000, but got: 
+Recommended.Proto2.ProtobufInput.ValidDataOneofBinary.MESSAGE.Merge.ProtobufOutput # Output was not equivalent to reference message: Expect: \202\007\014\022\012\010\001\020\001\310\005\001\310\005\001, but got: 
+Recommended.Proto2.ProtobufInput.ValidDataOneofBinary.MESSAGE.MultipleValuesForDifferentField.ProtobufOutput # Output was not equivalent to reference message: Expect: \202\007\003\010\322\011, but got: \370\006\000
+Recommended.Proto2.ProtobufInput.ValidDataOneofBinary.MESSAGE.MultipleValuesForSameField.ProtobufOutput # Output was not equivalent to reference message: Expect: \202\007\003\010\322\011, but got: 
+Recommended.Proto2.ProtobufInput.ValidDataOneofBinary.MESSAGE.NonDefaultValue.ProtobufOutput # Output was not equivalent to reference message: Expect: \202\007\003\010\322\011, but got: 
+Recommended.Proto2.ProtobufInput.ValidDataScalarBinary.MESSAGE[0].ProtobufOutput # Output was not equivalent to reference message: Expect: \222\001\000, but got: 
+Recommended.Proto2.ProtobufInput.ValidDataScalarBinary.MESSAGE[1].ProtobufOutput # Output was not equivalent to reference message: Expect: \222\001\003\010\322\011, but got: 
 Required.Proto2.ProtobufInput.PrematureEofInSubmessageValue.MESSAGE # Should have failed to parse, but didn't.
 Required.Proto2.ProtobufInput.RepeatedScalarMessageMerge.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_nested_message: { corecursive { optional_int32: 4321 optional_
 Required.Proto2.ProtobufInput.UnknownOrdering.ProtobufOutput # Unknown field mismatch

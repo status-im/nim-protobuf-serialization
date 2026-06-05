@@ -6,8 +6,9 @@ message Required {
 }
 
 message FullOfDefaults {
-  optional string a = 3;
+  optional string a = 3 [default = "abc"];
   optional Required b = 4;
+  optional int32 c = 5;
 }
 
 message SeqContainer {
