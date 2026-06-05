@@ -55,3 +55,7 @@ message TestOneOf {
   }
   int32 post = 2;
 }
+
+message TestMessage {
+  map<string, bytes> map_string_bytes = 1;
+}
