@@ -13,6 +13,13 @@ macro test() =
           UNKNOWN = 0
           STARTED = 1
 
+        Map_string_bytesEntry* {.proto3.} = object
+          key* {.fieldNumber: 1.}: string
+          value* {.fieldNumber: 2.}: seq[byte]
+
+        TestMessage* {.proto3.} = object
+          map_string_bytes* {.fieldNumber: 1.}: seq[Map_string_bytesEntry]
+
         TestOneOfOneof_fieldKind* {.pure, proto3.} = enum
           unset = 0
           oneof_uint32 = 1
