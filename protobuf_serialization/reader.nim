@@ -167,9 +167,9 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
           const fieldNum = typeof(fieldVal).fieldNumberOf(fName)
           if headerNum == fieldNum:
             protoType(ProtoType, typeof(fieldVal), fTyp, fName)
-            knownField = case oneofVar(fieldVal, kName)
+            knownField = case fieldVal.field(kName)
             of kVal:
-              stream.readFieldInto(oneofVar(fieldVal, fName), header, ProtoType)
+              stream.readFieldInto(fieldVal.field(fName), header, ProtoType)
             else:
               var val = default(fTyp)
               if stream.readFieldInto(val, header, ProtoType):

@@ -108,9 +108,6 @@ macro enumOneofFields*(T: type, kName, kVal, fName, fTyp, body: untyped): untype
             `fieldTyp`
           `body`
 
-macro oneofVar*(fieldVar: var object, fName: static[string]): untyped =
-  newDotExpr(fieldVar, ident(fName))
-
 macro setOneof*(
     fieldVar: var object, kName: static[string], kVal: untyped, fName: static[string], fVal: untyped
 ): untyped =

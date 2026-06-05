@@ -354,3 +354,51 @@ suite "Test all types in oneof":
       ret.one.kind == KindAll.x15
       ret.one.x15 == SomeMessage(y: 1)
       Protobuf.encode(ret) == "7a021001".hexToSeqByte
+
+  test "oneof unknown type won't set it":
+    # echo "0801" | xxd -r -p | protoc --decode=ObjAll test_oneof.proto
+    # 1: 1
+    let encoded = "0801".hexToSeqByte
+    let ret = Protobuf.decode(encoded, ObjAll)
+    check:
+      ret.one.kind == KindAll.unset
+      Protobuf.encode(ret) == "".hexToSeqByte
+
+  test "oneof unknown type won't overwrite previous set":
+    # echo "0a036162630801" | xxd -r -p | protoc --decode=ObjAll test_oneof.proto
+    # x01: "abc"
+    # 1: 1
+    let encoded = "0a036162630801".hexToSeqByte
+    let ret = Protobuf.decode(encoded, ObjAll)
+    check:
+      ret.one.kind == KindAll.x01
+      ret.one.x01 == "abc"
+      Protobuf.encode(ret) == "0a03616263".hexToSeqByte
+
+  test "oneof unknown type variant":
+    # echo "08010a036162630801" | xxd -r -p | protoc --decode=ObjAll test_oneof.proto
+    # x01: "abc"
+    # 1: 1
+    # 1: 1
+    let encoded = "0a036162630801".hexToSeqByte
+    let ret = Protobuf.decode(encoded, ObjAll)
+    check:
+      ret.one.kind == KindAll.x01
+      ret.one.x01 == "abc"
+      Protobuf.encode(ret) == "0a03616263".hexToSeqByte
+
+  test "oneof unknown type variant 2":
+    # 7a020801 -> x15: {x: 1}
+    # 0801 -> 1: 1
+    # 7a021001 -> x15: {y: 1}
+    # echo "7a02080108017a021001" | xxd -r -p | protoc --decode=ObjAll test_oneof.proto
+    # x15 {
+    #   x: 1
+    #   y: 1
+    # }
+    let encoded = "7a02080108017a021001".hexToSeqByte
+    let ret = Protobuf.decode(encoded, ObjAll)
+    check:
+      ret.one.kind == KindAll.x15
+      ret.one.x15 == SomeMessage(x: 1, y: 1)
+      Protobuf.encode(ret) == "7a0408011001".hexToSeqByte
