@@ -287,8 +287,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
           fieldError T, fieldName, "proto2 requires every field to either have the required pragma attached or be a repeated field/PBOption."
         when isProto3 and (
           T.hasCustomPragmaFixed(fieldName, required) or
-          fieldVal is PBOption or
-          isExtension(Protobuf, fieldValTyp)
+          fieldVal is PBOption
         ):
           fieldError T, fieldName, "The required pragma/PBOption type can only be used with proto2."
 

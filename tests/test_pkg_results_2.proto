@@ -1,0 +1,11 @@
+syntax = "proto2";
+
+message FewOptions {
+  optional int32 a = 1;
+  optional int32 b = 2;
+}
+
+message FullOfDefaults {
+  optional string a = 3;
+  optional FewOptions b = 4;
+}

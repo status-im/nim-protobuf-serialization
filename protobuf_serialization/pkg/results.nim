@@ -21,20 +21,15 @@ template flatType*[U](T: type Protobuf, value: Opt[U]): type = U
 
 func isExtension*(T: type Protobuf, FieldType: type Opt): bool = true
 
-func validateOptType(T: type Opt, ProtoType: type ProtobufExt) =
-  when ProtoType.RootType.isProto3():
-    {.fatal: $T & " Opt is only supported in proto2".}
-
 func computeFieldSize*(
     field: int,
     value: Opt,
     ProtoType: type ProtobufExt,
     skipDefault: static bool
 ): int =
-  validateOptType(typeof(value), ProtoType)
   protoType(InnerProtoType, ProtoType.RootType, Protobuf.flatType(value), ProtoType.fieldName)
   if value.isSome():
-    computeFieldSize(field, value.get(), InnerProtoType, skipDefault)
+    computeFieldSize(field, value.get(), InnerProtoType, false)
   else:
     0
 
@@ -45,10 +40,9 @@ proc writeField*(
     ProtoType: type ProtobufExt,
     skipDefault: static bool = false
 ) {.raises: [IOError].} =
-  validateOptType(typeof(value), ProtoType)
   protoType(InnerProtoType, ProtoType.RootType, Protobuf.flatType(value), ProtoType.fieldName)
   if value.isSome():
-    stream.writeField(field, value.get(), InnerProtoType, skipDefault)
+    stream.writeField(field, value.get(), InnerProtoType, false)
 
 proc readFieldInto*(
     stream: InputStream,
@@ -56,7 +50,6 @@ proc readFieldInto*(
     header: FieldHeader,
     ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
-  validateOptType(typeof(value), ProtoType)
   protoType(InnerProtoType, ProtoType.RootType, Protobuf.flatType(value), ProtoType.fieldName)
   var val: typeof(value.get())
   if stream.readFieldInto(val, header, InnerProtoType):
