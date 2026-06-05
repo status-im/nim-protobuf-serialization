@@ -51,9 +51,12 @@ proc readFieldInto*(
     ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
   protoType(InnerProtoType, ProtoType.RootType, Protobuf.flatType(value), ProtoType.fieldName)
-  var val: typeof(value.get())
-  if stream.readFieldInto(val, header, InnerProtoType):
-    value = Opt.ok(val)
-    true
+  if value.isSome():
+    stream.readFieldInto(value.value(), header, InnerProtoType)
   else:
-    false
+    var val: typeof(value.get())
+    if stream.readFieldInto(val, header, InnerProtoType):
+      value = Opt.ok(val)
+      true
+    else:
+      false

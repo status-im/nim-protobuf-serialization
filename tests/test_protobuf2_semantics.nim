@@ -14,6 +14,10 @@ import
   ../protobuf_serialization
 
 type
+  FewOptions {.proto2.} = object
+    a {.fieldNumber: 1, pint.}: PBOption[0'i32]
+    b {.fieldNumber: 2, pint.}: PBOption[0'i32]
+
   Required {.proto2.} = object
     a {.fieldNumber: 1, pint .}: PBOption[2'i32]
     b {.fieldNumber: 2, pint, required.}: int32
@@ -22,6 +26,7 @@ type
     a {.fieldNumber: 3.}: PBOption["abc"]
     b {.fieldNumber: 4.}: PBOption[default(Required)]
     c {.fieldNumber: 5, pint.}: PBOption[0'i32]
+    d {.fieldNumber: 6.}: PBOption[default(FewOptions)]
 
   SeqContainer {.proto2.} = object
     data {.fieldNumber: 5.}: seq[bool]
@@ -90,6 +95,23 @@ suite "Test Encoding of Protobuf 2 Semantics":
       Protobuf.decode("22021005".hexToSeqByte, FullOfDefaults).a.get() == "abc"
       Protobuf.decode("22021005".hexToSeqByte, FullOfDefaults).b.isSome()
       Protobuf.decode("22021005".hexToSeqByte, FullOfDefaults).b.get().a.get() == 2'i32
+
+  test "optional message merging":
+    # echo 'd: {a: 1}' | protoc --encode=FullOfDefaults test_protobuf2_semantics.proto | hexdump -ve '1/1 "%.2x"'
+    # 32020801
+    # echo 'a: "abc"' | protoc --encode=FullOfDefaults test_protobuf2_semantics.proto | hexdump -ve '1/1 "%.2x"'
+    # 1a03616263
+    # echo 'd: {b: 1}' | protoc --encode=FullOfDefaults test_protobuf2_semantics.proto | hexdump -ve '1/1 "%.2x"'
+    # 32021001
+    # echo "320208011a0361626332021001" | xxd -r -p | protoc --decode=FullOfDefaults test_protobuf2_semantics.proto
+    # a: "abc"
+    # d {
+    #   a: 1
+    #   b: 1
+    # }
+    let encoded = "320208011a0361626332021001".hexToSeqByte
+    check Protobuf.decode(encoded, FullOfDefaults) ==
+      FullOfDefaults(a: PBOption["abc"].pbSome("abc"), d: pbSome(FewOptions(a: pbSome(1'i32), b: pbSome(1'i32))))
 
   test "Doesn't require Option for seq":
     roundtrip(SeqContainer(), "")

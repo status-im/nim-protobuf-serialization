@@ -56,7 +56,7 @@ func computeFieldSize*(
     field: int, value: PBOption, ProtoType: type,
     skipDefault: static bool): int =
   if value.isSome(): # TODO required field checking
-    computeFieldSize(field, value.get(), ProtoType, skipDefault)
+    computeFieldSize(field, value.get(), ProtoType, false)
   else:
     0
 
