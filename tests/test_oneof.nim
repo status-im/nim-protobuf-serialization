@@ -211,6 +211,11 @@ type
     x12
     x13
     x14
+    x15
+
+  SomeMessage {.proto3.} = object
+    x {.fieldNumber: 1, pint.}: int32
+    y {.fieldNumber: 2, pint.}: int32
 
   OneOfAll {.proto3, oneof.} = object
     case kind: KindAll
@@ -244,6 +249,8 @@ type
       x13 {.fieldNumber: 13.}: float32
     of KindAll.x14:
       x14 {.fieldNumber: 14.}: float64
+    of KindAll.x15:
+      x15 {.fieldNumber: 15.}: SomeMessage
 
   ObjAll {.proto3.} = object
     one {.oneof.}: OneOfAll
@@ -295,3 +302,55 @@ suite "Test all types in oneof":
       ret.one.kind == KindAll.x09
       ret.one.x09 == 123
       Protobuf.encode(ret) == encoded
+
+  test "message default oneof set":
+    # echo 'x15: {}' | protoc --encode=ObjAll test_oneof.proto | hexdump -ve '1/1 "%.2x"'
+    # 7a00
+    let encoded = "7a00".hexToSeqByte
+    let ret = Protobuf.decode(encoded, ObjAll)
+    check:
+      ret.one.kind == KindAll.x15
+      ret.one.x15 == SomeMessage()
+      Protobuf.encode(ret) == encoded
+
+  test "message oneof set":
+    # echo 'x15: {x: 1}' | protoc --encode=ObjAll test_oneof.proto | hexdump -ve '1/1 "%.2x"'
+    # 7a020801
+    let encoded = "7a020801".hexToSeqByte
+    let ret = Protobuf.decode(encoded, ObjAll)
+    check:
+      ret.one.kind == KindAll.x15
+      ret.one.x15 == SomeMessage(x: 1)
+      Protobuf.encode(ret) == encoded
+
+  test "oneof message merge":
+    # d80701 is "123: 1" and splits the message
+    # echo "7a020801d807017a021001" | xxd -r -p | protoc --decode=ObjAll test_oneof.proto
+    # x15 {
+    #   x: 1
+    #   y: 1
+    # }
+    # 123: 1
+    # echo 'x15: {x: 1 y: 1}' | protoc --encode=ObjAll test_oneof.proto | hexdump -ve '1/1 "%.2x"'
+    # 7a0408011001
+    let encoded = "7a020801d807017a021001".hexToSeqByte
+    let ret = Protobuf.decode(encoded, ObjAll)
+    check:
+      ret.one.kind == KindAll.x15
+      ret.one.x15 == SomeMessage(x: 1, y: 1)
+      Protobuf.encode(ret) == "7a0408011001".hexToSeqByte
+
+  test "oneof message no merge":
+    # 7a020801 -> x15: {x: 1}
+    # 187b -> x03: 123
+    # 7a021001 -> x15: {y: 1}
+    # echo "7a020801187b7a021001" | xxd -r -p | protoc --decode=ObjAll test_oneof.proto
+    # x15 {
+    #   y: 1
+    # }
+    let encoded = "7a020801187b7a021001".hexToSeqByte
+    let ret = Protobuf.decode(encoded, ObjAll)
+    check:
+      ret.one.kind == KindAll.x15
+      ret.one.x15 == SomeMessage(y: 1)
+      Protobuf.encode(ret) == "7a021001".hexToSeqByte

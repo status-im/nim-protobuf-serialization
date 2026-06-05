@@ -166,11 +166,17 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
         enumOneofFields(typeof(fieldVal), kName, kVal, fName, fTyp):
           const fieldNum = typeof(fieldVal).fieldNumberOf(fName)
           if headerNum == fieldNum:
-            var val = default(fTyp)
             protoType(ProtoType, typeof(fieldVal), fTyp, fName)
-            knownField = stream.readFieldInto(val, header, ProtoType)
-            if knownField:
-              setOneof(fieldVal, kName, kVal, fName, val)
+            knownField = case oneofVar(fieldVal, kName)
+            of kVal:
+              stream.readFieldInto(oneofVar(fieldVal, fName), header, ProtoType)
+            else:
+              var val = default(fTyp)
+              if stream.readFieldInto(val, header, ProtoType):
+                setOneof(fieldVal, kName, kVal, fName, val)
+                true
+              else:
+                false
       else:
         const fieldNum = T.fieldNumberOf(fieldName)
         if headerNum == fieldNum:
@@ -183,7 +189,8 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
               else:
                 stream.readFieldInto(fieldVal, header, ProtoType)
             elif typeof(fieldVal) is ref and defined(ConformanceTest):
-              fieldVal = new typeof(fieldVal)
+              if fieldVal.isNil:
+                fieldVal = new typeof(fieldVal)
               stream.readFieldInto(fieldVal[], header, ProtoType)
             else:
               stream.readFieldInto(fieldVal, header, ProtoType)

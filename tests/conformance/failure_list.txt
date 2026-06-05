@@ -20,7 +20,5 @@ Required.Proto2.ProtobufInput.ValidDataOneof.MESSAGE.NonDefaultValue.ProtobufOut
 Required.Proto2.ProtobufInput.ValidDataRepeated.MESSAGE.ProtobufOutput # Output was not equivalent to reference message: deleted: repeated_nested_message[0]: { }deleted: repeated_nested_message[1]: { a
 Required.Proto2.ProtobufInput.ValidDataScalar.MESSAGE[0].ProtobufOutput # Output was not equivalent to reference message: deleted: optional_nested_message: { }
 Required.Proto2.ProtobufInput.ValidDataScalar.MESSAGE[1].ProtobufOutput # Output was not equivalent to reference message: deleted: optional_nested_message: { a: 1234 }
-Required.Proto3.ProtobufInput.RepeatedScalarMessageMerge.ProtobufOutput # Output was not equivalent to reference message: deleted: optional_nested_message.corecursive.optional_int64: 1234modified: optio
 Required.Proto3.ProtobufInput.UnknownOrdering.ProtobufOutput # Unknown field mismatch
 Required.Proto3.ProtobufInput.UnknownVarint.ProtobufOutput # Output was not equivalent to reference message: Expect: \250\037\001, but got: 
-Required.Proto3.ProtobufInput.ValidDataOneof.MESSAGE.Merge.ProtobufOutput # Output was not equivalent to reference message: deleted: oneof_nested_message.corecursive.optional_int32: 1deleted: oneof_nested
