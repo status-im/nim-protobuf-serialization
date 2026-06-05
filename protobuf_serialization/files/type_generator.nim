@@ -146,7 +146,7 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
             ]
             queue.add ProtoNode(
               kind: Message,
-              messageName: field.name & "Entry",
+              messageName: field.name.capitalizeAscii() & "Entry",
               fields: entryFields)
       # TODO: define Enums first to workaround https://github.com/nim-lang/Nim/issues/25651
       if msg.kind != ProtoType.Extend:
@@ -268,7 +268,7 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
 
             if value[2][^1][1].strVal.startsWith("map<"):
               value[2][^1][1] = newNimNode(nnkBracketExpr).add(
-                ident("seq"), ident(field.name & "Entry")
+                ident("seq"), ident(field.name.capitalizeAscii() & "Entry")
               )
             else:
               let (typ, pragma) = getTypeAndPragma(value[2][^1][1].strVal)
