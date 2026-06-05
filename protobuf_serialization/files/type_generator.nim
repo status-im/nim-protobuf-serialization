@@ -121,13 +121,23 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
       if msg.kind != ProtoType.Extend:
         for field in msg.fields:
           if field.kind == ProtoType.Oneof:
-            # XXX this should be supported
-            continue
-          if field.protoType.startsWith("map<"):
+            # Oneof does not allow: map, repeated, optional
+            queue.add(field)
+            # Add oneof case field enum
+            var enumVals = @[ProtoNode(kind: ProtoType.EnumVal, fieldName: "unset", num: 0)]
+            for i, f in field.oneof.pairs():
+              doAssert f.kind == ProtoType.Field, $f.kind
+              enumVals.add ProtoNode(kind: ProtoType.EnumVal, fieldName: f.name, num: i + 1)
+            queue.add ProtoNode(
+              kind: ProtoType.Enum,
+              enumName: field.oneofName.capitalizeAscii() & "Kind",
+              values: enumVals
+            )
+          elif field.kind == ProtoType.Field and field.protoType.startsWith("map<"):
             let matches = field.protoType.split({'<', '>', ','})
             let entryFields = @[
-              ProtoNode(kind: Field, number: 1, protoType: matches[1], name: "key"),
-              ProtoNode(kind: Field, number: 2, protoType: matches[2], name: "value")
+              ProtoNode(kind: ProtoType.Field, number: 1, protoType: matches[1], name: "key"),
+              ProtoNode(kind: ProtoType.Field, number: 2, protoType: matches[2], name: "value")
             ]
             queue.add ProtoNode(
               kind: Message,
@@ -135,9 +145,10 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
               fields: entryFields)
       # TODO: define Enums first to workaround https://github.com/nim-lang/Nim/issues/25651
       if msg.kind != ProtoType.Extend:
-        if (msg.definedEnums.len != 0) or (msg.nested.len != 0):
-          for nestee in (msg.definedEnums & msg.nested):
-            queue.add(nestee)
+        for pbEnum in msg.definedEnums:
+          queue.add(pbEnum)
+        for nestee in msg.nested:
+          queue.add(nestee)
     for pbEnum in parsed.packageEnums:
       queue.add(pbEnum)
 
@@ -159,6 +170,46 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
             ident(enumField.fieldName),
             newIntLitNode(enumField.num)
           ))
+      elif next.kind == ProtoType.Oneof:
+        name = next.oneofName.capitalizeAscii()
+        let caseKind = ident(name & "Kind")
+        let caseOf = newNimNode(nnkRecCase).add(
+          newIdentDefs(newNimNode(nnkPostfix).add(ident("*"), ident("kind")), caseKind),
+          newNimNode(nnkOfBranch).add(
+            newDotExpr(caseKind, ident"unset"),
+            newNimNode(nnkRecList).add(newNilLit())
+          )
+        )
+        for field in next.oneof:
+          doAssert field.kind == ProtoType.Field, $field.kind
+          let (typ, pragma) = if field.protoType == "google.protobuf.Any":
+            getTypeAndPragma("bytes")
+          else:
+            getTypeAndPragma(field.protoType)
+          var pragmas = default(seq[NimNode])
+          if not pragma.isNil():
+            pragmas.add pragma
+          if field.protoType.split('.')[^1] in enumNames:
+            pragmas.add ident"ext"
+          caseOf.add(
+            newNimNode(nnkOfBranch).add(
+              newDotExpr(caseKind, ident(field.name)),
+              newNimNode(nnkRecList).add(newIdentDefs(
+                newNimNode(nnkPragmaExpr).add(
+                  newNimNode(nnkPostfix).add(ident("*"), ident(field.name)),
+                  newNimNode(nnkPragma).add(
+                    newNimNode(nnkExprColonExpr).add(ident("fieldNumber"), newIntLitNode(field.number))
+                  ).add(pragmas)
+                ),
+                typ
+              ))
+            )
+          )
+        value = newNimNode(nnkObjectTy).add(
+          newEmptyNode(),
+          newEmptyNode(),
+          newNimNode(nnkRecList).add(caseOf)
+        )
       else:
         if next.kind == ProtoType.Extend:
           continue
@@ -172,82 +223,91 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
           newEmptyNode(),
           newNimNode(nnkRecList)
         )
-        var fieldsQueue: seq[ProtoNode] = @[]
         for field in next.fields:
-          fieldsQueue.add(field)
-        while fieldsQueue.len != 0:
-          let field = fieldsQueue.pop()
-          if field.kind == Oneof:
-            # TODO: ATM the oneof is ignored. Find a way to make it work
-            for f in field.oneof:
-              f.presence = Optional
-              fieldsQueue.add(f)
-            continue
-          value[2].add(newNimNode(nnkIdentDefs).add(
-            newNimNode(nnkPragmaExpr).add(
-              newNimNode(nnkPostfix).add(
-                ident("*"),
-                ident(field.name)
+          case field.kind
+          of ProtoType.Oneof:
+            value[2].add(newNimNode(nnkIdentDefs).add(
+              newNimNode(nnkPragmaExpr).add(
+                newNimNode(nnkPostfix).add(
+                  ident("*"),
+                  ident(field.oneofName)
+                ),
+                newNimNode(nnkPragma).add(ident("oneof"))
               ),
-              newNimNode(nnkPragma).add(
-                newNimNode(nnkExprColonExpr).add(
-                  ident("fieldNumber"),
-                  newIntLitNode(field.number)
+              # XXX namespace
+              ident(field.oneofName.capitalizeAscii()),
+              newEmptyNode()
+            ))
+          of ProtoType.Field:
+            value[2].add(newNimNode(nnkIdentDefs).add(
+              newNimNode(nnkPragmaExpr).add(
+                newNimNode(nnkPostfix).add(
+                  ident("*"),
+                  ident(field.name)
+                ),
+                newNimNode(nnkPragma).add(
+                  newNimNode(nnkExprColonExpr).add(
+                    ident("fieldNumber"),
+                    newIntLitNode(field.number)
+                  )
                 )
+              ),
+              ident(if field.protoType == "google.protobuf.Any": "bytes" else: field.protoType),
+              newEmptyNode()
+            ))
+
+            var isReference = false
+            for parsed in packages:
+              if next.messageName.isNested(field.protoType, parsed.messages):
+                isReference = true
+                break
+
+            if value[2][^1][1].strVal.startsWith("map<"):
+              value[2][^1][1] = newNimNode(nnkBracketExpr).add(
+                ident("seq"), ident(field.name & "Entry")
               )
-            ),
-            ident(if field.protoType == "google.protobuf.Any": "bytes" else: field.protoType),
-            newEmptyNode()
-          ))
-
-          var isReference = false
-          for parsed in packages:
-            if next.messageName.isNested(field.protoType, parsed.messages):
-              isReference = true
-              break
-
-          if value[2][^1][1].strVal.startsWith("map<"):
-            value[2][^1][1] = newNimNode(nnkBracketExpr).add(
-              ident("seq"), ident(field.name & "Entry")
-            )
-          else:
-            let (typ, pragma) = getTypeAndPragma(value[2][^1][1].strVal)
-            value[2][^1][1] = typ
-            if not pragma.isNil():
-              value[2][^1][0][1].add(pragma)
-
-          # XXX fix namespaces
-          if field.protoType.split('.')[^1] in enumNames:
-            value[2][^1][0][1].add ident"ext"
-
-          if field.presence == Optional and not isProto3:
-            var optDefault = ""
-            for opt in field.options:
-              if opt.optName == "default":
-                optDefault = opt.optVal
-            let typ = value[2][^1][1]
-            let innerTyp = if optDefault.len > 0:
-              parseDefault(optDefault, typ)
             else:
-              quote do: default(`typ`)
-            value[2][^1][1] = quote do: PBOption[`innerTyp`]
+              let (typ, pragma) = getTypeAndPragma(value[2][^1][1].strVal)
+              value[2][^1][1] = typ
+              if not pragma.isNil():
+                value[2][^1][0][1].add(pragma)
 
-          for opt in field.options:
-            if opt.optName == "packed" and opt.optVal in ["true", "false"]:
-              value[2][^1][0][1].add(
-                newNimNode(nnkExprColonExpr).add(
-                  ident(opt.optName),
-                  newLitFixed(opt.optVal == "true")
+            # XXX fix namespaces
+            if field.protoType.split('.')[^1] in enumNames:
+              value[2][^1][0][1].add ident"ext"
+
+            if field.presence == Optional and not isProto3:
+              var optDefault = ""
+              for opt in field.options:
+                if opt.optName == "default":
+                  optDefault = opt.optVal
+              let typ = value[2][^1][1]
+              let innerTyp = if optDefault.len > 0:
+                parseDefault(optDefault, typ)
+              else:
+                quote do: default(`typ`)
+              value[2][^1][1] = quote do: PBOption[`innerTyp`]
+
+            for opt in field.options:
+              if opt.optName == "packed" and opt.optVal in ["true", "false"]:
+                value[2][^1][0][1].add(
+                  newNimNode(nnkExprColonExpr).add(
+                    ident(opt.optName),
+                    newLitFixed(opt.optVal == "true")
+                  )
                 )
-              )
 
-          if field.presence == Repeated:
-            value[2][^1][1] = newNimNode(nnkBracketExpr).add(
-              ident("seq"),
-              value[2][^1][1]
-            )
-          elif isReference:
-            value[2][^1][1] = newNimNode(nnkRefTy).add(value[2][^1][1])
+            if field.presence == Repeated:
+              value[2][^1][1] = newNimNode(nnkBracketExpr).add(
+                ident("seq"),
+                value[2][^1][1]
+              )
+            elif isReference:
+              value[2][^1][1] = newNimNode(nnkRefTy).add(value[2][^1][1])
+          else:
+            raiseAssert "Unexpected proto type: " & $field.kind
+
+        # Empty message
         if value[2].len == 0:
           value[2] = newEmptyNode()
 
@@ -262,6 +322,8 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
             newNimNode(nnkPostfix).add(ident("*"), ident(name)),
             if next.kind == ProtoType.Enum:
               newNimNode(nnkPragma).add(ident("pure"), ident(protoVer))
+            elif next.kind == ProtoType.Oneof:
+              newNimNode(nnkPragma).add(ident(protoVer), ident("oneof"))
             else:
               newNimNode(nnkPragma).add(ident(protoVer))
           ),
