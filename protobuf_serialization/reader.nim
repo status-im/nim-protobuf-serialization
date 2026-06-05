@@ -152,35 +152,51 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
 
   while stream.readable():
     let header = stream.readHeader()
+    let headerNum = header.number()
     let pos = stream.pos()
     var i {.used.} = -1
     var knownField = false
 
-    if not header.number().validFieldNumber(true):
-      raise newException(ProtobufReadError, "Invalid field number: " & $header.number())
+    if not headerNum.validFieldNumber(true):
+      raise newException(ProtobufReadError, "Invalid field number: " & $headerNum)
 
-    enumInstanceSerializedFields(value, fieldName, fieldVar):
+    enumInstanceSerializedFields(value, fieldName, fieldVal):
       inc i
-      const
-        fieldNum = T.fieldNumberOf(fieldName)
-
-      if header.number() == fieldNum:
-        protoType(ProtoType, T, typeof(fieldVar), fieldName)
-        # TODO should we allow reading packed fields into non-repeated fields?
-        knownField =
-          when supportsPacked(typeof(fieldVar), ProtoType):
-            if header.kind() == WireKind.LengthDelim:
-              stream.readFieldPackedInto(fieldVar, header, ProtoType)
+      when T.isOneof(fieldName):
+        enumOneofFields(typeof(fieldVal), kName, kVal, fName, fTyp):
+          const fieldNum = typeof(fieldVal).fieldNumberOf(fName)
+          if headerNum == fieldNum:
+            protoType(ProtoType, typeof(fieldVal), fTyp, fName)
+            knownField = case fieldVal.field(kName)
+            of kVal:
+              stream.readFieldInto(fieldVal.field(fName), header, ProtoType)
             else:
-              stream.readFieldInto(fieldVar, header, ProtoType)
-          elif typeof(fieldVar) is ref and defined(ConformanceTest):
-            fieldVar = new typeof(fieldVar)
-            stream.readFieldInto(fieldVar[], header, ProtoType)
-          else:
-            stream.readFieldInto(fieldVar, header, ProtoType)
+              var val = default(fTyp)
+              if stream.readFieldInto(val, header, ProtoType):
+                setOneof(fieldVal, kName, kVal, fName, val)
+                true
+              else:
+                false
+      else:
+        const fieldNum = T.fieldNumberOf(fieldName)
+        if headerNum == fieldNum:
+          protoType(ProtoType, T, typeof(fieldVal), fieldName)
+          # TODO should we allow reading packed fields into non-repeated fields?
+          knownField =
+            when supportsPacked(typeof(fieldVal), ProtoType):
+              if header.kind() == WireKind.LengthDelim:
+                stream.readFieldPackedInto(fieldVal, header, ProtoType)
+              else:
+                stream.readFieldInto(fieldVal, header, ProtoType)
+            elif typeof(fieldVal) is ref and defined(ConformanceTest):
+              if fieldVal.isNil:
+                fieldVal = new typeof(fieldVal)
+              stream.readFieldInto(fieldVal[], header, ProtoType)
+            else:
+              stream.readFieldInto(fieldVal, header, ProtoType)
 
-        when isProto2:
-          if not silent and knownField: requiredSets.excl i
+          when isProto2:
+            if not silent and knownField: requiredSets.excl i
 
     if not knownField and pos == stream.pos():
       case header.kind():

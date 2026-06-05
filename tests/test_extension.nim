@@ -9,6 +9,7 @@
 
 import
   unittest2,
+  stew/byteutils,
   ./utils,
   ../protobuf_serialization,
   ../protobuf_serialization/pkg/results
@@ -34,6 +35,20 @@ type
 
   Proto3Int32ExtSeq {.proto3.} = object
     a {.fieldNumber: 1, ext.}: seq[Int32Ext]
+
+  OneOfKind {.pure.} = enum
+    unset
+    x
+
+  OneOf {.proto3, oneof.} = object
+    case kind: OneOfKind
+    of OneOfKind.unset:
+      discard
+    of OneOfKind.x:
+      x {.fieldNumber: 1, ext.}: Int32Ext
+
+  Proto3Int32ExtOneOf {.proto3.} = object
+    one {.oneof.}: OneOf
 
 Protobuf.extensionDefaults(Int32Ext, defaultSeq = true, packed = false)
 
@@ -94,6 +109,14 @@ suite "Test Int32Ext":
     roundtrip(Proto3Int32ExtSeq(a: @[Int32Ext(x: 0'i32)]), "0800")
     roundtrip(default(Proto3Int32ExtSeq), "")
     roundtrip(Proto3Int32ExtSeq(a: @[Int32Ext(x: 1'i32), Int32Ext(x: 0'i32)]), "08010800")
+
+  test "proto3 oneof Int32Ext":
+    let encoded = "0801".hexToSeqByte
+    let ret = Protobuf.decode(encoded, Proto3Int32ExtOneOf)
+    check:
+      ret.one.kind == OneOfKind.x
+      ret.one.x == Int32Ext(x: 1'i32)
+      Protobuf.encode(ret) == encoded
 
 type
   Int32Ext2 = object

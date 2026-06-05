@@ -108,19 +108,23 @@ proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].
   static: doAssert isProto2 xor isProto3
 
   enumInstanceSerializedFields(value, fieldName, fieldVal):
-    const
-      fieldNum = T.fieldNumberOf(fieldName)
-      isPacked = T.isPacked(fieldName).get(isProto3)
-
-    protoType(ProtoType, T, typeof(fieldVal), fieldName)
-
-    when isPacked and supportsPacked(typeof(fieldVal), ProtoType):
-      stream.writeFieldPacked(fieldNum, fieldVal, ProtoType)
-    elif typeof(fieldVal) is ref and defined(ConformanceTest):
-      if not fieldVal.isNil():
-        stream.writeField(fieldNum, fieldVal[], ProtoType)
+    when T.isOneof(fieldName):
+      oneofCaseOf(typeof(fieldVal), fieldVal, fVal, fName):
+        const fieldNum = typeof(fieldVal).fieldNumberOf(fName)
+        protoType(ProtoType, typeof(fieldVal), typeof(fVal), fName)
+        stream.writeField(fieldNum, fVal, ProtoType, false)
     else:
-      stream.writeField(fieldNum, fieldVal, ProtoType, isProto3)
+      const
+        fieldNum = T.fieldNumberOf(fieldName)
+        isPacked = T.isPacked(fieldName).get(isProto3)
+      protoType(ProtoType, T, typeof(fieldVal), fieldName)
+      when isPacked and supportsPacked(typeof(fieldVal), ProtoType):
+        stream.writeFieldPacked(fieldNum, fieldVal, ProtoType)
+      elif typeof(fieldVal) is ref and defined(ConformanceTest):
+        if not fieldVal.isNil():
+          stream.writeField(fieldNum, fieldVal[], ProtoType)
+      else:
+        stream.writeField(fieldNum, fieldVal, ProtoType, isProto3)
 
 proc writeValue*[T: object](writer: ProtobufWriter, value: T) {.raises: [IOError].} =
   static: verifySerializable(T)

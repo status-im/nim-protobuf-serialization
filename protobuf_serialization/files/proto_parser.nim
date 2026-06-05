@@ -134,7 +134,9 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
           kind: Field,
           number: parseInt(fieldValue),
           protoType: fieldType,
-          name: fieldName)))
+          name: fieldName,
+          options: ps.fieldOpts)))
+      ps.fieldOpts.setLen 0
     oneof2     <- ["oneof"] * >ident * ['{'] * *(option | oneoffield) * ['}']:
       ps.fields.add(($0, ProtoNode(
         oneofName: ($1).text,

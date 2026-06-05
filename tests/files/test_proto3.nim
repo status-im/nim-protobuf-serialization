@@ -5,22 +5,62 @@ import
   ../../protobuf_serialization/files/type_generator
 
 macro test() =
-  var
-    parsed: NimNode = protoToTypesInternal(currentSourcePath.parentDir / "test.proto3")
-    vector: NimNode = quote do:
+  let
+    parsed = protoToTypesInternal(currentSourcePath.parentDir / "test.proto3")
+    vector = quote do:
       type
         TestEnum* {.pure, proto3.} = enum
           UNKNOWN = 0
           STARTED = 1
 
+        TestOneOfOneof_fieldKind* {.pure, proto3.} = enum
+          unset = 0
+          oneof_uint32 = 1
+          oneof_string = 2
+          oneof_bytes = 3
+          oneof_bool = 4
+          oneof_uint64 = 5
+          oneof_float = 6
+          oneof_double = 7
+          oneof_enum = 8
+          oneof_any = 9
+
+        TestOneOfOneof_field* {.proto3, oneof.} = object
+          case kind*: TestOneOfOneof_fieldKind
+          of TestOneOfOneof_fieldKind.unset:
+            discard
+          of TestOneOfOneof_fieldKind.oneof_uint32:
+            oneof_uint32* {.fieldNumber: 3, pint.}: uint32
+          of TestOneOfOneof_fieldKind.oneof_string:
+            oneof_string* {.fieldNumber: 4.}: string
+          of TestOneOfOneof_fieldKind.oneof_bytes:
+            oneof_bytes* {.fieldNumber: 5.}: seq[byte]
+          of TestOneOfOneof_fieldKind.oneof_bool:
+            oneof_bool* {.fieldNumber: 6.}: bool
+          of TestOneOfOneof_fieldKind.oneof_uint64:
+            oneof_uint64* {.fieldNumber: 7, pint.}: uint64
+          of TestOneOfOneof_fieldKind.oneof_float:
+            oneof_float* {.fieldNumber: 8.}: float32
+          of TestOneOfOneof_fieldKind.oneof_double:
+            oneof_double* {.fieldNumber: 9.}: float64
+          of TestOneOfOneof_fieldKind.oneof_enum:
+            oneof_enum* {.fieldNumber: 10, ext.}: TestEnum
+          of TestOneOfOneof_fieldKind.oneof_any:
+            oneof_any* {.fieldNumber: 11.}: seq[byte]
+
+        TestOneOf* {.proto3.} = object
+          pre* {.fieldNumber: 1, pint.}: int32
+          oneof_field* {.oneof.}: TestOneOfOneof_field
+          post* {.fieldNumber: 2, pint.}: int32
+
         ErrorStatus* {.proto3.} = object
-          details* {.fieldNumber: 2.}: seq[seq[byte]]
           message* {.fieldNumber: 1.}: string
+          details* {.fieldNumber: 2.}: seq[seq[byte]]
 
         Result* {.proto3.} = object
-          snippets* {.fieldNumber: 3.}: seq[string]
-          title* {.fieldNumber: 2.}: string
           url* {.fieldNumber: 1.}: string
+          title* {.fieldNumber: 2.}: string
+          snippets* {.fieldNumber: 3.}: seq[string]
 
         SearchResponse* {.proto3.} = object
           results* {.fieldNumber: 1.}: seq[Result]
@@ -35,32 +75,37 @@ macro test() =
           VIDEO = 6
 
         SearchRequest* {.proto3.} = object
-          corpus* {.fieldNumber: 4, ext.}: Corpus
-          result_per_page* {.fieldNumber: 3, pint.}: int32
-          page_number* {.fieldNumber: 2, pint.}: int32
           query* {.fieldNumber: 1.}: string
+          page_number* {.fieldNumber: 2, pint.}: int32
+          result_per_page* {.fieldNumber: 3, pint.}: int32
+          corpus* {.fieldNumber: 4, ext.}: Corpus
 
         Foo* {.proto3.} = object
 
-  proc convertFromSym(parent: NimNode, i: int) =
-    if parent[i].kind == nnkSym:
-      parent[i] = ident(parent[i].strVal)
-    elif parent[i].kind == nnkIdent:
-      parent[i] = ident(parent[i].strVal.split('`')[0])
-    elif parent[i].kind == nnkCall:
-      parent[i] = newNimNode(nnkBracketExpr).add(
-        ident(parent[i][1].strVal),
-        parent[i][2]
-      )
-      if parent[i][1].kind == nnkSym:
-        parent[i][1] = ident(parent[i][1].strVal)
-    for c1 in 0 ..< parent.len:
-      for c2 in 0 ..< parent[c1].len:
-        convertFromSym(parent[c1], c2)
-  for c in 0 ..< vector.len:
-    convertFromSym(vector, c)
+  proc fixAst(ast: NimNode): NimNode =
+    proc inspect(node: NimNode): NimNode =
+      case node.kind
+      of {nnkIdent, nnkSym}:
+        # remove `gensymX
+        ident(split($node, '`')[0])
+      of nnkEmpty:
+        node
+      of nnkLiterals:
+        node
+      of nnkCall:
+        var ret = newNimNode(nnkBracketExpr)
+        for i in 1 ..< node.len:
+          ret.add inspect(node[i])
+        ret
+      else:
+        var rTree = node.kind.newTree()
+        for child in node:
+          rTree.add inspect(child)
+        rTree
 
-  if parsed != vector:
+    inspect(ast)
+
+  if parsed != vector.fixAst:
     raise newException(Exception, "Expected: " & repr(parsed))
 
 test()
@@ -68,6 +113,7 @@ test()
 import_proto3 "test.proto3"
 when not (
   Protobuf.supports(TestEnum) and
+  Protobuf.supports(TestOneOf) and
   Protobuf.supports(ErrorStatus) and
   Protobuf.supports(Result) and
   Protobuf.supports(SearchResponse) and

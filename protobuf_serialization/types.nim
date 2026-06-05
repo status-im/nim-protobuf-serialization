@@ -46,6 +46,7 @@ template pint*() {.pragma.} # encode as `intXX`
 template sint*() {.pragma.} # encode as `sintXX`
 template fixed*() {.pragma.} # encode as `fixedXX`
 template ext*() {.pragma.}
+template oneof*() {.pragma.}
 
 func init*(
   T: type ProtobufWriter,
