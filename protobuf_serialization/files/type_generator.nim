@@ -129,7 +129,7 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
             )
             queue.add(field)
             # Add oneof case field enum
-            var enumVals = @[ProtoNode(kind: ProtoType.EnumVal, fieldName: "unset", num: 0)]
+            var enumVals = @[ProtoNode(kind: ProtoType.EnumVal, fieldName: "notSet", num: 0)]
             for i, f in field.oneof.pairs():
               doAssert f.kind == ProtoType.Field, $f.kind
               enumVals.add ProtoNode(kind: ProtoType.EnumVal, fieldName: f.name, num: i + 1)
@@ -181,7 +181,7 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
         let caseOf = newNimNode(nnkRecCase).add(
           newIdentDefs(newNimNode(nnkPostfix).add(ident("*"), ident("kind")), caseKind),
           newNimNode(nnkOfBranch).add(
-            newDotExpr(caseKind, ident"unset"),
+            newDotExpr(caseKind, ident"notSet"),
             newNimNode(nnkRecList).add(newNilLit())
           )
         )

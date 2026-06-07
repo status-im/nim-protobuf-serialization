@@ -21,7 +21,7 @@ macro test() =
           map_string_bytes* {.fieldNumber: 1.}: seq[Map_string_bytesEntry]
 
         TestOneOfOneof_fieldKind* {.pure, proto3.} = enum
-          unset = 0
+          notSet = 0
           oneof_uint32 = 1
           oneof_string = 2
           oneof_bytes = 3
@@ -34,7 +34,7 @@ macro test() =
 
         TestOneOfOneof_field* {.proto3, oneof.} = object
           case kind*: TestOneOfOneof_fieldKind
-          of TestOneOfOneof_fieldKind.unset:
+          of TestOneOfOneof_fieldKind.notSet:
             discard
           of TestOneOfOneof_fieldKind.oneof_uint32:
             oneof_uint32* {.fieldNumber: 3, pint.}: uint32
