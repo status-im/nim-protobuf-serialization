@@ -13,13 +13,13 @@ import ../protobuf_serialization
 
 type
   Kind1 {.pure.} = enum
-    unset
+    notSet
     x
     y
 
   OneOf1 {.proto3, oneof.} = object
     case kind: Kind1
-    of Kind1.unset:
+    of Kind1.notSet:
       discard
     of Kind1.x:
       x {.fieldNumber: 1, pint.}: int64
@@ -30,11 +30,11 @@ type
     one {.oneof.}: OneOf1
 
 suite "Test oneof":
-  test "oneof unset":
+  test "oneof notSet":
     let encoded = "".hexToSeqByte
     let ret = Protobuf.decode(encoded, Obj1)
     check:
-      ret.one.kind == Kind1.unset
+      ret.one.kind == Kind1.notSet
       Protobuf.encode(ret) == encoded
 
   test "oneof field 1 set to default":
@@ -80,7 +80,7 @@ suite "Test oneof":
 type
   OneOf2 {.proto3, oneof.} = object
     case kind: Kind1
-    of Kind1.unset:
+    of Kind1.notSet:
       discard
     of Kind1.x:
       x {.fieldNumber: 3, pint.}: int64
@@ -92,12 +92,12 @@ type
     two {.oneof.}: OneOf2
 
 suite "Test many oneof":
-  test "many oneof unset":
+  test "many oneof notSet":
     let encoded = "".hexToSeqByte
     let ret = Protobuf.decode(encoded, Obj2)
     check:
-      ret.one.kind == Kind1.unset
-      ret.two.kind == Kind1.unset
+      ret.one.kind == Kind1.notSet
+      ret.two.kind == Kind1.notSet
       Protobuf.encode(ret) == encoded
 
   test "many oneof field 1 set to default":
@@ -106,7 +106,7 @@ suite "Test many oneof":
     check:
       ret.one.kind == Kind1.x
       ret.one.x == 0
-      ret.two.kind == Kind1.unset
+      ret.two.kind == Kind1.notSet
       Protobuf.encode(ret) == encoded
 
   test "many oneof field 1 set":
@@ -115,14 +115,14 @@ suite "Test many oneof":
     check:
       ret.one.kind == Kind1.x
       ret.one.x == 1
-      ret.two.kind == Kind1.unset
+      ret.two.kind == Kind1.notSet
       Protobuf.encode(ret) == encoded
 
   test "many oneof field 3 set to default":
     let encoded = "1800".hexToSeqByte
     let ret = Protobuf.decode(encoded, Obj2)
     check:
-      ret.one.kind == Kind1.unset
+      ret.one.kind == Kind1.notSet
       ret.two.kind == Kind1.x
       ret.two.x == 0
       Protobuf.encode(ret) == encoded
@@ -131,7 +131,7 @@ suite "Test many oneof":
     let encoded = "1801".hexToSeqByte
     let ret = Protobuf.decode(encoded, Obj2)
     check:
-      ret.one.kind == Kind1.unset
+      ret.one.kind == Kind1.notSet
       ret.two.kind == Kind1.x
       ret.two.x == 1
       Protobuf.encode(ret) == encoded
@@ -196,7 +196,7 @@ suite "Test many oneof":
 
 type
   KindAll {.pure.} = enum
-    unset
+    notSet
     x01
     x02
     x03
@@ -219,7 +219,7 @@ type
 
   OneOfAll {.proto3, oneof.} = object
     case kind: KindAll
-    of KindAll.unset:
+    of KindAll.notSet:
       discard
     of KindAll.x01:
       x01 {.fieldNumber: 1.}: string
@@ -256,11 +256,11 @@ type
     one {.oneof.}: OneOfAll
 
 suite "Test all types in oneof":
-  test "all oneof unset":
+  test "all oneof notSet":
     let encoded = "".hexToSeqByte
     let ret = Protobuf.decode(encoded, ObjAll)
     check:
-      ret.one.kind == KindAll.unset
+      ret.one.kind == KindAll.notSet
       Protobuf.encode(ret) == encoded
 
   test "string oneof set":
@@ -361,7 +361,7 @@ suite "Test all types in oneof":
     let encoded = "0801".hexToSeqByte
     let ret = Protobuf.decode(encoded, ObjAll)
     check:
-      ret.one.kind == KindAll.unset
+      ret.one.kind == KindAll.notSet
       Protobuf.encode(ret) == "".hexToSeqByte
 
   test "oneof unknown type won't overwrite previous set":
