@@ -282,7 +282,8 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
             verifySerializable(fTyp)
       else:
         when isProto2 and not T.isRequired(fieldName) and
-            fieldVal isnot (seq or PBOption) and
+            fieldVal isnot PBOption and
+            (fieldVal isnot seq or fieldVal is seq[byte]) and
             not isExtension(Protobuf, fieldValTyp):
           fieldError T, fieldName, "proto2 requires every field to either have the required pragma attached or be a repeated field/PBOption."
         when isProto3 and (

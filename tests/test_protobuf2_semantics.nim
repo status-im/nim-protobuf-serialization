@@ -44,7 +44,27 @@ type
     c {.fieldNumber: 3, fixed.}: PBOption[0'u32]
     d {.fieldNumber: 4, fixed.}: PBOption[0'u64]
 
+  AllTypesOpt {.proto2.} = object
+    x01 {.fieldNumber: 1.}: PBOption[default(string)]
+    x02 {.fieldNumber: 2.}: PBOption[default(seq[byte])]
+    x03 {.fieldNumber: 3, pint.}: PBOption[0'i32]
+    x04 {.fieldNumber: 4, pint.}: PBOption[0'u32]
+    x05 {.fieldNumber: 5, pint.}: PBOption[0'i64]
+    x06 {.fieldNumber: 6, pint.}: PBOption[0'u64]
+    x07 {.fieldNumber: 7, sint.}: PBOption[0'i32]
+    x08 {.fieldNumber: 8, sint.}: PBOption[0'i64]
+    x09 {.fieldNumber: 9, fixed.}: PBOption[0'i32]
+    x10 {.fieldNumber: 10, fixed.}: PBOption[0'i64]
+    x11 {.fieldNumber: 11, fixed.}: PBOption[0'u32]
+    x12 {.fieldNumber: 12, fixed.}: PBOption[0'u64]
+    x13 {.fieldNumber: 13.}: PBOption[0'f32]
+    x14 {.fieldNumber: 14.}: PBOption[0'f64]
+    x15 {.fieldNumber: 15.}: PBOption[default(FewOptions)]
+
 suite "Test Encoding of Protobuf 2 Semantics":
+  test "PBOption all types":
+    roundtrip(AllTypesOpt(), "")
+
   test "PBOption basics":
     var opt: PBOption[true]
     check:
