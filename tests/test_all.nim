@@ -11,7 +11,7 @@
 
 import ../protobuf_serialization
 
-import
+import ./[
   test_all_types,
   test_bool,
   test_codec,
@@ -30,4 +30,5 @@ import
   test_thirty_three_fields,
   test_truncation,
   test_wire_type_mismatch,
-  ./files/test_proto3
+  test_proto_file
+]
