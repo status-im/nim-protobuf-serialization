@@ -26,7 +26,7 @@ type
   ReservedType* = enum
     String, Number, Range
   ProtoType* = enum
-    Field, Enum, EnumVal, ReservedBlock, Reserved, Message, File, Imported, Oneof, Package, ProtoDef, Extend, FieldOption
+    Field, Enum, EnumVal, ReservedBlock, Reserved, Message, File, Imported, Oneof, Package, ProtoDef, Extend, FieldOption, Service, Rpc
   Presence* = enum
     Singular, Repeated, Optional, Required
   ProtoNode* = ref object
@@ -70,6 +70,7 @@ type
       packageName*: string
       messages*: seq[ProtoNode]
       packageEnums*: seq[ProtoNode]
+      services*: seq[ProtoNode]
     of File:
       syntax*: string
       imported*: seq[ProtoNode]
@@ -81,53 +82,57 @@ type
     of FieldOption:
       optName*: string
       optVal*: string
+    of Service:
+      serviceName*: string
+      rpcs*: seq[ProtoNode]
+    of Rpc:
+      rpcName*: string
+      rpcParamStream*: bool
+      rpcParam*: string
+      rpcReturns*: string
+      rpcReturnsStream*: bool
 
 proc `$`*(node: ProtoNode): string =
   case node.kind:
     of Field:
-      result = "$1 field $2 of type $3 with index $4".format(
+      "$1 field $2 of type $3 with index $4".format(
         $node.presence,
         node.name,
         node.protoType,
         node.number)
     of Oneof:
-      result = "One-of named $1, with one of these fields:\n".format(
-        node.oneofName)
       var fields = ""
       for field in node.oneof:
         fields &= $field & "\n"
-      result &= fields[0..^2].indent(1, "  ")
+      "One-of named $1, with one of these fields:\n".format(
+        node.oneofName) & fields[0..^2].indent(1, "  ")
     of Enum:
-      result = "Enum $1 has values:\n".format(
-        node.enumName)
       var fields = ""
       for field in node.values:
         fields &= $field & "\n"
-      result &= fields[0..^2].indent(1, "  ")
+      "Enum $1 has values:\n".format(
+        node.enumName) & fields[0..^2].indent(1, "  ")
     of EnumVal:
-      result = "Enum field $1 with index $2".format(
+      "Enum field $1 with index $2".format(
         node.fieldName,
         node.num)
     of ReservedBlock:
-      result = "Reserved values:\n"
       var reserved = ""
       for value in node.resValues:
         reserved &= $value & "\n"
-      result &= reserved.indent(1, "  ")
+      "Reserved values:\n" & reserved.indent(1, "  ")
     of Reserved:
-      result = case node.reservedKind:
-        of ReservedType.String:
-          "Reserved field name $1".format(
-            node.strVal)
-        of ReservedType.Number:
-          "Reserved field index $1".format(
-            node.intVal)
-        of ReservedType.Range:
-          "Reserved field index from $1 to $2".format(
-            node.startVal, node.endVal)
+      case node.reservedKind:
+      of ReservedType.String:
+        "Reserved field name $1".format(
+          node.strVal)
+      of ReservedType.Number:
+        "Reserved field index $1".format(
+          node.intVal)
+      of ReservedType.Range:
+        "Reserved field index from $1 to $2".format(
+          node.startVal, node.endVal)
     of Message:
-      result = "Message $1 with data:".format(
-        node.messageName)
       var data = ""
       if node.reserved.len != 0:
         data &= "\nReserved fields:"
@@ -153,39 +158,45 @@ proc `$`*(node: ProtoNode): string =
         for message in node.nested:
           messages &= $message & "\n"
         data &= messages[0..^2].indent(1, "  ")
-      result &= data.indent(1, "  ")
+      "Message $1 with data:".format(
+        node.messageName) & data.indent(1, "  ")
     of Extend:
-      result = "Extension of $1 with fields:".format(node.extending)
       var data = ""
       var fields = "\n"
       for field in node.extendedFields:
         fields &= $field & "\n"
       data &= fields[0..^2].indent(1, "  ")
-      result &= data.indent(1, "  ")
+      "Extension of $1 with fields:".format(node.extending) & data.indent(1, "  ")
     of File:
-      result = "Protobuf file with syntax $1\n".format(
+      var ret = "Protobuf file with syntax $1\n".format(
         node.syntax)
       if node.imported.len != 0:
         var body = "Imported:\n"
         for imp in node.imported:
           body &= ($imp).indent(1, "  ")
-          result &= body.indent(1, "  ") & "\n"
+          ret &= body.indent(1, "  ") & "\n"
           body = "\n"
       if node.package != nil:
-        result &= $node.package
+        ret & $node.package
       else:
-        result &= "Without own package"
+        ret & "Without own package"
     of Package:
-      result = "Package$1:\n".format(if node.packageName.len != 0: " with name " & node.packageName else: "")
+      var ret = "Package$1:\n".format(if node.packageName.len != 0: " with name " & node.packageName else: "")
       for message in node.messages:
-        result &= ($message).indent(1, "  ") & "\n"
+        ret &= ($message).indent(1, "  ") & "\n"
       for enumeration in node.packageEnums:
-        result &= ($enumeration).indent(1, "  ")
+        ret &= ($enumeration).indent(1, "  ")
+      ret
     of ProtoDef:
-      result = ""
+      var ret = ""
       for package in node.packages:
-        result &= $package
+        ret &= $package
+      ret
     of Imported:
-      result = "Imported file " & node.filename
+      "Imported file " & node.filename
     of FieldOption:
-      result = "Field option; name=" & node.optName & ";val=" & node.optVal
+      "Field option; name=" & node.optName & ";val=" & node.optVal
+    of Service:
+      "service " & node.serviceName
+    of Rpc:
+      "rpc " & node.rpcName

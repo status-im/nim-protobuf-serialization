@@ -5,6 +5,9 @@ import
 
 export decldef, tables
 
+type
+  ProtoHook* = proc (packages: seq[ProtoNode]): NimNode {.raises: [], gcsafe.}
+
 # https://protobuf.dev/programming-guides/proto3/#scalar
 proc getTypeAndPragma(strVal: string): (NimNode, NimNode) =
   result[0] = ident(strVal.split('.')[^1]) # TODO: Find a better way to handle namespaces
@@ -101,13 +104,12 @@ proc isNested(base: string, currentName: string, messages: seq[ProtoNode]): bool
   var seen = default(seq[ProtoNode])
   isNested(base, currentName, messages, seen)
 
-# Exported for the tests.
-proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compileTime.} =
+proc protoToTypesInternalImpl(filepath: string, isProto3 = true, protoHook: ProtoHook = nil): NimNode {.compileTime.} =
   var
     packages: seq[ProtoNode] = parseProtobuf(filepath).packages
     queue: seq[ProtoNode] = @[]
     enumNames = initHashSet[string]()
-  result = newNimNode(nnkTypeSection)
+    typeSection = newNimNode(nnkTypeSection)
   for parsed in packages:
     for msg in parsed.messages:
       if msg.kind != ProtoType.Extend:
@@ -320,7 +322,7 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
       else:
         "proto2"
 
-      result.add(
+      typeSection.add(
         newNimNode(nnkTypeDef).add(
           newNimNode(nnkPragmaExpr).add(
             newNimNode(nnkPostfix).add(ident("*"), ident(name)),
@@ -335,11 +337,28 @@ proc protoToTypesInternal*(filepath: string, isProto3 = true): NimNode {.compile
           value
         )
       )
+  result = if protoHook != nil:
+    let n = protoHook(packages)
+    if n.kind == nnkStmtList:
+      var ret = newStmtList().add(typeSection)
+      for child in n:
+        ret.add child
+      ret
+    else:
+      newStmtList().add(typeSection).add(n)
+  else:
+    typeSection
   when defined(LogGeneratedTypes):
     result.storeMacroResult(true)
 
+proc protoToTypesImpl*(filepath: string, protoHook: ProtoHook = nil): NimNode {.compileTime.} =
+  protoToTypesInternalImpl(filepath, protoHook = protoHook)
+
+proc protoToTypesInternal*(filepath: string): NimNode {.compileTime, deprecated: "use protoToTypesImpl".} =
+  protoToTypesInternalImpl(filepath)
+
 macro protoToTypes*(filepath: static[string]): untyped =
-  result = protoToTypesInternal(filepath)
+  result = protoToTypesInternalImpl(filepath)
 
 template import_proto3*(file: static[string]): untyped =
   const filepath = parentDir(instantiationInfo(-1, true).filename) / file
@@ -347,7 +366,7 @@ template import_proto3*(file: static[string]): untyped =
 
 when defined(ConformanceTest):
   macro protoToTypes2*(filepath: static[string]): untyped =
-    result = protoToTypesInternal(filepath, false)
+    result = protoToTypesInternalImpl(filepath, false)
 
   template import_proto2*(file: static[string]): untyped =
     const filepath = parentDir(instantiationInfo(-1, true).filename) / file
