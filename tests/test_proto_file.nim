@@ -38,6 +38,7 @@ proc fixAst(ast: NimNode): NimNode =
 
 proc serviceHook(packages: seq[ProtoNode]): NimNode =
   result = newStmtList()
+  # Add service proc definitions
   for p in packages:
     doAssert p.kind == ProtoType.Package
     for s in p.services:
@@ -50,6 +51,20 @@ proc serviceHook(packages: seq[ProtoNode]): NimNode =
         let req = ident("req")
         result.add quote do:
           proc `name`*(`req`: `param`): `returns`
+  # Add service path consts
+  for p in packages:
+    doAssert p.kind == ProtoType.Package
+    for s in p.services:
+      doAssert s.kind == ProtoType.Service
+      for rpc in s.rpcs:
+        doAssert rpc.kind == ProtoType.Rpc
+        let rpcPathName = ident(p.packageName & s.serviceName & rpc.rpcName & "Path")
+        let rpcPathVal = if p.packageName != "":
+          newStrLitNode(p.packageName & "." & s.serviceName & "/" & rpc.rpcName)
+        else:
+          newStrLitNode(s.serviceName & "/" & rpc.rpcName)
+        result.add quote do:
+          const `rpcPathName`* = `rpcPathVal`
 
 proc checkProtoFile(protoFile: string, expected: NimNode, protoHook: ProtoHook = nil) =
   let gened = protoToTypesImpl(currentSourcePath.parentDir / protoFile, protoHook = protoHook)
@@ -169,6 +184,11 @@ suite "Test proto file import":
       proc testSearchServiceHealth*(req: HealthRequest): HealthResponse
       proc testDiscoverServiceDiscover*(req: DiscoverRequest): DiscoverResponse
       proc testDiscoverServiceHealth*(req: HealthRequest): HealthResponse
+
+      const testSearchServiceSearchPath* = "test.SearchService/Search"
+      const testSearchServiceHealthPath* = "test.SearchService/Health"
+      const testDiscoverServiceDiscoverPath* = "test.DiscoverService/Discover"
+      const testDiscoverServiceHealthPath* = "test.DiscoverService/Health"
 
     checkProtoFile("test_proto_file_services.proto3", expected, protoHook = serviceHook)
 
