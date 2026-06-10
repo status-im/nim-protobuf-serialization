@@ -34,15 +34,15 @@ template processPayload(payload, DecodeType): untyped =
     let x = Protobuf.decode(payload, DecodeType)
     try:
       ConformanceResponse(
-        result: Result(
-          kind: ResultKind.protobuf_payload,
+        result: ConformanceResponseResult(
+          kind: ConformanceResponseResultKind.protobuf_payload,
           protobuf_payload: Protobuf.encode(x)
         )
       )
     except ProtobufError as exc:
       ConformanceResponse(
-        result: Result(
-          kind: ResultKind.serialize_error,
+        result: ConformanceResponseResult(
+          kind: ConformanceResponseResultKind.serialize_error,
           serialize_error: "serialize_error: " & exc.msg
         )
       )
@@ -50,18 +50,18 @@ template processPayload(payload, DecodeType): untyped =
   #  ConformanceResponse(skipped: "skipped: " & exc.msg)
   except ProtobufError as exc:
       ConformanceResponse(
-        result: Result(
-          kind: ResultKind.parse_error,
+        result: ConformanceResponseResult(
+          kind: ConformanceResponseResultKind.parse_error,
           parse_error: "parse_error: " & exc.msg
         )
       )
 
 proc doTest(request: ConformanceRequest): ConformanceResponse =
   if request.requested_output_format != WireFormat.PROTOBUF or
-      request.payload.kind != PayloadKind.protobuf_payload:
+      request.payload.kind != ConformanceRequestPayloadKind.protobuf_payload:
     ConformanceResponse(
-      result: Result(
-        kind: ResultKind.skipped,
+      result: ConformanceResponseResult(
+        kind: ConformanceResponseResultKind.skipped,
         skipped: "skip not protobuf"
       )
     )
@@ -71,8 +71,8 @@ proc doTest(request: ConformanceRequest): ConformanceResponse =
     processPayload(request.payload.protobuf_payload, TestAllTypesProto2)
   else:
     ConformanceResponse(
-      result: Result(
-        kind: ResultKind.skipped,
+      result: ConformanceResponseResult(
+        kind: ConformanceResponseResultKind.skipped,
         skipped: "skip unknown message type: " & request.message_type
       )
     )

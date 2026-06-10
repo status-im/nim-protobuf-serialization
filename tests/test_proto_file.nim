@@ -87,8 +87,7 @@ suite "Test proto file import":
         TestMessage* {.proto3.} = object
           map_string_bytes* {.fieldNumber: 1.}: seq[Map_string_bytesEntry]
 
-
-        Oneof_fieldKind* {.pure, proto3.} = enum
+        TestOneOfOneof_fieldKind* {.pure, proto3.} = enum
           notSet = 0
           oneof_uint32 = 1
           oneof_string = 2
@@ -100,32 +99,32 @@ suite "Test proto file import":
           oneof_enum = 8
           oneof_any = 9
 
-        Oneof_field* {.proto3, oneof.} = object
-          case kind*: Oneof_fieldKind
-          of Oneof_fieldKind.notSet:
+        TestOneOfOneof_field* {.proto3, oneof.} = object
+          case kind*: TestOneOfOneof_fieldKind
+          of TestOneOfOneof_fieldKind.notSet:
             discard
-          of Oneof_fieldKind.oneof_uint32:
+          of TestOneOfOneof_fieldKind.oneof_uint32:
             oneof_uint32* {.fieldNumber: 3, pint.}: uint32
-          of Oneof_fieldKind.oneof_string:
+          of TestOneOfOneof_fieldKind.oneof_string:
             oneof_string* {.fieldNumber: 4.}: string
-          of Oneof_fieldKind.oneof_bytes:
+          of TestOneOfOneof_fieldKind.oneof_bytes:
             oneof_bytes* {.fieldNumber: 5.}: seq[byte]
-          of Oneof_fieldKind.oneof_bool:
+          of TestOneOfOneof_fieldKind.oneof_bool:
             oneof_bool* {.fieldNumber: 6.}: bool
-          of Oneof_fieldKind.oneof_uint64:
+          of TestOneOfOneof_fieldKind.oneof_uint64:
             oneof_uint64* {.fieldNumber: 7, pint.}: uint64
-          of Oneof_fieldKind.oneof_float:
+          of TestOneOfOneof_fieldKind.oneof_float:
             oneof_float* {.fieldNumber: 8.}: float32
-          of Oneof_fieldKind.oneof_double:
+          of TestOneOfOneof_fieldKind.oneof_double:
             oneof_double* {.fieldNumber: 9.}: float64
-          of Oneof_fieldKind.oneof_enum:
+          of TestOneOfOneof_fieldKind.oneof_enum:
             oneof_enum* {.fieldNumber: 10, ext.}: TestEnum
-          of Oneof_fieldKind.oneof_any:
+          of TestOneOfOneof_fieldKind.oneof_any:
             oneof_any* {.fieldNumber: 11.}: seq[byte]
 
         TestOneOf* {.proto3.} = object
           pre* {.fieldNumber: 1, pint.}: int32
-          oneof_field* {.oneof.}: Oneof_field
+          oneof_field* {.oneof.}: TestOneOfOneof_field
           post* {.fieldNumber: 2, pint.}: int32
 
         ErrorStatus* {.proto3.} = object

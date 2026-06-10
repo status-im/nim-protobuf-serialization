@@ -135,7 +135,7 @@ proc protoToTypesInternalImpl(filepath: string, isProto3 = true, protoHook: Prot
             # Oneof does not allow: map, repeated, optional
             let field = ProtoNode(
               kind: ProtoType.Oneof,
-              oneofName: field.oneofName.capitalizeAscii(),
+              oneofName: msg.messageName & field.oneofName.capitalizeAscii(),
               oneof: field.oneof
             )
             queue.add(field)
@@ -250,7 +250,7 @@ proc protoToTypesInternalImpl(filepath: string, isProto3 = true, protoHook: Prot
                 ),
                 newNimNode(nnkPragma).add(ident("oneof"))
               ),
-              ident(field.oneofName.capitalizeAscii()),
+              ident(next.messageName & field.oneofName.capitalizeAscii()),
               newEmptyNode()
             ))
           of ProtoType.Field:
