@@ -1,5 +1,18 @@
-import npeg, strutils, sequtils, macros, os, sets
-import decldef
+# nim-protobuf-serialization
+# Copyright (c) 2026 Status Research & Development GmbH
+# Licensed under either of
+#  * Apache License, version 2.0, ([LICENSE-APACHE](LICENSE-APACHE))
+#  * MIT license ([LICENSE-MIT](LICENSE-MIT))
+# at your option.
+# This file may not be copied, modified, or distributed except according to
+# those terms.
+
+# https://protobuf.dev/reference/protobuf/proto3-spec/
+
+import
+  std/[strutils, sequtils, macros, os, sets],
+  npeg,
+  ./decldef
 
 type
   TokenType = enum
@@ -256,15 +269,16 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
         fields: fields
       )))
 
-
-    enumfield  <- >ident * ['='] * >int * [';']:
+    enumfield  <- >ident * ['='] * >int * ?fieldopts * [';']:
       let
         fieldName = ($1).text
         fieldValue = ($2).text
       ps.fields.add (($0, ProtoNode(
           kind: EnumVal,
           num: parseInt(fieldValue),
-          fieldName: fieldName)))
+          fieldName: fieldName,
+          enumValOptions: ps.fieldOpts)))
+      ps.fieldOpts.setLen 0
     enumdecl   <- ["enum"] * >ident * ['{'] * *(option | enumfield) * ['}']:
       ps.enums.add(($0, ProtoNode(
         enumName: ($1).text,
