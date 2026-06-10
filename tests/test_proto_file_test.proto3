@@ -2,7 +2,7 @@ syntax = "proto3";
 
 enum TestEnum {
   UNKNOWN = 0;
-  STARTED = 1;
+  STARTED = 1 [deprecated = true];
 }
 
 message Foo {
