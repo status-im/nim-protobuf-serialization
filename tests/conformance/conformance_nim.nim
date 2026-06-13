@@ -11,8 +11,7 @@ import
   std/os,
   stew/byteutils,
   ../../protobuf_serialization,
-  ../../protobuf_serialization/std/enums,
-  ../../protobuf_serialization/files/type_generator
+  ../../protobuf_serialization/proto_parser
 
 import_proto3 "../../conformance/conformance/conformance.proto"
 

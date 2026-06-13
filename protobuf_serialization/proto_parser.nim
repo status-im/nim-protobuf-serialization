@@ -1,2 +1,2 @@
 import ./files/type_generator
-export protoToTypes, import_proto3
+export protoToTypes, import_proto3, enums, results
