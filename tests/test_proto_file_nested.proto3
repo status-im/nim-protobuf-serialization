@@ -8,7 +8,7 @@ message FirstLevel {
       }
       MyEnum myenum = 1;
     }
-    ThirdLevel result = 1;
+    ThirdLevel b = 1;
   }
-  SecondLevel result = 1;
+  SecondLevel a = 1;
 }

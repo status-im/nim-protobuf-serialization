@@ -168,9 +168,9 @@ suite "Test proto file import":
         ThirdLevel* {.proto3.} = object
           myenum* {.fieldNumber: 1, ext.}: MyEnum
         SecondLevel* {.proto3.} = object
-          result* {.fieldNumber: 1.}: ThirdLevel
+          b* {.fieldNumber: 1.}: ThirdLevel
         FirstLevel* {.proto3.} = object
-          result* {.fieldNumber: 1.}: SecondLevel
+          a* {.fieldNumber: 1.}: SecondLevel
     checkProtoFile("test_proto_file_nested.proto3", expected)
 
   staticTest "test_proto_file_services.proto3 file":

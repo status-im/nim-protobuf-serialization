@@ -114,7 +114,8 @@ proc isNested(base: string, currentName: string, messages: seq[ProtoNode]): bool
   isNested(base, currentName, messages, seen)
 
 proc addMessage(messages: var seq[ProtoNode], msg: ProtoNode) =
-  doAssert msg.kind == ProtoType.Message, $msg.kind
+  if msg.kind != ProtoType.Message:
+    return
   for nestee in msg.nested:
     addMessage(messages, nestee)
   messages.add(msg)
