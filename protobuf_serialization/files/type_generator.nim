@@ -8,11 +8,13 @@
 # those terms.
 
 import
-  std/[os, algorithm, strutils, tables, sets, macros],
+  std/[os, algorithm, strutils, sets, macros],
   stew/shims/macros as stewmacros,
+  ../pkg/results,
+  ../std/enums,
   ./[decldef, proto_parser]
 
-export decldef, tables
+export decldef, enums, results
 
 type
   ProtoHook* = proc (packages: seq[ProtoNode]): NimNode {.raises: [], gcsafe.}
@@ -292,17 +294,31 @@ proc protoToTypesInternalImpl(filepath: string, isProto3 = true, protoHook: Prot
           if field.protoType.split('.')[^1] in enumNames:
             value[2][^1][0][1].add ident"ext"
 
-          if field.presence == Optional and not isProto3:
-            var optDefault = ""
-            for opt in field.options:
-              if opt.optName == "default":
-                optDefault = opt.optVal
-            let typ = value[2][^1][1]
-            let innerTyp = if optDefault.len > 0:
-              parseDefault(optDefault, typ)
+          value[2][^1][1] =
+            if field.presence == Optional:
+              if isProto3:
+                let typ = value[2][^1][1]
+                quote do: Opt[`typ`]
+              else:
+                var optDefault = ""
+                for opt in field.options:
+                  if opt.optName == "default":
+                    optDefault = opt.optVal
+                let typ = value[2][^1][1]
+                let innerTyp = if optDefault.len > 0:
+                  parseDefault(optDefault, typ)
+                else:
+                  quote do: default(`typ`)
+                quote do: PBOption[`innerTyp`]
+            elif field.presence == Repeated:
+              newNimNode(nnkBracketExpr).add(
+                ident("seq"),
+                value[2][^1][1]
+              )
+            elif isReference:
+              newNimNode(nnkRefTy).add(value[2][^1][1])
             else:
-              quote do: default(`typ`)
-            value[2][^1][1] = quote do: PBOption[`innerTyp`]
+              value[2][^1][1]
 
           for opt in field.options:
             if opt.optName == "packed" and opt.optVal in ["true", "false"]:
@@ -312,14 +328,6 @@ proc protoToTypesInternalImpl(filepath: string, isProto3 = true, protoHook: Prot
                   newLitFixed(opt.optVal == "true")
                 )
               )
-
-          if field.presence == Repeated:
-            value[2][^1][1] = newNimNode(nnkBracketExpr).add(
-              ident("seq"),
-              value[2][^1][1]
-            )
-          elif isReference:
-            value[2][^1][1] = newNimNode(nnkRefTy).add(value[2][^1][1])
         else:
           raiseAssert "Unexpected proto type: " & $field.kind
 
