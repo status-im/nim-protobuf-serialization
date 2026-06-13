@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+message FirstLevel {
+  message SecondLevel {
+    message ThirdLevel {
+      enum MyEnum {
+        Foo = 0;
+      }
+      MyEnum myenum = 1;
+    }
+    ThirdLevel b = 1;
+  }
+  SecondLevel a = 1;
+}

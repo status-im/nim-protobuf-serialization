@@ -10,7 +10,9 @@
 import 
   std/[macros, os, strutils],
   unittest2,
+  ./utils,
   ../protobuf_serialization,
+  ../protobuf_serialization/std/enums,
   ../protobuf_serialization/files/type_generator
 
 proc fixAst(ast: NimNode): NimNode =
@@ -80,12 +82,18 @@ suite "Test proto file import":
           UNKNOWN = 0
           STARTED = 1
 
+        Corpus* {.pure, proto3.} = enum
+          UNIVERSAL = 0
+          WEB = 1
+          IMAGES = 2
+          LOCAL = 3
+          NEWS = 4
+          PRODUCTS = 5
+          VIDEO = 6
+
         Map_string_bytesEntry* {.proto3.} = object
           key* {.fieldNumber: 1.}: string
           value* {.fieldNumber: 2.}: seq[byte]
-
-        TestMessage* {.proto3.} = object
-          map_string_bytes* {.fieldNumber: 1.}: seq[Map_string_bytesEntry]
 
         TestOneOfOneof_fieldKind* {.pure, proto3.} = enum
           notSet = 0
@@ -122,14 +130,13 @@ suite "Test proto file import":
           of TestOneOfOneof_fieldKind.oneof_any:
             oneof_any* {.fieldNumber: 11.}: seq[byte]
 
-        TestOneOf* {.proto3.} = object
-          pre* {.fieldNumber: 1, pint.}: int32
-          oneof_field* {.oneof.}: TestOneOfOneof_field
-          post* {.fieldNumber: 2, pint.}: int32
+        Foo* {.proto3.} = object
 
-        ErrorStatus* {.proto3.} = object
-          message* {.fieldNumber: 1.}: string
-          details* {.fieldNumber: 2.}: seq[seq[byte]]
+        SearchRequest* {.proto3.} = object
+          query* {.fieldNumber: 1.}: string
+          page_number* {.fieldNumber: 2, pint.}: int32
+          result_per_page* {.fieldNumber: 3, pint.}: int32
+          corpus* {.fieldNumber: 4, ext.}: Corpus
 
         Result* {.proto3.} = object
           url* {.fieldNumber: 1.}: string
@@ -139,45 +146,53 @@ suite "Test proto file import":
         SearchResponse* {.proto3.} = object
           results* {.fieldNumber: 1.}: seq[Result]
 
-        Corpus* {.pure, proto3.} = enum
-          UNIVERSAL = 0
-          WEB = 1
-          IMAGES = 2
-          LOCAL = 3
-          NEWS = 4
-          PRODUCTS = 5
-          VIDEO = 6
+        ErrorStatus* {.proto3.} = object
+          message* {.fieldNumber: 1.}: string
+          details* {.fieldNumber: 2.}: seq[seq[byte]]
 
-        SearchRequest* {.proto3.} = object
-          query* {.fieldNumber: 1.}: string
-          page_number* {.fieldNumber: 2, pint.}: int32
-          result_per_page* {.fieldNumber: 3, pint.}: int32
-          corpus* {.fieldNumber: 4, ext.}: Corpus
+        TestOneOf* {.proto3.} = object
+          pre* {.fieldNumber: 1, pint.}: int32
+          oneof_field* {.oneof.}: TestOneOfOneof_field
+          post* {.fieldNumber: 2, pint.}: int32
 
-        Foo* {.proto3.} = object
+        TestMessage* {.proto3.} = object
+          map_string_bytes* {.fieldNumber: 1.}: seq[Map_string_bytesEntry]
 
     checkProtoFile("test_proto_file_test.proto3", expected)
+
+  staticTest "test_proto_file_nested.proto3 file":
+    let expected = quote do:
+      type
+        MyEnum* {.pure, proto3.} = enum
+          Foo = 0
+        ThirdLevel* {.proto3.} = object
+          myenum* {.fieldNumber: 1, ext.}: MyEnum
+        SecondLevel* {.proto3.} = object
+          b* {.fieldNumber: 1.}: ThirdLevel
+        FirstLevel* {.proto3.} = object
+          a* {.fieldNumber: 1.}: SecondLevel
+    checkProtoFile("test_proto_file_nested.proto3", expected)
 
   staticTest "test_proto_file_services.proto3 file":
     let expected = quote do:
       type
-        HealthResponse* {.proto3.} = object
-          status* {.fieldNumber: 1, pint.}: int32
-
-        HealthRequest* {.proto3.} = object
-          timeout* {.fieldNumber: 1, pint.}: int32
-
-        DiscoverResponse* {.proto3.} = object
-          url* {.fieldNumber: 1.}: string
-
-        DiscoverRequest* {.proto3.} = object
+        SearchRequest* {.proto3.} = object
           query* {.fieldNumber: 1.}: string
 
         SearchResponse* {.proto3.} = object
           url* {.fieldNumber: 1.}: string
 
-        SearchRequest* {.proto3.} = object
+        DiscoverRequest* {.proto3.} = object
           query* {.fieldNumber: 1.}: string
+
+        DiscoverResponse* {.proto3.} = object
+          url* {.fieldNumber: 1.}: string
+
+        HealthRequest* {.proto3.} = object
+          timeout* {.fieldNumber: 1, pint.}: int32
+
+        HealthResponse* {.proto3.} = object
+          status* {.fieldNumber: 1, pint.}: int32
 
       proc testSearchServiceSearch*(req: SearchRequest): SearchResponse
       proc testSearchServiceHealth*(req: HealthRequest): HealthResponse
@@ -192,16 +207,17 @@ suite "Test proto file import":
     checkProtoFile("test_proto_file_services.proto3", expected, protoHook = serviceHook)
 
 import_proto3 "test_proto_file_test.proto3"
+import_proto3 "test_proto_file_nested.proto3"
 
 suite "Test proto generated types":
-  test "response object":
-    check(
-      Protobuf.supports(TestEnum) and
-      Protobuf.supports(TestOneOf) and
-      Protobuf.supports(ErrorStatus) and
-      Protobuf.supports(Result) and
-      Protobuf.supports(SearchResponse) and
-      Protobuf.supports(Corpus) and
-      Protobuf.supports(SearchRequest) and
-      Protobuf.supports(Foo)
-    )
+  test "test_proto_file_test.proto3 roundtrip":
+    roundtrip(ErrorStatus(), "")
+    roundtrip(Result(), "")
+    roundtrip(SearchResponse(), "")
+    roundtrip(SearchRequest(), "")
+    roundtrip(Foo(), "")
+    roundtrip(TestMessage(), "")
+    discard Protobuf.encode(TestOneOf())
+
+  test "test_proto_file_nested.proto3 roundtrip":
+    roundtrip(FirstLevel(), "")
