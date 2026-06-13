@@ -8,11 +8,13 @@
 # those terms.
 
 import
-  std/[os, algorithm, strutils, tables, sets, macros],
+  std/[os, algorithm, strutils, sets, macros],
   stew/shims/macros as stewmacros,
+  ../pkg/results,
+  ../std/enums,
   ./[decldef, proto_parser]
 
-export decldef, tables
+export decldef, enums, results
 
 type
   ProtoHook* = proc (packages: seq[ProtoNode]): NimNode {.raises: [], gcsafe.}
