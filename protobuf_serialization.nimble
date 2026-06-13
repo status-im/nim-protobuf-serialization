@@ -3,7 +3,7 @@ import os, strutils
 mode = ScriptMode.Verbose
 
 packageName   = "protobuf_serialization"
-version       = "0.5.1"
+version       = "0.5.2"
 author        = "Status"
 description   = "Protobuf implementation compatible with the nim-serialization framework."
 license       = "MIT"
