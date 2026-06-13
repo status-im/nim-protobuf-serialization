@@ -13,6 +13,7 @@ import
   ./utils,
   ../protobuf_serialization,
   ../protobuf_serialization/std/enums,
+  ../protobuf_serialization/pkg/results,
   ../protobuf_serialization/files/type_generator
 
 proc fixAst(ast: NimNode): NimNode =
@@ -68,13 +69,25 @@ proc serviceHook(packages: seq[ProtoNode]): NimNode =
         result.add quote do:
           const `rpcPathName`* = `rpcPathVal`
 
-proc checkProtoFile(protoFile: string, expected: NimNode, protoHook: ProtoHook = nil) =
+proc eqProto(protoFile: string, expected: NimNode, protoHook: ProtoHook = nil): bool =
   let gened = protoToTypesImpl(currentSourcePath.parentDir / protoFile, protoHook = protoHook)
-  if gened != expected.fixAst:
-    checkpoint("FAILED: Got: \n" & repr(gened) & "\nExpected: " & repr(expected.fixAst))
+  #echo treeRepr(gened)
+  #echo treeRepr(gened.fixAst)
+  #echo treeRepr(expected)
+  #echo treeRepr(expected.fixAst)
+  gened.fixAst == expected.fixAst
+
+proc checkProtoFile(protoFile: string, expected: NimNode, protoHook: ProtoHook = nil) =
+  if not eqProto(protoFile, expected, protoHook):
+    let gened = protoToTypesImpl(currentSourcePath.parentDir / protoFile, protoHook = protoHook)
+    checkpoint("FAILED: Got: \n" & repr(gened.fixAst) & "\nExpected: " & repr(expected.fixAst))
     fail()
 
 suite "Test proto file import":
+  staticTest "sanity check":
+    let expected = quote do: discard
+    check(not eqProto("test_proto_file_test.proto3", expected))
+
   staticTest "test_proto_file_test.proto3 file":
     let expected = quote do:
       type
@@ -160,6 +173,17 @@ suite "Test proto file import":
 
     checkProtoFile("test_proto_file_test.proto3", expected)
 
+  staticTest "test_proto_file_optional.proto3 file":
+    let expected = quote do:
+      type
+        OptFieldEnum* {.pure, proto3.} = enum
+          UNKNOWN = 0, STARTED = 1
+        OptFieldMessage* {.proto3.} = object
+          a* {.fieldNumber: 1, ext.}: Opt[OptFieldEnum]
+          b* {.fieldNumber: 2, pint.}: Opt[int64]
+          notOpt* {.fieldNumber: 3, pint.}: int64
+    checkProtoFile("test_proto_file_optional.proto3", expected)
+
   staticTest "test_proto_file_nested.proto3 file":
     let expected = quote do:
       type
@@ -208,6 +232,7 @@ suite "Test proto file import":
 
 import_proto3 "test_proto_file_test.proto3"
 import_proto3 "test_proto_file_nested.proto3"
+import_proto3 "test_proto_file_optional.proto3"
 
 suite "Test proto generated types":
   test "test_proto_file_test.proto3 roundtrip":
@@ -221,3 +246,6 @@ suite "Test proto generated types":
 
   test "test_proto_file_nested.proto3 roundtrip":
     roundtrip(FirstLevel(), "")
+
+  test "test_proto_file_optional.proto3 roundtrip":
+    roundtrip(OptFieldMessage(), "")
