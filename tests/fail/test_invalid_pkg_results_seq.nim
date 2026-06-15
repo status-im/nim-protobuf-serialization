@@ -4,7 +4,7 @@ import
 
 type
   FullOfDefaults {.proto3.} = object
-    #a {.fieldNumber: 1.}: Opt[seq[string]]
-    a {.fieldNumber: 1.}: Opt[Opt[seq[string]]]
+    #a {.fieldNumber: 1.}: Opt[string]
+    a {.fieldNumber: 1.}: Opt[seq[string]]
 
 discard Protobuf.encode(FullOfDefaults())
