@@ -7,6 +7,8 @@
 # This file may not be copied, modified, or distributed except according to
 # those terms.
 
+echo "Nim version: ", $NimMajor, ".", $NimMinor, ".", $NimPatch
+
 {.warning[UnusedImport]: off}
 
 import ../protobuf_serialization
