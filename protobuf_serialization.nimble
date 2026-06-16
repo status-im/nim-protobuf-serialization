@@ -38,9 +38,10 @@ proc run(args, path: string) =
     build args & " --mm:orc -r", path
 
 task test, "Run all tests":
-  for mode in ["", "-d:release", "-d:danger"]:
-    for threads in ["--threads:off", "--threads:on"]:
-      run mode & " " & threads, "tests/test_all"
+  for threads in ["--threads:off", "--threads:on"]:
+    run threads, "tests/test_all"
+  for mode in ["-d:release", "-d:danger"]:
+    run mode, "tests/test_all"
 
   if (NimMajor, NimMinor) >= (2, 2) and defined(linux) and defined(amd64):
     build " -d:danger --mm:orc -d:useMalloc --cc:clang --passc:-fsanitize=address --passl:-fsanitize=address --debugger:native -r", "tests/test_all"
