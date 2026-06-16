@@ -43,7 +43,7 @@ task test, "Run all tests":
       run mode & " " & threads, "tests/test_all"
 
   if (NimMajor, NimMinor) >= (2, 2) and defined(linux) and defined(amd64):
-    build " -d:danger --mm:orc -d:useMalloc --cc:clang --passc:-fsanitize=address --passl:-fsanitize=address --debugger:native -r tests/test_all"
+    build " -d:danger --mm:orc -d:useMalloc --cc:clang --passc:-fsanitize=address --passl:-fsanitize=address --debugger:native -r", "tests/test_all"
 
   #Also iterate over every test in tests/fail, and verify they fail to compile.
   echo "\r\n\x1B[0;94m[Suite]\x1B[0;37m Test Fail to Compile"
