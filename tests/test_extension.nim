@@ -82,10 +82,7 @@ func computeFieldSizePacked(
     value: seq[Int32Ext],
     ProtoType: type ProtobufExt
 ): int =
-  var vals = default(seq[int32])
-  for v in value:
-    vals.add v.x
-  computeFieldSizePacked(field, vals, pint32)
+  computeFieldSizePackedIt(field, value, pint32, it.x)
 
 proc writeFieldPacked(
     stream: OutputStream,
@@ -93,10 +90,7 @@ proc writeFieldPacked(
     value: seq[Int32Ext],
     ProtoType: type ProtobufExt
 ) {.raises: [IOError].} =
-  var vals = default(seq[int32])
-  for v in value:
-    vals.add v.x
-  writeFieldPacked(stream, field, vals, pint32)
+  writeFieldPackedIt(stream, field, value, pint32, it.x)
 
 proc readFieldPackedInto(
   stream: InputStream,
@@ -104,13 +98,8 @@ proc readFieldPackedInto(
   header: FieldHeader,
   ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
-  var vals = default(seq[int32])
-  if stream.readFieldPackedInto(vals, header, pint32):
-    for v in vals:
-      value.add Int32Ext(x: v)
-    true
-  else:
-    false
+  readFieldPackedIntoIt(stream, value, header, pint32):
+    value.add Int32Ext(x: it)
 
 suite "Test Int32Ext":
   test "proto2 opt Int32Ext":

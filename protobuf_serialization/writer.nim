@@ -68,30 +68,33 @@ proc writeField*[T: not byte](
     # don't skip defaults so as to preserve length
     stream.writeField(field, value[i], ProtoType, false)
 
+template writeFieldPackedIt*[T: not byte](
+    output: OutputStream, field: int, values: openArray[T], ProtoType: type SomePrimitive, item: untyped
+): untyped =
+  if values.len > 0:
+    output.write(toBytes(FieldHeader.init(field, WireKind.LengthDelim)))
+    let dataSize = computeSizePackedIt(values, ProtoType, item)
+    output.write(toBytes(puint64(dataSize)))
+    for it {.inject.} in values:
+      output.write(toBytes(ProtoType(item)))
+
 proc writeFieldPacked*[T: not byte](
     output: OutputStream, field: int, values: openArray[T], ProtoType: type SomePrimitive) {.raises: [IOError].} =
   # Packed encoding uses a length-delimited field byte length of the sum of the
   # byte lengths of each field followed by the header-free contents
   if values.len == 0:
     return
-
-  output.write(
-    toBytes(FieldHeader.init(field, WireKind.LengthDelim)))
-
   const canCopyMem =
     ProtoType is SomeFixed32 or ProtoType is SomeFixed64 or ProtoType is pbool
-  let
-    dataSize = computeSizePacked(values, ProtoType)
-  output.write(toBytes(puint64(dataSize)))
-
   when canCopyMem:
-    if values.len > 0:
-      output.write(
-        cast[ptr UncheckedArray[byte]](
-          unsafeAddr values[0]).toOpenArray(0, dataSize - 1))
+    output.write(toBytes(FieldHeader.init(field, WireKind.LengthDelim)))
+    let dataSize = computeSizePacked(values, ProtoType)
+    output.write(toBytes(puint64(dataSize)))
+    output.write(
+      cast[ptr UncheckedArray[byte]](
+        unsafeAddr values[0]).toOpenArray(0, dataSize - 1))
   else:
-    for value in values:
-      output.write(toBytes(ProtoType(value)))
+    writeFieldPackedIt(output, field, values, ProtoType, it)
 
 proc writeField*(
     stream: OutputStream, field: int, value: PBOption, ProtoType: type,

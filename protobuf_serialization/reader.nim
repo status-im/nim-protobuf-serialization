@@ -119,23 +119,34 @@ proc readFieldInto*(
     else:
       false
 
-proc readFieldPackedInto*[T: not byte](
+template readFieldPackedIntoIt*[T: not byte](
   stream: InputStream,
   value: var seq[T],
   header: FieldHeader,
-  ProtoType: type SomePrimitive
-): bool {.raises: [SerializationError, IOError].} =
+  ProtoType: type SomePrimitive,
+  body: untyped
+): bool =
   # TODO make more efficient
   doAssert header.kind() == WireKind.LengthDelim
   var
     bytes = seq[byte](stream.readValue(pbytes))
     inner = memoryInput(bytes)
     headerElm = FieldHeader.init(header.number, wireKind(ProtoType))
+    it {.inject.} = default(distinctBase(ProtoType))
   while inner.readable():
-    value.add default(T)
-    let r = inner.readFieldInto(value[^1], headerElm, ProtoType)
+    let r = inner.readFieldInto(it, headerElm, ProtoType)
     doAssert r
+    body
   true
+
+proc readFieldPackedInto*[T: not byte](
+  stream: InputStream,
+  value: var seq[T],
+  header: FieldHeader,
+  ProtoType: type SomePrimitive
+): bool {.raises: [SerializationError, IOError].} =
+  readFieldPackedIntoIt(stream, value, header, ProtoType):
+    value.add it
 
 proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false) {.raises: [SerializationError, IOError].} =
   mixin supportsPacked, readFieldPackedInto

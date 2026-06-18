@@ -60,14 +60,6 @@ func computeFieldSize*(
   validateEnumType(typeof(value), ProtoType)
   computeFieldSize(field, int32(value.ord()), pint32, skipDefault)
 
-func computeFieldSizePacked*(
-    field: int,
-    value: openArray[enum],
-    ProtoType: type ProtobufExt
-): int =
-  validateEnumType(typeof(value[0]), ProtoType)
-  computeFieldSizePacked(field, value, pint32)
-
 proc writeField*(
     stream: OutputStream,
     field: int,
@@ -77,15 +69,6 @@ proc writeField*(
 ) {.raises: [IOError].} =
   validateEnumType(typeof(value), ProtoType)
   writeField(stream, field, int32(value.ord()), pint32, skipDefault)
-
-proc writeFieldPacked*(
-    stream: OutputStream,
-    field: int,
-    value: openArray[enum],
-    ProtoType: type ProtobufExt
-) {.raises: [IOError].} =
-  validateEnumType(typeof(value[0]), ProtoType)
-  writeFieldPacked(stream, field, value, pint32)
 
 proc readFieldInto*(
     stream: InputStream,
@@ -100,19 +83,32 @@ proc readFieldInto*(
   else:
     false
 
+func computeFieldSizePacked*(
+    field: int,
+    value: openArray[enum],
+    ProtoType: type ProtobufExt
+): int =
+  validateEnumType(typeof(value[0]), ProtoType)
+  computeFieldSizePackedIt(field, value, pint32, int32(it.ord()))
+
+proc writeFieldPacked*(
+    stream: OutputStream,
+    field: int,
+    value: openArray[enum],
+    ProtoType: type ProtobufExt
+) {.raises: [IOError].} =
+  validateEnumType(typeof(value[0]), ProtoType)
+  writeFieldPackedIt(stream, field, value, pint32, int32(it.ord()))
+
 proc readFieldPackedInto*(
   stream: InputStream,
   value: var seq[enum],
   header: FieldHeader,
   ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
-  validateEnumType(typeof(value[0]), ProtoType)
-  var vals = default(seq[int32])
-  if stream.readFieldPackedInto(vals, header, pint32):
-    var v = default(typeof(value[0]))
-    for val in vals:
-      if checkedEnumAssign(v, val.int32):
-        value.add v
-    true
-  else:
-    false
+  type T = typeof(value[0])
+  validateEnumType(T, ProtoType)
+  var v = default(T)
+  readFieldPackedIntoIt(stream, value, header, pint32):
+    if checkedEnumAssign(v, it):
+      value.add v
