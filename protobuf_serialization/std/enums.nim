@@ -108,7 +108,7 @@ proc readFieldPackedInto*(
 ): bool {.raises: [SerializationError, IOError].} =
   type T = typeof(value[0])
   validateEnumType(T, ProtoType)
+  var v = default(T)
   readFieldPackedIntoIt(stream, value, header, pint32):
-    var v = default(T)
     if checkedEnumAssign(v, it):
       value.add v
