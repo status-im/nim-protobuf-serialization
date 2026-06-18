@@ -44,7 +44,7 @@ func checkedEnumAssign[E: enum, I: SomeInteger](res: var E, value: I): bool =
     res = cast[E](value)
     true
 
-Protobuf.extensionDefaults(enum, defaultSeq = true, packed = true)
+Protobuf.extensionDefaults(enum, pint32, defaultSeq = true)
 
 func validateEnumType(T: type enum, ProtoType: type ProtobufExt) =
   bind contains

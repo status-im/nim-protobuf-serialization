@@ -15,7 +15,8 @@ import
 
 export results
 
-Protobuf.extensionDefaults(Opt, defaultSeq = false, packed = false)
+func supportsPacked*(_: type Opt, ProtoType: type ProtobufExt): bool =
+  false
 
 template flatType*[U](T: type Protobuf, value: Opt[U]): type = U
 
