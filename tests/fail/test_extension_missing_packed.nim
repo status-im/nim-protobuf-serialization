@@ -7,7 +7,7 @@ type
   Proto2Int32Ext {.proto3.} = object
     a {.fieldNumber: 1, ext.}: seq[Int32Ext]
 
-Protobuf.extensionDefaults(Int32Ext, pint32, defaultSeq = false)
+Protobuf.extensionDefaults(Int32Ext, pint32, defaultSeq = true)
 
 # Missing packed serializer
 
