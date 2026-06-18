@@ -106,13 +106,9 @@ proc readFieldPackedInto*(
   header: FieldHeader,
   ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
-  validateEnumType(typeof(value[0]), ProtoType)
-  var vals = default(seq[int32])
-  if stream.readFieldPackedInto(vals, header, pint32):
-    var v = default(typeof(value[0]))
-    for val in vals:
-      if checkedEnumAssign(v, val.int32):
-        value.add v
-    true
-  else:
-    false
+  type T = typeof(value[0])
+  validateEnumType(T, ProtoType)
+  readFieldPackedIntoIt(stream, value, header, pint32):
+    var v = default(T)
+    if checkedEnumAssign(v, it):
+      value.add v

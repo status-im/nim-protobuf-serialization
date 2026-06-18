@@ -98,13 +98,8 @@ proc readFieldPackedInto(
   header: FieldHeader,
   ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
-  var vals = default(seq[int32])
-  if stream.readFieldPackedInto(vals, header, pint32):
-    for v in vals:
-      value.add Int32Ext(x: v)
-    true
-  else:
-    false
+  readFieldPackedIntoIt(stream, value, header, pint32):
+    value.add Int32Ext(x: it)
 
 suite "Test Int32Ext":
   test "proto2 opt Int32Ext":
