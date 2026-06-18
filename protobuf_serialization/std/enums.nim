@@ -66,7 +66,7 @@ func computeFieldSizePacked*(
     ProtoType: type ProtobufExt
 ): int =
   validateEnumType(typeof(value[0]), ProtoType)
-  computeFieldSizePacked(field, value, pint32)
+  computeFieldSizePackedIt(field, value, pint32, int32(it.ord()))
 
 proc writeField*(
     stream: OutputStream,

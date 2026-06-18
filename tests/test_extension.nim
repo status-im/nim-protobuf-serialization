@@ -82,10 +82,7 @@ func computeFieldSizePacked(
     value: seq[Int32Ext],
     ProtoType: type ProtobufExt
 ): int =
-  var vals = default(seq[int32])
-  for v in value:
-    vals.add v.x
-  computeFieldSizePacked(field, vals, pint32)
+  computeFieldSizePackedIt(field, value, pint32, it.x)
 
 proc writeFieldPacked(
     stream: OutputStream,
