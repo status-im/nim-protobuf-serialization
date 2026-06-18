@@ -34,7 +34,7 @@ type
     a {.fieldNumber: 1, ext.}: Int32Ext
 
   Proto3Int32ExtSeq {.proto3.} = object
-    a {.fieldNumber: 1, ext.}: seq[Int32Ext]
+    a {.fieldNumber: 1, ext, packed: false.}: seq[Int32Ext]
 
   OneOfKind {.pure.} = enum
     unset
@@ -50,7 +50,7 @@ type
   Proto3Int32ExtOneOf {.proto3.} = object
     one {.oneof.}: OneOf
 
-Protobuf.extensionDefaults(Int32Ext, defaultSeq = true, packed = false)
+Protobuf.extensionDefaults(Int32Ext, pint32, defaultSeq = true)
 
 func computeFieldSize(
     field: int,
@@ -76,6 +76,41 @@ proc readFieldInto(
     ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
   readFieldInto(stream, value.x, header, pint32)
+
+func computeFieldSizePacked(
+    field: int,
+    value: seq[Int32Ext],
+    ProtoType: type ProtobufExt
+): int =
+  var vals = default(seq[int32])
+  for v in value:
+    vals.add v.x
+  computeFieldSizePacked(field, vals, pint32)
+
+proc writeFieldPacked(
+    stream: OutputStream,
+    field: int,
+    value: seq[Int32Ext],
+    ProtoType: type ProtobufExt
+) {.raises: [IOError].} =
+  var vals = default(seq[int32])
+  for v in value:
+    vals.add v.x
+  writeFieldPacked(stream, field, vals, pint32)
+
+proc readFieldPackedInto(
+  stream: InputStream,
+  value: var seq[Int32Ext],
+  header: FieldHeader,
+  ProtoType: type ProtobufExt
+): bool {.raises: [SerializationError, IOError].} =
+  var vals = default(seq[int32])
+  if stream.readFieldPackedInto(vals, header, pint32):
+    for v in vals:
+      value.add Int32Ext(x: v)
+    true
+  else:
+    false
 
 suite "Test Int32Ext":
   test "proto2 opt Int32Ext":
@@ -119,44 +154,44 @@ suite "Test Int32Ext":
       Protobuf.encode(ret) == encoded
 
 type
-  Int32Ext2 = object
-    x: int32
+  StringExt2 = object
+    x: string
 
-  Proto3Int32Ext2 {.proto3.} = object
-    a {.fieldNumber: 1, ext.}: seq[Int32Ext2]
+  Proto3StringExt2 {.proto3.} = object
+    a {.fieldNumber: 1, ext.}: seq[StringExt2]
 
-Protobuf.extensionDefaults(Int32Ext2, defaultSeq = false, packed = false)
+Protobuf.extensionDefaults(StringExt2, pstring, defaultSeq = false)
 
 func computeFieldSize(
     field: int,
-    value: Int32Ext2,
+    value: StringExt2,
     ProtoType: type ProtobufExt,
     skipDefault: static bool
 ): int =
-  computeFieldSize(field, value.x, pint32, skipDefault)
+  computeFieldSize(field, value.x, pstring, skipDefault)
 
 proc writeField(
     stream: OutputStream,
     field: int,
-    value: Int32Ext2,
+    value: StringExt2,
     ProtoType: type ProtobufExt,
     skipDefault: static bool = false
 ) {.raises: [IOError].} =
-  writeField(stream, field, value.x, pint32, skipDefault)
+  writeField(stream, field, value.x, pstring, skipDefault)
 
 proc readFieldInto(
     stream: InputStream,
-    value: var Int32Ext2,
+    value: var StringExt2,
     header: FieldHeader,
     ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
-  readFieldInto(stream, value.x, header, pint32)
+  readFieldInto(stream, value.x, header, pstring)
 
 # TODO: when true: once read/write/sizer for seq[T], type[ProtobufExt] are removed
 when false:
   func computeFieldSize(
       field: int, 
-      value: seq[Int32Ext2],
+      value: seq[StringExt2],
       ProtoType: type ProtobufExt,
       skipDefault: static bool
   ): int =
@@ -168,7 +203,7 @@ when false:
   proc writeField(
       stream: OutputStream,
       field: int,
-      value: seq[Int32Ext2],
+      value: seq[StringExt2],
       ProtoType: type ProtobufExt,
       skipDefault: static bool = false
   ) {.raises: [IOError].} =
@@ -177,7 +212,7 @@ when false:
 
   proc readFieldInto(
     stream: InputStream,
-    value: var seq[Int32Ext2],
+    value: var seq[StringExt2],
     header: FieldHeader,
     ProtoType: type ProtobufExt
   ): bool {.raises: [SerializationError, IOError].} =
@@ -189,5 +224,5 @@ when false:
       false
 
 suite "Test seq[T] serializer":
-  test "custom seq[Int32Ext2] serializer":
-    roundtrip(Proto3Int32Ext2(a: @[Int32Ext2(x: 1'i32)]), "0801")
+  test "custom seq[StringExt2] serializer":
+    roundtrip(Proto3StringExt2(a: @[StringExt2(x: "abc")]), "0a03616263")
