@@ -90,10 +90,7 @@ proc writeFieldPacked(
     value: seq[Int32Ext],
     ProtoType: type ProtobufExt
 ) {.raises: [IOError].} =
-  var vals = default(seq[int32])
-  for v in value:
-    vals.add v.x
-  writeFieldPacked(stream, field, vals, pint32)
+  writeFieldPackedIt(stream, field, value, pint32, it.x)
 
 proc readFieldPackedInto(
   stream: InputStream,

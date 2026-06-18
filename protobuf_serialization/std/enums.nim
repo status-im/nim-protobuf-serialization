@@ -60,14 +60,6 @@ func computeFieldSize*(
   validateEnumType(typeof(value), ProtoType)
   computeFieldSize(field, int32(value.ord()), pint32, skipDefault)
 
-func computeFieldSizePacked*(
-    field: int,
-    value: openArray[enum],
-    ProtoType: type ProtobufExt
-): int =
-  validateEnumType(typeof(value[0]), ProtoType)
-  computeFieldSizePackedIt(field, value, pint32, int32(it.ord()))
-
 proc writeField*(
     stream: OutputStream,
     field: int,
@@ -77,15 +69,6 @@ proc writeField*(
 ) {.raises: [IOError].} =
   validateEnumType(typeof(value), ProtoType)
   writeField(stream, field, int32(value.ord()), pint32, skipDefault)
-
-proc writeFieldPacked*(
-    stream: OutputStream,
-    field: int,
-    value: openArray[enum],
-    ProtoType: type ProtobufExt
-) {.raises: [IOError].} =
-  validateEnumType(typeof(value[0]), ProtoType)
-  writeFieldPacked(stream, field, value, pint32)
 
 proc readFieldInto*(
     stream: InputStream,
@@ -99,6 +82,23 @@ proc readFieldInto*(
     checkedEnumAssign(value, enumValue.int32)
   else:
     false
+
+func computeFieldSizePacked*(
+    field: int,
+    value: openArray[enum],
+    ProtoType: type ProtobufExt
+): int =
+  validateEnumType(typeof(value[0]), ProtoType)
+  computeFieldSizePackedIt(field, value, pint32, int32(it.ord()))
+
+proc writeFieldPacked*(
+    stream: OutputStream,
+    field: int,
+    value: openArray[enum],
+    ProtoType: type ProtobufExt
+) {.raises: [IOError].} =
+  validateEnumType(typeof(value[0]), ProtoType)
+  writeFieldPackedIt(stream, field, value, pint32, int32(it.ord()))
 
 proc readFieldPackedInto*(
   stream: InputStream,
