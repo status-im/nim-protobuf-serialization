@@ -84,17 +84,17 @@ proc writeFieldPacked*[T: not byte](
   # byte lengths of each field followed by the header-free contents
   if values.len == 0:
     return
-  const canCopyMem =
-    ProtoType is SomeFixed32 or ProtoType is SomeFixed64 or ProtoType is pbool
-  when canCopyMem:
-    output.write(toBytes(FieldHeader.init(field, WireKind.LengthDelim)))
-    let dataSize = computeSizePacked(values, ProtoType)
-    output.write(toBytes(puint64(dataSize)))
-    output.write(
-      cast[ptr UncheckedArray[byte]](
-        unsafeAddr values[0]).toOpenArray(0, dataSize - 1))
-  else:
-    writeFieldPackedIt(output, field, values, ProtoType, it)
+  #const canCopyMem =
+  #  ProtoType is SomeFixed32 or ProtoType is SomeFixed64 or ProtoType is pbool
+  #when canCopyMem:
+  #  output.write(toBytes(FieldHeader.init(field, WireKind.LengthDelim)))
+  #  let dataSize = computeSizePacked(values, ProtoType)
+  #  output.write(toBytes(puint64(dataSize)))
+  #  output.write(
+  #    cast[ptr UncheckedArray[byte]](
+  #      unsafeAddr values[0]).toOpenArray(0, dataSize - 1))
+  #else:
+  writeFieldPackedIt(output, field, values, ProtoType, it)
 
 proc writeField*(
     stream: OutputStream, field: int, value: PBOption, ProtoType: type,
