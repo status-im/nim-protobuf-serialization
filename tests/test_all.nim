@@ -7,23 +7,30 @@
 # This file may not be copied, modified, or distributed except according to
 # those terms.
 
+# echo "Nim version: ", $NimMajor, ".", $NimMinor, ".", $NimPatch
+
 {.warning[UnusedImport]: off}
 
 import ../protobuf_serialization
 
-import
+import ./[
   test_all_types,
   test_bool,
   test_codec,
+  test_empty,
+  test_extension,
   test_fixed,
   test_groups,
+  test_malformed,
   test_objects,
+  test_oneof,
+  test_pkg_results_enums,
   test_pkg_results,
-  test_empty,
+  test_protobuf2_semantics,
   test_repeated,
   test_std_enums,
-  test_protobuf2_semantics,
   test_thirty_three_fields,
   test_truncation,
   test_wire_type_mismatch,
-  files/test_proto3
+  test_proto_file
+]

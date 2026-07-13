@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+message OneOfObj {
+  int64 x = 1;
+  int64 y = 2;
+}
+
+message SomeMessage {
+  int32 x = 1;
+  int32 y = 2;
+}
+
+message ObjAll {
+  oneof one {
+    string x01 = 1;
+    int32 x03 = 3;
+    SomeMessage x15 = 15;
+  }
+}
+

@@ -1,9 +1,9 @@
-import sets
+import std/[sets]
 
 import serialization
 export serialization
 
-import protobuf_serialization/[internal, types, reader, sizer, writer, format, extension]
+import ./protobuf_serialization/[internal, types, reader, sizer, writer, format, extension]
 export types, reader, sizer, writer, format, extension
 
 Protobuf.setReader ProtobufReader

@@ -14,6 +14,10 @@ import
   ../protobuf_serialization
 
 type
+  FewOptions {.proto2.} = object
+    a {.fieldNumber: 1, pint.}: PBOption[0'i32]
+    b {.fieldNumber: 2, pint.}: PBOption[0'i32]
+
   Required {.proto2.} = object
     a {.fieldNumber: 1, pint .}: PBOption[2'i32]
     b {.fieldNumber: 2, pint, required.}: int32
@@ -21,6 +25,8 @@ type
   FullOfDefaults {.proto2.} = object
     a {.fieldNumber: 3.}: PBOption["abc"]
     b {.fieldNumber: 4.}: PBOption[default(Required)]
+    c {.fieldNumber: 5, pint.}: PBOption[0'i32]
+    d {.fieldNumber: 6.}: PBOption[default(FewOptions)]
 
   SeqContainer {.proto2.} = object
     data {.fieldNumber: 5.}: seq[bool]
@@ -38,7 +44,27 @@ type
     c {.fieldNumber: 3, fixed.}: PBOption[0'u32]
     d {.fieldNumber: 4, fixed.}: PBOption[0'u64]
 
+  AllTypesOpt {.proto2.} = object
+    x01 {.fieldNumber: 1.}: PBOption[default(string)]
+    x02 {.fieldNumber: 2.}: PBOption[default(seq[byte])]
+    x03 {.fieldNumber: 3, pint.}: PBOption[0'i32]
+    x04 {.fieldNumber: 4, pint.}: PBOption[0'u32]
+    x05 {.fieldNumber: 5, pint.}: PBOption[0'i64]
+    x06 {.fieldNumber: 6, pint.}: PBOption[0'u64]
+    x07 {.fieldNumber: 7, sint.}: PBOption[0'i32]
+    x08 {.fieldNumber: 8, sint.}: PBOption[0'i64]
+    x09 {.fieldNumber: 9, fixed.}: PBOption[0'i32]
+    x10 {.fieldNumber: 10, fixed.}: PBOption[0'i64]
+    x11 {.fieldNumber: 11, fixed.}: PBOption[0'u32]
+    x12 {.fieldNumber: 12, fixed.}: PBOption[0'u64]
+    x13 {.fieldNumber: 13.}: PBOption[0'f32]
+    x14 {.fieldNumber: 14.}: PBOption[0'f64]
+    x15 {.fieldNumber: 15.}: PBOption[default(FewOptions)]
+
 suite "Test Encoding of Protobuf 2 Semantics":
+  test "PBOption all types":
+    roundtrip(AllTypesOpt(), "")
+
   test "PBOption basics":
     var opt: PBOption[true]
     check:
@@ -72,6 +98,15 @@ suite "Test Encoding of Protobuf 2 Semantics":
     # echo 'b: { b: 5 }' | protoc --encode=FullOfDefaults test_protobuf2_semantics.proto | hexdump -ve '1/1 "%.2x"'
     # 22021005
     roundtrip(FullOfDefaults(b: pbSome(Required(b: 5))), "22021005")
+    # echo 'a: "abc"' | protoc --encode=FullOfDefaults test_protobuf2_semantics.proto | hexdump -ve '1/1 "%.2x"'
+    # 1a03616263
+    roundtrip(FullOfDefaults(a: PBOption["abc"].pbSome("abc")), "1a03616263")
+    # echo 'a: "def"' | protoc --encode=FullOfDefaults test_protobuf2_semantics.proto | hexdump -ve '1/1 "%.2x"'
+    # 1a03646566
+    roundtrip(FullOfDefaults(a: PBOption["abc"].pbSome("def")), "1a03646566")
+    # echo 'c: 0' | protoc --encode=FullOfDefaults test_protobuf2_semantics.proto | hexdump -ve '1/1 "%.2x"'
+    roundtrip(FullOfDefaults(c: pbSome(0'i32)), "2800")
+    roundtrip(FullOfDefaults(c: pbNone(0'i32)), "")
     check:
       # PBOption is isNone when field is absent; get() returns the type default, not unset
       Protobuf.decode("1000".hexToSeqByte, Required).a.isNone()
@@ -80,6 +115,23 @@ suite "Test Encoding of Protobuf 2 Semantics":
       Protobuf.decode("22021005".hexToSeqByte, FullOfDefaults).a.get() == "abc"
       Protobuf.decode("22021005".hexToSeqByte, FullOfDefaults).b.isSome()
       Protobuf.decode("22021005".hexToSeqByte, FullOfDefaults).b.get().a.get() == 2'i32
+
+  test "optional message merging":
+    # echo 'd: {a: 1}' | protoc --encode=FullOfDefaults test_protobuf2_semantics.proto | hexdump -ve '1/1 "%.2x"'
+    # 32020801
+    # echo 'a: "abc"' | protoc --encode=FullOfDefaults test_protobuf2_semantics.proto | hexdump -ve '1/1 "%.2x"'
+    # 1a03616263
+    # echo 'd: {b: 1}' | protoc --encode=FullOfDefaults test_protobuf2_semantics.proto | hexdump -ve '1/1 "%.2x"'
+    # 32021001
+    # echo "320208011a0361626332021001" | xxd -r -p | protoc --decode=FullOfDefaults test_protobuf2_semantics.proto
+    # a: "abc"
+    # d {
+    #   a: 1
+    #   b: 1
+    # }
+    let encoded = "320208011a0361626332021001".hexToSeqByte
+    check Protobuf.decode(encoded, FullOfDefaults) ==
+      FullOfDefaults(a: PBOption["abc"].pbSome("abc"), d: pbSome(FewOptions(a: pbSome(1'i32), b: pbSome(1'i32))))
 
   test "Doesn't require Option for seq":
     roundtrip(SeqContainer(), "")

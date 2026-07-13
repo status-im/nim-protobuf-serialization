@@ -47,6 +47,10 @@ option optimize_for = SPEED;
 
 option cc_enable_arenas = true;
 
+message ForeignMessageProto2 {
+  optional int32 c = 1;
+}
+
 // This proto includes every type of field in both singular and repeated
 // forms.
 //
@@ -277,10 +281,6 @@ message UnknownToTestAllTypes {
   // }
   optional bool optional_bool = 1006;
   repeated int32 repeated_int32 = 1011;
-}
-
-message ForeignMessageProto2 {
-  optional int32 c = 1;
 }
 
 message NullHypothesisProto2 {}

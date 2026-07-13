@@ -9,17 +9,17 @@
 
 {.push raises: [], gcsafe.}
 
-import ./[types, format]
+import ./[types, format, codec]
 
-export types, format
+export types, format, codec
 
-template extensionDefaults*(
+template extensionDefaultsImpl(
     Format: type Protobuf,
     ExtType: type,
-    defaultWriteSeq = false,
-    defaultReadSeq = false,
-    defaultSeq = false,
-    packed = false
+    defaultWriteSeq: bool,
+    defaultReadSeq: bool,
+    defaultSeq: bool,
+    packed: bool
 ): untyped =
   ## Generate default procedures for the extension.
   ## - ``defaultSeq`` generates default ``seq[ExtType]``
@@ -67,3 +67,41 @@ template extensionDefaults*(
         true
       else:
         false
+
+template extensionDefaults*(
+    Format: type Protobuf,
+    ExtType: type,
+    PbType: type SomeProto,
+    defaultWriteSeq = false,
+    defaultReadSeq = false,
+    defaultSeq = false
+): untyped =
+  ## Generate default procedures for the extension.
+  ## - ``defaultSeq`` generates default ``seq[ExtType]``
+  ##   writer and reader.
+
+  extensionDefaultsImpl(
+    Format,
+    ExtType,
+    defaultWriteSeq,
+    defaultReadSeq,
+    defaultSeq,
+    PbType is SomePrimitive
+  )
+
+template extensionDefaults*(
+    Format: type Protobuf,
+    ExtType: type,
+    defaultWriteSeq = false,
+    defaultReadSeq = false,
+    defaultSeq = false,
+    packed = false
+): untyped {.deprecated.} =
+  extensionDefaultsImpl(
+    Format,
+    ExtType,
+    defaultWriteSeq,
+    defaultReadSeq,
+    defaultSeq,
+    packed
+  )

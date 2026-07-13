@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package test;
+
+message SearchRequest {
+  string query = 1;
+}
+
+message SearchResponse {
+  string url = 1;
+}
+
+message DiscoverRequest {
+  string query = 1;
+}
+
+message DiscoverResponse {
+  string url = 1;
+}
+
+message HealthRequest {
+  int32 timeout = 1;
+}
+
+message HealthResponse {
+  int32 status = 1;
+}
+
+service SearchService {
+  rpc Search (SearchRequest) returns (SearchResponse);
+  rpc Health (HealthRequest) returns (HealthResponse);
+}
+
+service DiscoverService {
+  rpc Discover (stream DiscoverRequest) returns (stream DiscoverResponse);
+  rpc Health (HealthRequest) returns (HealthResponse);
+}

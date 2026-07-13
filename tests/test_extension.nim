@@ -9,6 +9,7 @@
 
 import
   unittest2,
+  stew/byteutils,
   ./utils,
   ../protobuf_serialization,
   ../protobuf_serialization/pkg/results
@@ -33,9 +34,23 @@ type
     a {.fieldNumber: 1, ext.}: Int32Ext
 
   Proto3Int32ExtSeq {.proto3.} = object
-    a {.fieldNumber: 1, ext.}: seq[Int32Ext]
+    a {.fieldNumber: 1, ext, packed: false.}: seq[Int32Ext]
 
-Protobuf.extensionDefaults(Int32Ext, defaultSeq = true, packed = false)
+  OneOfKind {.pure.} = enum
+    unset
+    x
+
+  OneOf {.proto3, oneof.} = object
+    case kind: OneOfKind
+    of OneOfKind.unset:
+      discard
+    of OneOfKind.x:
+      x {.fieldNumber: 1, ext.}: Int32Ext
+
+  Proto3Int32ExtOneOf {.proto3.} = object
+    one {.oneof.}: OneOf
+
+Protobuf.extensionDefaults(Int32Ext, pint32, defaultSeq = true)
 
 func computeFieldSize(
     field: int,
@@ -61,6 +76,30 @@ proc readFieldInto(
     ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
   readFieldInto(stream, value.x, header, pint32)
+
+func computeFieldSizePacked(
+    field: int,
+    value: seq[Int32Ext],
+    ProtoType: type ProtobufExt
+): int =
+  computeFieldSizePackedIt(field, value, pint32, it.x)
+
+proc writeFieldPacked(
+    stream: OutputStream,
+    field: int,
+    value: seq[Int32Ext],
+    ProtoType: type ProtobufExt
+) {.raises: [IOError].} =
+  writeFieldPackedIt(stream, field, value, pint32, it.x)
+
+proc readFieldPackedInto(
+  stream: InputStream,
+  value: var seq[Int32Ext],
+  header: FieldHeader,
+  ProtoType: type ProtobufExt
+): bool {.raises: [SerializationError, IOError].} =
+  readFieldPackedIntoIt(stream, value, header, pint32):
+    value.add Int32Ext(x: it)
 
 suite "Test Int32Ext":
   test "proto2 opt Int32Ext":
@@ -95,45 +134,53 @@ suite "Test Int32Ext":
     roundtrip(default(Proto3Int32ExtSeq), "")
     roundtrip(Proto3Int32ExtSeq(a: @[Int32Ext(x: 1'i32), Int32Ext(x: 0'i32)]), "08010800")
 
+  test "proto3 oneof Int32Ext":
+    let encoded = "0801".hexToSeqByte
+    let ret = Protobuf.decode(encoded, Proto3Int32ExtOneOf)
+    check:
+      ret.one.kind == OneOfKind.x
+      ret.one.x == Int32Ext(x: 1'i32)
+      Protobuf.encode(ret) == encoded
+
 type
-  Int32Ext2 = object
-    x: int32
+  StringExt2 = object
+    x: string
 
-  Proto3Int32Ext2 {.proto3.} = object
-    a {.fieldNumber: 1, ext.}: seq[Int32Ext2]
+  Proto3StringExt2 {.proto3.} = object
+    a {.fieldNumber: 1, ext.}: seq[StringExt2]
 
-Protobuf.extensionDefaults(Int32Ext2, defaultSeq = false, packed = false)
+Protobuf.extensionDefaults(StringExt2, pstring, defaultSeq = false)
 
 func computeFieldSize(
     field: int,
-    value: Int32Ext2,
+    value: StringExt2,
     ProtoType: type ProtobufExt,
     skipDefault: static bool
 ): int =
-  computeFieldSize(field, value.x, pint32, skipDefault)
+  computeFieldSize(field, value.x, pstring, skipDefault)
 
 proc writeField(
     stream: OutputStream,
     field: int,
-    value: Int32Ext2,
+    value: StringExt2,
     ProtoType: type ProtobufExt,
     skipDefault: static bool = false
 ) {.raises: [IOError].} =
-  writeField(stream, field, value.x, pint32, skipDefault)
+  writeField(stream, field, value.x, pstring, skipDefault)
 
 proc readFieldInto(
     stream: InputStream,
-    value: var Int32Ext2,
+    value: var StringExt2,
     header: FieldHeader,
     ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
-  readFieldInto(stream, value.x, header, pint32)
+  readFieldInto(stream, value.x, header, pstring)
 
 # TODO: when true: once read/write/sizer for seq[T], type[ProtobufExt] are removed
 when false:
   func computeFieldSize(
       field: int, 
-      value: seq[Int32Ext2],
+      value: seq[StringExt2],
       ProtoType: type ProtobufExt,
       skipDefault: static bool
   ): int =
@@ -145,7 +192,7 @@ when false:
   proc writeField(
       stream: OutputStream,
       field: int,
-      value: seq[Int32Ext2],
+      value: seq[StringExt2],
       ProtoType: type ProtobufExt,
       skipDefault: static bool = false
   ) {.raises: [IOError].} =
@@ -154,7 +201,7 @@ when false:
 
   proc readFieldInto(
     stream: InputStream,
-    value: var seq[Int32Ext2],
+    value: var seq[StringExt2],
     header: FieldHeader,
     ProtoType: type ProtobufExt
   ): bool {.raises: [SerializationError, IOError].} =
@@ -166,5 +213,5 @@ when false:
       false
 
 suite "Test seq[T] serializer":
-  test "custom seq[Int32Ext2] serializer":
-    roundtrip(Proto3Int32Ext2(a: @[Int32Ext2(x: 1'i32)]), "0801")
+  test "custom seq[StringExt2] serializer":
+    roundtrip(Proto3StringExt2(a: @[StringExt2(x: "abc")]), "0a03616263")

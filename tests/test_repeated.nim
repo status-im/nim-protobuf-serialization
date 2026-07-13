@@ -10,7 +10,9 @@
 import sets
 import unittest2
 import stew/byteutils
-import ../protobuf_serialization
+import
+  ../protobuf_serialization,
+  ./utils
 
 type
   # Keep in sync with test_repeated.proto
@@ -48,9 +50,7 @@ z: ["zero", "one", "two"]
       Protobuf.decode(encoded, typeof(v)) == v
 
   test "Empty sequences":
-    check:
-      Protobuf.computeSize(Sequences()) == 0
-      Protobuf.encode(Sequences()).len == 0
+    roundtrip(Sequences(), "")
 
   test "Packed sequences":
     # protoc --encode=Packed test_repeated.proto | hexdump -ve '1/1 "%.2x"'
@@ -76,6 +76,4 @@ a: [5, -3, 300, -612]
       Protobuf.decode(encoded, typeof(v)) == v
 
   test "Empty packed sequences":
-    check:
-      Protobuf.computeSize(Packed()) == 0
-      Protobuf.encode(Packed()).len == 0
+    roundtrip(Packed(), "")

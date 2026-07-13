@@ -65,3 +65,11 @@ message Result {
 message SomeOtherMessage {
   SearchResponse.Result result = 1;
 }
+
+//oneof produces a Result object; clashes with outter Result message
+message OneOfMessage {
+  oneof result {
+    string foo = 1;
+    string bar = 2;
+  }
+}

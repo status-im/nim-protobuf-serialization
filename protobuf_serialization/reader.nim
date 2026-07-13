@@ -85,15 +85,7 @@ proc readFieldInto*[T: not object and (seq[byte] or not seq)](
   ProtoType: type SomeProto
 ): bool {.raises: [SerializationError, IOError].} =
   if header.kind() == wireKind(ProtoType):
-    when ProtoType is SomeVarint:
-      assign(value, T(stream.readValue(ProtoType)))
-    elif ProtoType is SomeFixed64:
-      assign(value, T(stream.readValue(ProtoType)))
-    elif ProtoType is SomeLengthDelim:
-      assign(value, T(stream.readValue(ProtoType)))
-    else:
-      static: doAssert ProtoType is SomeFixed32
-      assign(value, T(stream.readValue(ProtoType)))
+    assign(value, T(stream.readValue(ProtoType)))
     true
   else:
     false
@@ -117,11 +109,35 @@ proc readFieldInto*(
   header: FieldHeader,
   ProtoType: type
 ): bool {.raises: [SerializationError, IOError].} =
-  if stream.readFieldInto(value.mget(), header, ProtoType):
-    true
+  if value.isSome():
+    stream.readFieldInto(value.mget(), header, ProtoType)
   else:
-    reset(value)
-    false
+    var val: typeof(value.get())
+    if stream.readFieldInto(val, header, ProtoType):
+      init(value, move(val))
+      true
+    else:
+      false
+
+template readFieldPackedIntoIt*[T: not byte](
+  stream: InputStream,
+  value: var seq[T],
+  header: FieldHeader,
+  ProtoType: type SomePrimitive,
+  body: untyped
+): bool =
+  # TODO make more efficient
+  doAssert header.kind() == WireKind.LengthDelim
+  var
+    bytes = seq[byte](stream.readValue(pbytes))
+    inner = memoryInput(bytes)
+    headerElm = FieldHeader.init(header.number, wireKind(ProtoType))
+    it {.inject.} = default(distinctBase(ProtoType))
+  while inner.readable():
+    let r = inner.readFieldInto(it, headerElm, ProtoType)
+    doAssert r
+    body
+  true
 
 proc readFieldPackedInto*[T: not byte](
   stream: InputStream,
@@ -129,17 +145,8 @@ proc readFieldPackedInto*[T: not byte](
   header: FieldHeader,
   ProtoType: type SomePrimitive
 ): bool {.raises: [SerializationError, IOError].} =
-  # TODO make more efficient
-  doAssert header.kind() == WireKind.LengthDelim
-  var
-    bytes = seq[byte](stream.readValue(pbytes))
-    inner = memoryInput(bytes)
-    headerElm = FieldHeader.init(header.number, wireKind(ProtoType))
-  while inner.readable():
-    value.add default(T)
-    let r = inner.readFieldInto(value[^1], headerElm, ProtoType)
-    doAssert r
-  true
+  readFieldPackedIntoIt(stream, value, header, ProtoType):
+    value.add it
 
 proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false) {.raises: [SerializationError, IOError].} =
   mixin supportsPacked, readFieldPackedInto
@@ -159,35 +166,51 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
 
   while stream.readable():
     let header = stream.readHeader()
+    let headerNum = header.number()
     let pos = stream.pos()
     var i {.used.} = -1
     var knownField = false
 
-    if not header.number().validFieldNumber(true):
-      raise newException(ProtobufReadError, "Invalid field number: " & $header.number())
+    if not headerNum.validFieldNumber(true):
+      raise newException(ProtobufReadError, "Invalid field number: " & $headerNum)
 
-    enumInstanceSerializedFields(value, fieldName, fieldVar):
+    enumInstanceSerializedFields(value, fieldName, fieldVal):
       inc i
-      const
-        fieldNum = T.fieldNumberOf(fieldName)
-
-      if header.number() == fieldNum:
-        protoType(ProtoType, T, typeof(fieldVar), fieldName)
-        # TODO should we allow reading packed fields into non-repeated fields?
-        knownField =
-          when supportsPacked(typeof(fieldVar), ProtoType):
-            if header.kind() == WireKind.LengthDelim:
-              stream.readFieldPackedInto(fieldVar, header, ProtoType)
+      when T.isOneof(fieldName):
+        enumOneofFields(typeof(fieldVal), kName, kVal, fName, fTyp):
+          const fieldNum = typeof(fieldVal).fieldNumberOf(fName)
+          if headerNum == fieldNum:
+            protoType(ProtoType, typeof(fieldVal), fTyp, fName)
+            knownField = case fieldVal.field(kName)
+            of kVal:
+              stream.readFieldInto(fieldVal.field(fName), header, ProtoType)
             else:
-              stream.readFieldInto(fieldVar, header, ProtoType)
-          elif typeof(fieldVar) is ref and defined(ConformanceTest):
-            fieldVar = new typeof(fieldVar)
-            stream.readFieldInto(fieldVar[], header, ProtoType)
-          else:
-            stream.readFieldInto(fieldVar, header, ProtoType)
+              var val = default(fTyp)
+              if stream.readFieldInto(val, header, ProtoType):
+                setOneof(fieldVal, kName, kVal, fName, val)
+                true
+              else:
+                false
+      else:
+        const fieldNum = T.fieldNumberOf(fieldName)
+        if headerNum == fieldNum:
+          protoType(ProtoType, T, typeof(fieldVal), fieldName)
+          # TODO should we allow reading packed fields into non-repeated fields?
+          knownField =
+            when supportsPacked(typeof(fieldVal), ProtoType):
+              if header.kind() == WireKind.LengthDelim:
+                stream.readFieldPackedInto(fieldVal, header, ProtoType)
+              else:
+                stream.readFieldInto(fieldVal, header, ProtoType)
+            elif typeof(fieldVal) is ref and defined(ConformanceTest):
+              if fieldVal.isNil:
+                fieldVal = new typeof(fieldVal)
+              stream.readFieldInto(fieldVal[], header, ProtoType)
+            else:
+              stream.readFieldInto(fieldVal, header, ProtoType)
 
-        when isProto2:
-          if not silent and knownField: requiredSets.excl i
+          when isProto2:
+            if not silent and knownField: requiredSets.excl i
 
     if not knownField and pos == stream.pos():
       case header.kind():

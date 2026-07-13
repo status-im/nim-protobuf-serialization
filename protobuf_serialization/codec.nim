@@ -258,25 +258,26 @@ proc readLength*(input: InputStream): int {.raises: [SerializationError, IOError
   int(val)
 
 proc readValue*[T: SomeLengthDelim](input: InputStream, _: type T): T {.raises: [SerializationError, IOError].} =
+  var ret = default(T)
   let len = input.readLength()
   if len > 0:
     type Base = typetraits.distinctBase(T)
     let inputLen = input.len()
     if inputLen.isSome() and len > inputLen.get():
       raise (ref ProtobufValueError)(msg: "Missing bytes: " & $len)
-
-    Base(result).setLen(len)
+    Base(ret).setLen(len)
     template bytes(): openArray[byte] =
       when Base is seq[byte]:
-        Base(result).toOpenArray(0, len - 1)
+        Base(ret).toOpenArray(0, len - 1)
       else:
-        Base(result).toOpenArrayByte(0, len - 1)
+        Base(ret).toOpenArrayByte(0, len - 1)
     if not input.readInto(bytes()):
       raise (ref ProtobufValueError)(msg: "Missing bytes: " & $len)
 
     when T is pstring:
-      if validateUtf8(string(result)) != -1:
+      if validateUtf8(string(ret)) != -1:
         raise (ref ProtobufValueError)(msg: "String not valid UTF-8")
+  ret
 
 proc skipValue*[T: SomeLengthDelim](input: InputStream, _: type T) {.raises: [SerializationError, IOError].} =
   let len = input.readLength()

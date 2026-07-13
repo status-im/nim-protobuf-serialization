@@ -7,9 +7,9 @@ type
   Proto2Int32Ext {.proto3.} = object
     a {.fieldNumber: 1, ext.}: seq[Int32Ext]
 
-Protobuf.extensionDefaults(Int32Ext, defaultSeq = false, packed = false)
+Protobuf.extensionDefaults(Int32Ext, pint32, defaultSeq = true)
 
-# Missing seq[Int32Ext] serializer
+# Missing packed serializer
 
 func computeFieldSize(
     field: int,
@@ -38,6 +38,3 @@ proc readFieldInto(
 
 discard Protobuf.encode(Proto2Int32Ext())
 discard Protobuf.decode(default(seq[byte]), Proto2Int32Ext)
-
-# TODO: remove once read/write/sizer for seq[T], type[ProtobufExt] are removed
-{.error: "remove me".}

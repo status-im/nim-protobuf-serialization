@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+message P3FewOptions {
+  optional int32 a = 1;
+  optional int32 b = 2;
+}
+
+message P3FullOfDefaults {
+  optional string a = 3;
+  optional P3FewOptions b = 4;
+}

@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+enum OptFieldEnum {
+  UNKNOWN = 0;
+  STARTED = 1;
+}
+
+message OptFieldMessage {
+  optional OptFieldEnum a = 1;
+  optional int64 b = 2;
+  int64 notOpt = 3;
+}

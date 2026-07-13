@@ -1,5 +1,18 @@
-import npeg, strutils, sequtils, macros, os, sets
-import decldef
+# nim-protobuf-serialization
+# Copyright (c) 2026 Status Research & Development GmbH
+# Licensed under either of
+#  * Apache License, version 2.0, ([LICENSE-APACHE](LICENSE-APACHE))
+#  * MIT license ([LICENSE-MIT](LICENSE-MIT))
+# at your option.
+# This file may not be copied, modified, or distributed except according to
+# those terms.
+
+# https://protobuf.dev/reference/protobuf/proto3-spec/
+
+import
+  std/[strutils, sequtils, macros, os, sets],
+  npeg,
+  ./decldef
 
 type
   TokenType = enum
@@ -41,7 +54,7 @@ proc tokenize(filename, text: string): seq[Token] =
     regstring  <- '\'' * *(escapes | 1 - '\'') * '\'':
       res.add Token(typ: String, text: ($0).unescape(prefix = "'", suffix = "'"), filePos: @0)
     string     <- dblstring | regstring
-    sym        <- {'=', ';', '{', '}', '[', ']', '<', '>', ','}:
+    sym        <- {'=', ';', '{', '}', '[', ']', '<', '>', ',', '(', ')'}:
       res.add Token(typ: Symbol, text: $0, filePos: @0)
     # according to the official syntax, this is correct.
     # but in reality, leading underscores are accepted
@@ -85,6 +98,8 @@ type
     reservedValues: seq[ProtoNode]
     reservedBlocks: seq[(Token, ProtoNode)]
     fieldOpts: seq[ProtoNode]
+    rpcs: seq[ProtoNode]
+    services: seq[(Token, ProtoNode)]
 
 proc extract(x: var seq[(Token, ProtoNode)], s: Token): seq[ProtoNode] =
   # The "extract mechanism" is used to handle this case:
@@ -134,7 +149,9 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
           kind: Field,
           number: parseInt(fieldValue),
           protoType: fieldType,
-          name: fieldName)))
+          name: fieldName,
+          options: ps.fieldOpts)))
+      ps.fieldOpts.setLen 0
     oneof2     <- ["oneof"] * >ident * ['{'] * *(option | oneoffield) * ['}']:
       ps.fields.add(($0, ProtoNode(
         oneofName: ($1).text,
@@ -252,22 +269,43 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
         fields: fields
       )))
 
-
-    enumfield  <- >ident * ['='] * >int * [';']:
+    enumfield  <- >ident * ['='] * >int * ?fieldopts * [';']:
       let
         fieldName = ($1).text
         fieldValue = ($2).text
       ps.fields.add (($0, ProtoNode(
           kind: EnumVal,
           num: parseInt(fieldValue),
-          fieldName: fieldName)))
+          fieldName: fieldName,
+          enumValOptions: ps.fieldOpts)))
+      ps.fieldOpts.setLen 0
     enumdecl   <- ["enum"] * >ident * ['{'] * *(option | enumfield) * ['}']:
       ps.enums.add(($0, ProtoNode(
         enumName: ($1).text,
         kind: Enum,
         values: ps.fields.extract($0)
       )))
-    typedecl   <- (msg | enumdecl)
+
+    messageType <- ?'.' * ident * *('.' * ident)
+    rpc <- ["rpc"] * >ident * ['('] * >?["stream"] * >messageType * [')'] * ["returns"] * ['('] * >?["stream"] * >messageType * [')'] * ((['{'] * ?option * ['}']) | [';']):
+      ps.rpcs.add(ProtoNode(
+        rpcName: ($1).text,
+        rpcParamStream: @2 != @3,
+        rpcParam: ($3).text,
+        rpcReturnsStream: @4 != @5,
+        rpcReturns: ($5).text,
+        kind: Rpc
+      ))
+    serviceBody <- ['{'] * *(option | rpc) * ['}']
+    servicedecl <- ["service"] * >ident * serviceBody:
+      ps.services.add(($0, ProtoNode(
+        serviceName: ($1).text,
+        rpcs: ps.rpcs,
+        kind: Service
+      )))
+      ps.rpcs.setLen 0
+
+    typedecl   <- (msg | enumdecl | servicedecl)
     onething   <- (pkg | option | syntax | impor | typedecl | extend2)
     g          <- +onething
 
@@ -288,6 +326,7 @@ proc parseProtoPackage(file: string, toImport: var HashSet[string]): ProtoNode =
   result = state.currentPackage
   result.messages &= state.messages.mapIt(it[1])
   result.packageEnums &= state.enums.mapIt(it[1])
+  result.services &= state.services.mapIt(it[1])
 
   for impors in state.imports:
     const googlePrefix = "google/protobuf/"
