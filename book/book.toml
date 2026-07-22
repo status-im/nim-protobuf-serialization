@@ -1,0 +1,22 @@
+[book]
+title = "nim-protobuf-serialization"
+authors = ["Status Research & Development GmbH"]
+language = "en"
+multilingual = false
+src = "src"
+
+[preprocessor.admonish]
+command = "mdbook-admonish"
+assets_version = "3.1.0"    # do not edit: managed by `mdbook-admonish install`
+
+[preprocessor.shiftinclude]
+
+[preprocessor.open-on-gh]
+command = "mdbook-open-on-gh"
+renderer = ["html"]
+git-branch = "master"
+
+[output.html]
+git-repository-url = "https://github.com/status-im/nim-protobuf-serialization"
+git-branch = "master"
+additional-css = ["./open-in.css", "./mdbook-admonish.css"]
