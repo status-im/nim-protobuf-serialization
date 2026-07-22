@@ -1,0 +1,36 @@
+name: Build Docs
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+jobs:
+  examples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Nim
+        uses: jiro4989/setup-nim-action@v1
+        with:
+          nim-version: 'stable'
+
+      - name: Install dependencies
+        run: nimble install -y
+
+      - name: Compile and run examples
+        run: nimble examples
+
+  docs:
+    needs: examples
+    uses: status-im/nimbus-common-workflow/.github/workflows/docs.yml@main
+    with:
+      mdbook-version: "0.4.52"
+      mdbook-preprocessors: >-
+        [
+          "mdbook-admonish@1.20.0",
+          "mdbook-shiftinclude@0.1.0",
+          "mdbook-open-on-gh@2.4.3"
+        ]
