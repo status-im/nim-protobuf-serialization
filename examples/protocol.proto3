@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package example;
+
+enum Priority {
+  LOW = 0;
+  MEDIUM = 1;
+  HIGH = 2;
+}
+
+message Task {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  Priority priority = 4;
+  repeated string tags = 5;
+  bool completed = 6;
+}
+
+message TaskList {
+  repeated Task tasks = 1;
+  string owner = 2;
+}
