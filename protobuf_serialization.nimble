@@ -76,3 +76,9 @@ task conformance_test, "Run conformance tests":
   withDir test:
     exec "nim c -d:ConformanceTest conformance_nim.nim"
     exec "./conformance_test_runner --enforce_recommended --failure_list failure_list.txt conformance_nim"
+
+task book, "Generate book":
+  exec "mdbook build book -d docs"
+
+task docs, "Generate docs":
+  exec "nimble book"
