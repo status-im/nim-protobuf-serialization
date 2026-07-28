@@ -24,6 +24,14 @@ type
   Proto2Int32ExtPBOpt {.proto2.} = object
     a {.fieldNumber: 1, ext.}: PBOption[default(Int32Ext)]
 
+  Proto2Int32ExtPlain {.proto2.} = object
+    a {.fieldNumber: 1, ext, implicit.}: Int32Ext
+
+  Proto2PlainExtFields {.proto2.} = object
+    topic {.fieldNumber: 1, implicit.}: string
+    data {.fieldNumber: 2, implicit.}: seq[byte]
+    backoff {.fieldNumber: 3, pint, implicit.}: uint64
+
   Proto2Int32ExtReq {.proto2.} = object
     a {.fieldNumber: 1, required, ext.}: Int32Ext
 
@@ -111,6 +119,18 @@ suite "Test Int32Ext":
     roundtrip(Proto2Int32ExtPBOpt(a: pbSome(Int32Ext(x: 1'i32))), "0801")
     roundtrip(Proto2Int32ExtPBOpt(a: pbSome(Int32Ext(x: 0'i32))), "0800")
     roundtrip(Proto2Int32ExtPBOpt(a: pbNone(default(Int32Ext))), "")
+
+  test "proto2 implicit Int32Ext":
+    roundtrip(Proto2Int32ExtPlain(a: Int32Ext(x: 1'i32)), "0801")
+    roundtrip(Proto2Int32ExtPlain(a: Int32Ext(x: 0'i32)), "")
+    check Protobuf.decode(newSeq[byte](), Proto2Int32ExtPlain) == default(Proto2Int32ExtPlain)
+
+  test "proto2 implicit scalar fields":
+    roundtrip(
+      Proto2PlainExtFields(topic: "t", data: @[1.byte, 2.byte], backoff: 7'u64),
+      "0a0174120201021807"
+    )
+    roundtrip(default(Proto2PlainExtFields), "")
 
   test "proto2 required Int32Ext":
     roundtrip(Proto2Int32ExtReq(a: Int32Ext(x: 1'i32)), "0801")

@@ -142,7 +142,10 @@ func computeObjectSize*[T: object](value: T): int =
         when isPacked and supportsPacked(typeof(fieldVal), ProtoType):
           computeFieldSizePacked(fieldNum, fieldVal, ProtoType)
         else:
-          computeFieldSize(fieldNum, fieldVal, ProtoType, isProto3)
+          const skipDefault =
+            isProto3 or
+              (isProto2 and isImplicitPresence(T, fieldName, fieldVal))
+          computeFieldSize(fieldNum, fieldVal, ProtoType, skipDefault)
 
     total += fieldSize
 

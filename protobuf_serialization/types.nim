@@ -43,6 +43,7 @@ template fieldNumber*(num: int) {.pragma.}
 template required*() {.pragma.}
 template packed*(v: bool) {.pragma.}
 template pint*() {.pragma.} # encode as `intXX`
+template implicit*() {.pragma.}
 template sint*() {.pragma.} # encode as `sintXX`
 template fixed*() {.pragma.} # encode as `fixedXX`
 template ext*() {.pragma.}

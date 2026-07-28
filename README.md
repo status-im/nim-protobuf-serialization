@@ -65,7 +65,8 @@ Both Protobuf 2 and Protobuf 3 objects have the following properties:
 Protobuf 2 has the additional properties:
 
 - A `required` pragma is enabled, matching the syntax of Protobuf 2's required keyword.
-- Every primitive value, such as a number or string, must have the `required` pragma or be a `PBOption`. `PBOption`s are a generic type instantiated with the default value for that field. They serve as regular Options, except when they're none, they still return a value when get is called (the default value). `PBOption`s can be constructed using `pbSome(PBOption[T], value)`.
+- Every primitive value, such as a number or string, must have the `required` pragma, be a `PBOption`, or use the `implicit` pragma. `PBOption`s are a generic type instantiated with the default value for that field. They serve as regular Options, except when they're none, they still return a value when get is called (the default value). `PBOption`s can be constructed using `pbSome(PBOption[T], value)`.
+- Use `implicit` only when field presence has no semantic meaning. It encodes default values as absent and decodes absent values as the Nim default value. It cannot be used with `required`, `PBOption`, or repeated fields other than `seq[byte]`.
 
 Here is an example demonstrating how the various pragmas can be combined:
 
@@ -79,6 +80,7 @@ type
     a {.fieldNumber: 1.}: seq[string]
     b {.fieldNumber: 2, pint.}: PBOption[int32(2)]
     c {.fieldNumber: 3, required, sint.}: int32
+    d {.fieldNumber: 4, implicit.}: string
 ```
 
 **Type Extensions**

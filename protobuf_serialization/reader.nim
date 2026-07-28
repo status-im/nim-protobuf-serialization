@@ -60,20 +60,19 @@ proc readFieldInto*[T: object and not PBOption](
 ): bool {.raises: [SerializationError, IOError].} =
   if header.kind() == wireKind(ProtoType):
     let len = stream.readLength()
-    if len > 0:
-      # TODO: https://github.com/status-im/nim-faststreams/issues/31
-      # TODO: check that all bytes were read
-      # stream.withReadableRange(len, inner):
-      #   inner.readValueInternal(value)
+    # TODO: https://github.com/status-im/nim-faststreams/issues/31
+    # TODO: check that all bytes were read
+    # stream.withReadableRange(len, inner):
+    #   inner.readValueInternal(value)
 
-      let inputLen = stream.len()
-      if inputLen.isSome() and len > inputLen.get():
-        raise (ref ProtobufValueError)(msg: "Missing bytes: " & $len)
+    let inputLen = stream.len()
+    if inputLen.isSome() and len > inputLen.get():
+      raise (ref ProtobufValueError)(msg: "Missing bytes: " & $len)
 
-      var tmp = newSeqUninit[byte](len)
-      if not stream.readInto(tmp):
-        raise (ref ProtobufValueError)(msg: "not enough bytes")
-      memoryInput(tmp).readValueInternal(value)
+    var tmp = newSeqUninit[byte](len)
+    if len > 0 and not stream.readInto(tmp):
+      raise (ref ProtobufValueError)(msg: "not enough bytes")
+    memoryInput(tmp).readValueInternal(value)
     true
   else:
     false

@@ -91,6 +91,10 @@ suite "Test Encoding of Protobuf 2 Semantics":
     expect ProtobufReadError:
       discard Protobuf.decode(default(seq[byte]), Required)
 
+  test "Requires required in empty nested message":
+    expect ProtobufReadError:
+      discard Protobuf.decode("2200".hexToSeqByte, FullOfDefaults)
+
   test "Handles default":
     # echo 'b: 0' | protoc --encode=Required test_protobuf2_semantics.proto | hexdump -ve '1/1 "%.2x"'
     # 1000

@@ -45,11 +45,19 @@ proc isPacked*(T: type, fieldName: static string): Option[bool] {.compileTime.} 
 proc isRequired*(T: type, fieldName: static string): bool {.compileTime.} =
   T.hasCustomPragmaFixed(fieldName, required)
 
+template isImplicitPresence*(
+    T: type, fieldName: static string, fieldVal: untyped
+): bool =
+  T.hasCustomPragmaFixed(fieldName, implicit) and
+    not T.isRequired(fieldName) and
+    fieldVal isnot PBOption and
+    (fieldVal isnot seq or fieldVal is seq[byte])
+
 proc supportsPacked*(T: type, ProtoType: type SomeProto): bool =
   ProtoType is SomePrimitive and T is seq and T isnot seq[byte]
 
 proc supportsPacked*(T: type, ProtoType: type ProtobufExt): bool =
-  when T is PBOption:
+  when T is PBOption or T isnot seq or T is seq[byte]:
     false
   else:
     unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
@@ -253,6 +261,8 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
           fieldError T, fieldName, "Oneof can't be {.required.}"
         elif T.hasCustomPragmaFixed(fieldName, fieldNumber):
           fieldError T, fieldName, "Oneof can't be {.fieldNumber: N.}"
+        elif T.hasCustomPragmaFixed(fieldName, implicit):
+          fieldError T, fieldName, "Oneof can't be {.implicit.}"
         elif fieldValTyp is seq:
           fieldError T, fieldName, $fieldValTyp & " Oneof can't be seq / repeated"
         elif fieldValTyp is PBOption:
@@ -270,7 +280,9 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
             fieldError fieldValTyp, fName, "Field numbers must be in the range [1..2^29-1]"
           if fieldNumberSet.containsOrIncl(fieldNum):
             raiseAssert $T & "." & fieldName & ": " & $fieldValTyp & "." & fName & ": Field number was used twice on two different fields: " & $fieldNum
-          when fieldValTyp.hasCustomPragmaFixed(fName, ext):
+          when fieldValTyp.hasCustomPragmaFixed(fName, implicit):
+            fieldError fieldValTyp, fName, "Oneof field can't be {.implicit.}"
+          elif fieldValTyp.hasCustomPragmaFixed(fName, ext):
             discard
           elif fTyp is seq and fTyp isnot seq[byte]:
             fieldError fieldValTyp, fName, "Oneof field can't be seq[T] / repeated"
@@ -281,9 +293,20 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
           else:
             verifySerializable(fTyp)
       else:
+        when T.hasCustomPragmaFixed(fieldName, implicit):
+          when not isProto2:
+            fieldError T, fieldName, "The implicit pragma can only be used with proto2."
+          elif T.isRequired(fieldName):
+            fieldError T, fieldName, "The implicit pragma can't be used with required fields."
+          elif fieldValTyp is PBOption:
+            fieldError T, fieldName, "The implicit pragma can't be used with PBOption."
+          elif fieldValTyp is seq and fieldValTyp isnot seq[byte]:
+            fieldError T, fieldName, "The implicit pragma can't be used with repeated fields."
+
         when isProto2 and not T.isRequired(fieldName) and
             fieldVal isnot PBOption and
             (fieldVal isnot seq or fieldVal is seq[byte]) and
+            not isImplicitPresence(T, fieldName, fieldVal) and
             not isExtension(Protobuf, fieldValTyp):
           fieldError T, fieldName, "proto2 requires every field to either have the required pragma attached or be a repeated field/PBOption."
         when isProto3 and (

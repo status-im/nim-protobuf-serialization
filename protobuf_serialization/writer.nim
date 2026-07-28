@@ -127,7 +127,10 @@ proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].
         if not fieldVal.isNil():
           stream.writeField(fieldNum, fieldVal[], ProtoType)
       else:
-        stream.writeField(fieldNum, fieldVal, ProtoType, isProto3)
+        const skipDefault =
+          isProto3 or
+            (isProto2 and isImplicitPresence(T, fieldName, fieldVal))
+        stream.writeField(fieldNum, fieldVal, ProtoType, skipDefault)
 
 proc writeValue*[T: object](writer: ProtobufWriter, value: T) {.raises: [IOError].} =
   static: verifySerializable(T)
