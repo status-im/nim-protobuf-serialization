@@ -45,7 +45,31 @@ type
   NotPacked {.proto.} = object
     a {.fieldNumber: 1, pint, packed: false.}: seq[int32]
 
+  MixedOpt {.proto.} = object
+    a {.fieldNumber: 1, pint.}: PBExplicit[0'i32]
+    c {.fieldNumber: 3, pint, implicit.}: int32
+
+  AllTypesOpt {.proto, implicit.} = object
+    x01 {.fieldNumber: 1.}: string
+    x02 {.fieldNumber: 2.}: seq[byte]
+    x03 {.fieldNumber: 3, pint.}: int32
+    x04 {.fieldNumber: 4, pint.}: uint32
+    x05 {.fieldNumber: 5, pint.}: int64
+    x06 {.fieldNumber: 6, pint.}: uint64
+    x07 {.fieldNumber: 7, sint.}: int32
+    x08 {.fieldNumber: 8, sint.}: int64
+    x09 {.fieldNumber: 9, fixed.}: int32
+    x10 {.fieldNumber: 10, fixed.}: int64
+    x11 {.fieldNumber: 11, fixed.}: uint32
+    x12 {.fieldNumber: 12, fixed.}: uint64
+    x13 {.fieldNumber: 13.}: float32
+    x14 {.fieldNumber: 14.}: float64
+    x15 {.fieldNumber: 15.}: MixedOpt
+
 suite "Test proto editions":
+  test "all types":
+    roundtrip(AllTypesOpt(), "")
+
   test "mixed":
     # echo 'b: 0' | protoc --encode=Mixed test_proto_editions.proto | hexdump -ve '1/1 "%.2x"'
     # echo "1000" | xxd -r -p | protoc --decode=Mixed test_proto_editions.proto
@@ -83,8 +107,23 @@ suite "Test proto editions":
     roundtrip(Mixed2024(c: 1'i32), "10001801")
     roundtrip(Mixed2026(c: 1'i32), "10001801")
 
+  test "mixed required empty":
+    expect ProtobufReadError:
+      discard Protobuf.decode(default(seq[byte]), Mixed)
+    expect ProtobufReadError:
+      discard Protobuf.decode(default(seq[byte]), MixedWithImplicit)
+    expect ProtobufReadError:
+      discard Protobuf.decode(default(seq[byte]), Mixed2023)
+    expect ProtobufReadError:
+      discard Protobuf.decode(default(seq[byte]), Mixed2024)
+    expect ProtobufReadError:
+      discard Protobuf.decode(default(seq[byte]), Mixed2026)
+
   test "packed":
     roundtrip(Packed(), "")
+
+  test "not packed":
+    roundtrip(NotPacked(), "")
 
   test "packed default":
     # echo 'a: [1, 2]' | protoc --encode=Packed test_proto_editions.proto | hexdump -ve '1/1 "%.2x"'
