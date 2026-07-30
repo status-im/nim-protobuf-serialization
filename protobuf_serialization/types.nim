@@ -32,11 +32,17 @@ type
     some: bool
     value: typeof(defaultValue)
 
+  PBExplicit* = PBOption
+
   ProtobufExt*[FieldType; RootType; fieldName: static string] = object
 
 # Message type annotations
 template proto2*() {.pragma.}
 template proto3*() {.pragma.}
+template proto*(edition = 2023) {.pragma.}
+
+# Message and Field annotations
+template implicit*() {.pragma.}
 
 # Field annotations
 template fieldNumber*(num: int) {.pragma.}

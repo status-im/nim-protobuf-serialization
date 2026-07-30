@@ -26,6 +26,7 @@ import ./[
   test_oneof,
   test_pkg_results_enums,
   test_pkg_results,
+  test_proto_editions,
   test_protobuf2_semantics,
   test_repeated,
   test_std_enums,

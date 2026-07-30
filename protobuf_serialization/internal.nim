@@ -31,6 +31,16 @@ template fieldError(T: type, name, msg: static string) =
 
 proc isProto2*(T: type): bool {.compileTime.} = T.hasCustomPragma(proto2)
 proc isProto3*(T: type): bool {.compileTime.} = T.hasCustomPragma(proto3)
+proc isProto*(T: type): bool {.compileTime.} = T.hasCustomPragma(proto)
+
+proc protoEdition*(T: type): int {.compileTime.} =
+  when T.isProto:
+    T.getCustomPragmaVal(proto)
+  else:
+    0
+
+proc isImplicit*(T: type): bool {.compileTime.} =
+  T.hasCustomPragma(implicit)
 
 proc isPacked*(T: type, fieldName: static string): Option[bool] {.compileTime.} =
   if T.hasCustomPragmaFixed(fieldName, packed):
@@ -44,6 +54,9 @@ proc isPacked*(T: type, fieldName: static string): Option[bool] {.compileTime.} 
 
 proc isRequired*(T: type, fieldName: static string): bool {.compileTime.} =
   T.hasCustomPragmaFixed(fieldName, required)
+
+proc isImplicit*(T: type, fieldName: static string): bool {.compileTime.} =
+  T.hasCustomPragmaFixed(fieldName, implicit)
 
 proc supportsPacked*(T: type, ProtoType: type SomeProto): bool =
   ProtoType is SomePrimitive and T is seq and T isnot seq[byte]
@@ -239,8 +252,12 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
     const
       isProto2 = T.isProto2()
       isProto3 = T.isProto3()
-    when isProto2 == isProto3:
-      {.fatal: $T & ": missing {.proto2.} or {.proto3.}".}
+      isProto = T.isProto()
+      protoEditions = [2023, 2024, 2026]
+    when isProto2.int + isProto3.int + isProto.int != 1:
+      {.fatal: $T & ": requires one of {.proto2.}, {.proto3.} or {.proto.}".}
+    when isProto and T.protoEdition() notin protoEditions:
+      {.fatal: $T & ": invalid edition; must be one of 2023, 2024, or 2026".}
     when T.hasCustomPragma(oneof):
       {.fatal: $T & ": unexpected oneof value; missing {.oneof.} field?".}
 
@@ -257,8 +274,10 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
           fieldError T, fieldName, $fieldValTyp & " Oneof can't be seq / repeated"
         elif fieldValTyp is PBOption:
           fieldError T, fieldName, $fieldValTyp & " Oneof can't be PBOption"
-        elif fieldValTyp.isProto2() == fieldValTyp.isProto3():
-          fieldError T, fieldName, $fieldValTyp & " object requires either {.proto2.} or {.proto3.}"
+        elif fieldValTyp.isProto2().int + fieldValTyp.isProto3().int + fieldValTyp.isProto().int != 1:
+          fieldError T, fieldName, $fieldValTyp & " object requires one of {.proto2.}, {.proto3.} or {.proto.}"
+        elif fieldValTyp.isProto() and fieldValTyp.protoEdition() notin protoEditions:
+          fieldError T, fieldName, $fieldValTyp & " invalid edition; must be one of 2023, 2024, or 2026"
         elif not fieldValTyp.hasCustomPragma(oneof):
           fieldError T, fieldName, $fieldValTyp & " object missing {.oneof.}"
         enumOneofFields(fieldValTyp, kName, kVal, fName, fTyp):
@@ -281,16 +300,27 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
           else:
             verifySerializable(fTyp)
       else:
-        when isProto2 and not T.isRequired(fieldName) and
-            fieldVal isnot PBOption and
-            (fieldVal isnot seq or fieldVal is seq[byte]) and
+        const pbFieldTypesCount =
+          T.isRequired(fieldName).int +
+          (fieldVal is PBOption).int +
+          (fieldVal is seq and fieldVal isnot seq[byte]).int
+        # XXX pbFieldTypesCount != 1 for strictness
+        when isProto2 and pbFieldTypesCount == 0 and
             not isExtension(Protobuf, fieldValTyp):
-          fieldError T, fieldName, "proto2 requires every field to either have the required pragma attached or be a repeated field/PBOption."
+          fieldError T, fieldName, "field must be one of required, PBOption or seq[T: not byte]"
         when isProto3 and (
-          T.hasCustomPragmaFixed(fieldName, required) or
+          T.isRequired(fieldName) or
           fieldVal is PBOption
         ):
-          fieldError T, fieldName, "The required pragma/PBOption type can only be used with proto2."
+          fieldError T, fieldName, "field must not be required or PBOption in proto3"
+        const isEditionFieldTypeValid =
+          when T.isImplicit():
+            pbFieldTypesCount <= 1
+          else:
+            T.isImplicit(fieldName).int + pbFieldTypesCount == 1
+        when isProto and not isEditionFieldTypeValid and
+            not isExtension(Protobuf, fieldValTyp):
+          fieldError T, fieldName, "field must be one of implicit, required, PBExplicit or seq[T: not byte]"
 
         protoType(ProtoType {.used.}, T, fieldValTyp, fieldName) # Ensure we can form a ProtoType
 

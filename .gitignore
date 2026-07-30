@@ -5,3 +5,4 @@ nimbus-build-system.paths
 nimble.develop
 nimble.paths
 nimbledeps/
+conformance
