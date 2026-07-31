@@ -49,6 +49,9 @@ type
     a {.fieldNumber: 1, pint.}: PBExplicit[0'i32]
     c {.fieldNumber: 3, pint, implicit.}: int32
 
+  Explicit {.proto.} = object
+    a {.fieldNumber: 1, pint.}: PBExplicit[1'i32]
+
   AllTypesOpt {.proto, implicit.} = object
     x01 {.fieldNumber: 1.}: string
     x02 {.fieldNumber: 2.}: seq[byte]
@@ -65,6 +68,7 @@ type
     x13 {.fieldNumber: 13.}: float32
     x14 {.fieldNumber: 14.}: float64
     x15 {.fieldNumber: 15.}: MixedOpt
+    x16 {.fieldNumber: 16.}: Explicit
 
 suite "Test proto editions":
   test "all types":
@@ -134,3 +138,8 @@ suite "Test proto editions":
     # echo 'a: [1, 2]' | protoc --encode=NotPacked test_proto_editions.proto | hexdump -ve '1/1 "%.2x"'
     # echo "0a020102" | xxd -r -p | protoc --decode=NotPacked test_proto_editions.proto
     roundtrip(NotPacked(a: @[1'i32, 2]), "08010802")
+
+  test "explicit":
+    roundtrip(Explicit(), "")
+    roundtrip(Explicit(a: PBExplicit[1'i32].pbSome(0'i32)), "0800")
+    roundtrip(Explicit(a: PBExplicit[1'i32].pbSome(1'i32)), "0801")
