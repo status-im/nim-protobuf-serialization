@@ -1,0 +1,16 @@
+# Ignore everything
+*
+
+# But not directories
+!*/
+
+# Keep these file types
+!*.nim
+!*.nims
+!*.cfg
+!*.md
+!*.proto
+!*.proto3
+!*.proto2
+!*.txt
+!*.gitignore
