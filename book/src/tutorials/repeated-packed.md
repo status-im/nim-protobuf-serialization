@@ -12,8 +12,6 @@ In proto3, [`packed`](../apidocs/protobuf_serialization/types.html#packed.t,bool
 {{#shiftinclude auto:../../../examples/repeated_packed.nim:unpacked}}
 ```
 
-Each element gets its own field tag in the encoded output. This is the default behavior for proto2 and for non-scalar types (strings, bytes, and nested messages) in proto3.
-
 ### Example
 
 ```nim
