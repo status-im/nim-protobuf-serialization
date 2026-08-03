@@ -163,18 +163,6 @@ import_proto3 "protocol.proto3"
 import_proto3 "../protos/protocol.proto3"
 ```
 
-## Proto2 Support
-
-For proto2 files, use [`import_proto2`](../apidocs/protobuf_serialization/files/type_generator.html#import_proto2.t%2Cstatic[string]):
-
-```nim
-import protobuf_serialization/proto_parser
-
-import_proto2 "legacy_protocol.proto2"
-```
-
-Note: `import_proto2` is only available when compiling with `-d:ConformanceTest`.
-
 ## Services and RPCs
 
 Services and RPCs are fully parsed from `.proto` files. The library provides a hook mechanism that allows you to generate custom code for services. This is useful for generating RPC client/server stubs.
