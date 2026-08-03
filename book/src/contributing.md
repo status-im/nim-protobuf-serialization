@@ -92,8 +92,6 @@ mdbook serve book
 
 - Follow the [Status Nim Style Guide](https://status-im.github.io/nim-style-guide/)
 - Use `{.push raises: [], gcsafe.}` at the top of modules
-- Keep error handling explicit with `.raises` annotations
-- Add `{.inline.}` to small, frequently-called functions
 
 ## Adding Tests
 
