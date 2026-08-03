@@ -36,43 +36,7 @@ assert decoded.contact.kind == ContactKind.notSet
 Oneof fields can have different types:
 
 ```nim
-type
-  ValueKind {.pure.} = enum
-    notSet
-    intValue
-    stringValue
-    boolValue
-
-  Value {.proto3, oneof.} = object
-    case kind: ValueKind
-    of ValueKind.notSet:
-      discard
-    of ValueKind.intValue:
-      intValue {.fieldNumber: 1, sint.}: int32
-    of ValueKind.stringValue:
-      stringValue {.fieldNumber: 2.}: string
-    of ValueKind.boolValue:
-      boolValue {.fieldNumber: 3.}: bool
-
-  Config {.proto3.} = object
-    key {.fieldNumber: 1.}: string
-    value {.oneof.}: Value
-
-# Usage
-let config1 = Config(
-  key: "timeout",
-  value: Value(kind: ValueKind.intValue, intValue: 30)
-)
-
-let config2 = Config(
-  key: "name",
-  value: Value(kind: ValueKind.stringValue, stringValue: "Alice")
-)
-
-let config3 = Config(
-  key: "enabled",
-  value: Value(kind: ValueKind.boolValue, boolValue: true)
-)
+{{#shiftinclude auto:../../../examples/oneof_different_types.nim:all}}
 ```
 
 ## Oneof with Nested Messages
@@ -80,40 +44,7 @@ let config3 = Config(
 Oneof fields can contain nested message types:
 
 ```nim
-type
-  Error {.proto3.} = object
-    code {.fieldNumber: 1.}: int32
-    message {.fieldNumber: 2.}: string
-
-  Success {.proto3.} = object
-    data {.fieldNumber: 1.}: string
-
-  ResultKind {.pure.} = enum
-    notSet
-    success
-    error
-
-  Result {.proto3, oneof.} = object
-    case kind: ResultKind
-    of ResultKind.notSet:
-      discard
-    of ResultKind.success:
-      success {.fieldNumber: 1.}: Success
-    of ResultKind.error:
-      error {.fieldNumber: 2.}: Error
-
-  Response {.proto3.} = object
-    id {.fieldNumber: 1.}: string
-    result {.oneof.}: Result
-
-# Usage
-let response = Response(
-  id: "req-123",
-  result: Result(
-    kind: ResultKind.success,
-    success: Success(data: "Operation completed")
-  )
-)
+{{#shiftinclude auto:../../../examples/oneof_nested.nim:all}}
 ```
 
 ## Handling Unknown Fields
