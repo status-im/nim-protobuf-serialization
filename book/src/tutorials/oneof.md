@@ -47,18 +47,6 @@ Oneof fields can contain nested message types:
 {{#shiftinclude auto:../../../examples/oneof_nested.nim:all}}
 ```
 
-## Handling Unknown Fields
-
-When decoding, if a field number doesn't match any known oneof field, it's ignored:
-
-```nim
-# If the encoded data contains a field number that's not in the oneof,
-# the oneof remains in its default state
-let encoded = Protobuf.encode(person)
-let decoded = Protobuf.decode(encoded, Person)
-# Unknown fields are silently ignored
-```
-
 ## Next Steps
 
 - Learn about [optional fields](./optional-fields.md) with `PBOption`
