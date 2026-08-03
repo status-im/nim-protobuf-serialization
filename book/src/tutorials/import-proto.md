@@ -1,6 +1,6 @@
 # Importing .proto Files
 
-Instead of manually annotating Nim types, you can generate them directly from `.proto` files using the [`import_proto3`](../apidocs/protobuf_serialization/type_generator.html#import_proto3.t%2Cstatic%5Bstring%5D) template.
+Instead of manually annotating Nim types, you can generate them directly from `.proto` files using the [`import_proto3`](../apidocs/protobuf_serialization/files/type_generator.html#import_proto3.t%2Cstatic[string]) template.
 
 ## Basic Usage
 
@@ -165,7 +165,7 @@ import_proto3 "../protos/protocol.proto3"
 
 ## Proto2 Support
 
-For proto2 files, use [`import_proto2`](../apidocs/protobuf_serialization/type_generator.html#import_proto2.t%2Cstatic%5Bstring%5D):
+For proto2 files, use [`import_proto2`](../apidocs/protobuf_serialization/files/type_generator.html#import_proto2.t%2Cstatic[string]):
 
 ```nim
 import protobuf_serialization/proto_parser
