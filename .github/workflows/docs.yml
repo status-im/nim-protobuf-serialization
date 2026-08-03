@@ -28,6 +28,9 @@ jobs:
       - name: Compile and run examples
         run: nimble examples
 
+      - name: Run conformance tests
+        run: nimble conformance_test
+
   docs:
     needs: examples
     uses: status-im/nimbus-common-workflow/.github/workflows/docs.yml@main
