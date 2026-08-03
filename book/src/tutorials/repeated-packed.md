@@ -4,7 +4,9 @@ Protobuf supports repeated fields (arrays/lists) with two encoding modes: unpack
 
 ## Repeated Fields (Unpacked)
 
-By default, repeated fields are encoded as separate entries for each element:
+In proto2, repeated fields are encoded as separate entries for each element.
+
+In proto3, [`packed`](../apidocs/protobuf_serialization/types.html#packed.t,bool) pragma with `false` value is used to mark fields as unpacked:
 
 ```nim
 {{#shiftinclude auto:../../../examples/repeated_packed.nim:unpacked}}
@@ -26,7 +28,7 @@ Each value has its own field tag (`08` for field 1, wire type 0 = varint).
 
 ## Packed Fields
 
-Packed encoding is more efficient for scalar numeric types. All elements are encoded as a single length-delimited field. Use the [`packed`](../apidocs/protobuf_serialization/types.html#packed.t,bool) pragma to enable it:
+Packed encoding is more efficient for scalar numeric types. All elements are encoded as a single length-delimited field. Use the [`packed`](../apidocs/protobuf_serialization/types.html#packed.t,bool) pragma with `true` value to enable it:
 
 ```nim
 {{#shiftinclude auto:../../../examples/repeated_packed.nim:packed}}
