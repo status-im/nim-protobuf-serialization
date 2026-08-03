@@ -106,9 +106,10 @@ proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].
   mixin supportsPacked, writeFieldPacked
 
   const
-    isProto2: bool = T.isProto2()
-    isProto3: bool = T.isProto3()
-  static: doAssert isProto2 xor isProto3
+    isProto2 = T.isProto2()
+    isProto3 = T.isProto3()
+    isProto = T.isProto()
+  static: doAssert isProto2.int + isProto3.int + isProto.int == 1
 
   enumInstanceSerializedFields(value, fieldName, fieldVal):
     when T.isOneof(fieldName):
@@ -119,7 +120,7 @@ proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].
     else:
       const
         fieldNum = T.fieldNumberOf(fieldName)
-        isPacked = T.isPacked(fieldName).get(isProto3)
+        isPacked = T.isPacked(fieldName).get(isProto3 or isProto)
       protoType(ProtoType, T, typeof(fieldVal), fieldName)
       when isPacked and supportsPacked(typeof(fieldVal), ProtoType):
         stream.writeFieldPacked(fieldNum, fieldVal, ProtoType)
@@ -127,7 +128,8 @@ proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].
         if not fieldVal.isNil():
           stream.writeField(fieldNum, fieldVal[], ProtoType)
       else:
-        stream.writeField(fieldNum, fieldVal, ProtoType, isProto3)
+        const isRequired = T.isRequired(fieldName)
+        stream.writeField(fieldNum, fieldVal, ProtoType, not isRequired)
 
 proc writeValue*[T: object](writer: ProtobufWriter, value: T) {.raises: [IOError].} =
   static: verifySerializable(T)

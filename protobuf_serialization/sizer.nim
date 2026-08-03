@@ -120,10 +120,10 @@ func computeObjectSize*[T: object](value: T): int =
   mixin supportsPacked, computeFieldSizePacked, computeFieldSize
 
   const
-    isProto2: bool = T.isProto2()
-    isProto3: bool = T.isProto3()
-  static:
-    doAssert isProto2 xor isProto3
+    isProto2 = T.isProto2()
+    isProto3 = T.isProto3()
+    isProto = T.isProto()
+  static: doAssert isProto2.int + isProto3.int + isProto.int == 1
 
   var total = 0
   enumInstanceSerializedFields(value, fieldName, fieldVal):
@@ -136,13 +136,14 @@ func computeObjectSize*[T: object](value: T): int =
     else:
       const
         fieldNum = T.fieldNumberOf(fieldName)
-        isPacked = T.isPacked(fieldName).get(isProto3)
+        isPacked = T.isPacked(fieldName).get(isProto3 or isProto)
       protoType(ProtoType, T, typeof(fieldVal), fieldName)
       fieldSize =
         when isPacked and supportsPacked(typeof(fieldVal), ProtoType):
           computeFieldSizePacked(fieldNum, fieldVal, ProtoType)
         else:
-          computeFieldSize(fieldNum, fieldVal, ProtoType, isProto3)
+          const isRequired = T.isRequired(fieldName)
+          computeFieldSize(fieldNum, fieldVal, ProtoType, not isRequired)
 
     total += fieldSize
 

@@ -15,12 +15,12 @@ proc roundtrip*[W, R](toWrite: W, value: R, expected: string) =
   let encoded = Protobuf.encode(toWrite)
   check:
     encoded.len == Protobuf.computeSize(toWrite)
-    encoded == hexToSeqByte expected
+    encoded.toHex == expected
     Protobuf.decode(encoded, R) == value
 
 proc roundtrip*[R](value: R, expected: string) =
   let encoded = Protobuf.encode(value)
   check:
     encoded.len == Protobuf.computeSize(value)
-    encoded == hexToSeqByte expected
+    encoded.toHex == expected
     Protobuf.decode(encoded, R) == value

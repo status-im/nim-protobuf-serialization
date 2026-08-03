@@ -6,3 +6,4 @@ nimble.develop
 nimble.paths
 nimbledeps/
 docs/
+conformance

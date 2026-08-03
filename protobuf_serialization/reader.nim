@@ -152,9 +152,9 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
   mixin supportsPacked, readFieldPackedInto
 
   const
-    isProto2: bool = T.isProto2()
+    hasRequired = T.isProto2() or T.isProto()
 
-  when isProto2:
+  when hasRequired:
     var requiredSets: HashSet[int]
     if not silent:
       var i: int = -1
@@ -209,7 +209,7 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
             else:
               stream.readFieldInto(fieldVal, header, ProtoType)
 
-          when isProto2:
+          when hasRequired:
             if not silent and knownField: requiredSets.excl i
 
     if not knownField and pos == stream.pos():
@@ -219,7 +219,7 @@ proc readValueInternal[T: object](stream: InputStream, value: var T, silent: boo
       of WireKind.LengthDelim: stream.skipValue(pbytes)
       of WireKind.Fixed32: stream.skipValue(fixed32)
 
-  when isProto2:
+  when hasRequired:
     if (requiredSets.len != 0):
       raise newException(
         ProtobufReadError,

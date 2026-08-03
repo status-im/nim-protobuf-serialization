@@ -42,6 +42,8 @@ type
     some: bool
     value: typeof(defaultValue)
 
+  PBExplicit* = PBOption
+
   ProtobufExt*[FieldType; RootType; fieldName: static string] = object
     ## Type marker for protobuf extension types. Used internally for type extensions.
 
@@ -53,6 +55,11 @@ template proto2*() {.pragma.}
 template proto3*() {.pragma.}
   ## Pragma to mark a type as using Protocol Buffers version 3 syntax.
   ## Proto3 has implicit default values and no required keyword.
+
+template proto*(edition = 2023) {.pragma.}
+
+# Message and Field annotations
+template implicit*() {.pragma.}
 
 # Field annotations
 template fieldNumber*(num: int) {.pragma.}

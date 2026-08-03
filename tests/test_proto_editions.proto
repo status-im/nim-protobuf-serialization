@@ -1,0 +1,22 @@
+edition = "2024";
+
+// requires libprotoc +27
+// explicit == optional in editions
+
+// in proto editions explicit is the default
+// this sets the default to implicit
+option features.field_presence = IMPLICIT;
+
+message Mixed {
+  int32 a = 1 [features.field_presence = EXPLICIT];
+  int32 b = 2 [features.field_presence = LEGACY_REQUIRED];
+  int32 c = 3;
+}
+
+message Packed {
+  repeated int32 a = 1;
+}
+
+message NotPacked {
+  repeated int32 a = 1 [features.repeated_field_encoding=EXPANDED];
+}

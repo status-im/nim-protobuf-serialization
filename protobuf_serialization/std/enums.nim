@@ -48,7 +48,10 @@ Protobuf.extensionDefaults(enum, pint32, defaultSeq = true)
 
 func validateEnumType(T: type enum, ProtoType: type ProtobufExt) =
   bind contains
-  when 0 notin T and ProtoType.RootType.isProto3():
+  const
+    isProto3 = ProtoType.RootType.isProto3()
+    isProto = ProtoType.RootType.isProto()
+  when 0 notin T and (isProto3 or isProto):
     {.fatal: $T & " definition must contain a constant that maps to zero".}
 
 func computeFieldSize*(

@@ -50,6 +50,18 @@ type
   Proto3Int32ExtOneOf {.proto3.} = object
     one {.oneof.}: OneOf
 
+  ProtoEditionInt32ExtOpt {.proto.} = object
+    a {.fieldNumber: 1, ext.}: Opt[Int32Ext]
+
+  ProtoEditionInt32ExtPBOpt {.proto.} = object
+    a {.fieldNumber: 1, ext.}: PBExplicit[default(Int32Ext)]
+
+  ProtoEditionInt32ExtReq {.proto.} = object
+    a {.fieldNumber: 1, required, ext.}: Int32Ext
+
+  ProtoEditionInt32ExtSeq {.proto.} = object
+    a {.fieldNumber: 1, ext, packed: false.}: seq[Int32Ext]
+
 Protobuf.extensionDefaults(Int32Ext, pint32, defaultSeq = true)
 
 func computeFieldSize(
@@ -141,6 +153,27 @@ suite "Test Int32Ext":
       ret.one.kind == OneOfKind.x
       ret.one.x == Int32Ext(x: 1'i32)
       Protobuf.encode(ret) == encoded
+
+  test "proto editions opt Int32Ext":
+    roundtrip(ProtoEditionInt32ExtOpt(a: Opt.some(Int32Ext(x: 1'i32))), "0801")
+    roundtrip(ProtoEditionInt32ExtOpt(a: Opt.some(Int32Ext(x: 0'i32))), "0800")
+    roundtrip(ProtoEditionInt32ExtOpt(a: Opt.none(Int32Ext)), "")
+
+  test "proto editions optional Int32Ext":
+    roundtrip(ProtoEditionInt32ExtPBOpt(a: pbSome(Int32Ext(x: 1'i32))), "0801")
+    roundtrip(ProtoEditionInt32ExtPBOpt(a: pbSome(Int32Ext(x: 0'i32))), "0800")
+    roundtrip(ProtoEditionInt32ExtPBOpt(a: pbNone(default(Int32Ext))), "")
+
+  test "proto editions required Int32Ext":
+    roundtrip(ProtoEditionInt32ExtReq(a: Int32Ext(x: 1'i32)), "0801")
+    roundtrip(ProtoEditionInt32ExtReq(a: Int32Ext(x: 0'i32)), "0800")
+    roundtrip(default(ProtoEditionInt32ExtReq), "0800")
+
+  test "proto editions repeated Int32Ext":
+    roundtrip(ProtoEditionInt32ExtSeq(a: @[Int32Ext(x: 1'i32)]), "0801")
+    roundtrip(ProtoEditionInt32ExtSeq(a: @[Int32Ext(x: 0'i32)]), "0800")
+    roundtrip(default(ProtoEditionInt32ExtSeq), "")
+    roundtrip(ProtoEditionInt32ExtSeq(a: @[Int32Ext(x: 1'i32), Int32Ext(x: 0'i32)]), "08010800")
 
 type
   StringExt2 = object
