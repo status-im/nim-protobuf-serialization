@@ -1,6 +1,6 @@
 # Importing .proto Files
 
-Instead of manually annotating Nim types, you can generate them directly from `.proto` files using the `import_proto3` macro.
+Instead of manually annotating Nim types, you can generate them directly from `.proto` files using the [`import_proto3`](../apidocs/protobuf_serialization/type_generator.html#import_proto3.t%2Cstatic%5Bstring%5D) template.
 
 ## Basic Usage
 
@@ -11,7 +11,7 @@ import protobuf_serialization/proto_parser
 import_proto3 "my_protocol.proto3"
 ```
 
-This macro reads the `.proto` file at compile time and generates equivalent Nim types.
+This template reads the `.proto` file at compile time and generates equivalent Nim types.
 
 ## Example .proto File
 
@@ -165,7 +165,7 @@ import_proto3 "../protos/protocol.proto3"
 
 ## Proto2 Support
 
-For proto2 files, use `import_proto2`:
+For proto2 files, use [`import_proto2`](../apidocs/protobuf_serialization/type_generator.html#import_proto2.t%2Cstatic%5Bstring%5D):
 
 ```nim
 import protobuf_serialization/proto_parser
@@ -175,14 +175,22 @@ import_proto2 "legacy_protocol.proto2"
 
 Note: `import_proto2` is only available when compiling with `-d:ConformanceTest`.
 
-## Limitations
+## Services and RPCs
 
-The parser supports most proto3 features, but some advanced features may not be fully supported:
+Services and RPCs are fully parsed from `.proto` files. The library provides a hook mechanism that allows you to generate custom code for services. This is useful for generating RPC client/server stubs.
 
-- Services and RPCs (parsed but not fully generated)
+The `import_proto3` template accepts an optional `protoHook` parameter that receives the parsed proto definitions and can generate additional Nim code. See the test suite for an example of generating service proc definitions and path constants: [tests/test_proto_file.nim](https://github.com/status-im/nim-protobuf-serialization/blob/master/tests/test_proto_file.nim).
+
+For a real-world example of using this hook to generate gRPC client/server code, see [nim-grpc](https://github.com/nitely/nim-grpc/blob/e97aac4310ad18f852fbfffc32334b680c8c296d/src/grpc/protobuf.nim).
+
+## Maps
+
+Maps are supported and are mapped to repeated fields rather than Nim `Table` types. This is because protobuf spec allows repeated keys, which `Table` doesn't support. In the future, there may be a way to provide custom type mappings (proto-type → nim-type), but this requires a more general solution for any type.
+
+## Other Limitations
+
 - Custom options
 - Extensions (proto2 feature)
-- Maps (use repeated fields instead)
 
 ## Next Steps
 
