@@ -28,9 +28,6 @@ jobs:
       - name: Install dependencies
         run: nimble setup -y
 
-      - name: Compile and run examples
-        run: nimble examples
-
   docs:
     needs: examples
     uses: status-im/nimbus-common-workflow/.github/workflows/docs.yml@main

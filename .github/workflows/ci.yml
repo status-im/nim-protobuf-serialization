@@ -21,3 +21,4 @@ jobs:
         nimble setup
         env NIMLANG="c" nimble test
         env NIMLANG="cpp" nimble test
+        nimble examples
