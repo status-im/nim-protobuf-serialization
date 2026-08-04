@@ -7,10 +7,7 @@ In protobuf, distinguishing between "field not set" and "field set to default va
 In proto3, fields have implicit default values:
 
 ```nim
-type
-  Message {.proto3.} = object
-    count {.fieldNumber: 1.}: int32  # Defaults to 0
-    text {.fieldNumber: 2.}: string  # Defaults to ""
+{{#shiftinclude auto:../../../examples/optional_fields.nim:proto3_default_problem}}
 ```
 
 When you decode a message, you can't tell if `count` was explicitly set to `0` or just not set at all.
@@ -20,21 +17,15 @@ When you decode a message, you can't tell if `count` was explicitly set to `0` o
 For proto3, the recommended approach is to use `Opt[T]` from the [results](https://github.com/arnetheduck/nim-results) library (re-exported via `protobuf_serialization/pkg/results`). This wraps a value to make it explicitly optional:
 
 ```nim
-{{#shiftinclude auto:../../../examples/optional_fields_opt.nim:type}}
+{{#shiftinclude auto:../../../examples/optional_fields.nim:proto3_opt_type}}
 ```
 
 ### Creating Optional Values
 
-Use `Opt.ok()` to create a value that is present:
+Use `Opt.some()` to create a value that is present, and `Opt.none()` to create a value that is absent:
 
 ```nim
-{{#shiftinclude auto:../../../examples/optional_fields_opt.nim:create_ok}}
-```
-
-Use `Opt.err()` to create a value that is absent:
-
-```nim
-{{#shiftinclude auto:../../../examples/optional_fields_opt.nim:create_err}}
+{{#shiftinclude auto:../../../examples/optional_fields.nim:proto3_opt_create}}
 ```
 
 ### Checking if a Value is Present
@@ -42,7 +33,7 @@ Use `Opt.err()` to create a value that is absent:
 Use `isSome()` and `isNone()` to check presence:
 
 ```nim
-{{#shiftinclude auto:../../../examples/optional_fields_opt.nim:check}}
+{{#shiftinclude auto:../../../examples/optional_fields.nim:proto3_opt_check}}
 ```
 
 ### Getting the Value
@@ -50,50 +41,44 @@ Use `isSome()` and `isNone()` to check presence:
 Use `get()` to retrieve the value:
 
 ```nim
-{{#shiftinclude auto:../../../examples/optional_fields_opt.nim:get}}
+{{#shiftinclude auto:../../../examples/optional_fields.nim:proto3_opt_get}}
 ```
 
 Use `valueOr()` to provide a default:
 
 ```nim
-{{#shiftinclude auto:../../../examples/optional_fields_opt.nim:valueor}}
+{{#shiftinclude auto:../../../examples/optional_fields.nim:proto3_opt_valueor}}
 ```
 
 ## Using PBOption (Proto2)
 
 For proto2, use [`PBOption`](../apidocs/protobuf_serialization/types.html#PBOption) to make fields explicitly optional:
 
-{{#shiftinclude auto:../../../examples/optional_fields.nim:type}}
+```nim
+{{#shiftinclude auto:../../../examples/optional_fields.nim:proto2_pboption_type}}
+```
 
 ### Creating Optional Values
 
-Use `pbSome()` to create a value that is present:
+Use `pbSome()` to create a value that is present, and `pbNone()` to create a value that is absent:
 
-{{#shiftinclude auto:../../../examples/optional_fields.nim:create_some}}
+```nim
+{{#shiftinclude auto:../../../examples/optional_fields.nim:proto2_pboption_create}}
+```
 
-Use `pbNone()` to create a value that is absent:
+### Encoding and Decoding
 
-{{#shiftinclude auto:../../../examples/optional_fields.nim:create_none}}
-
-### Checking if a Value is Present
-
-Use `isSome` and `isNone` to check presence:
-
-{{#shiftinclude auto:../../../examples/optional_fields.nim:check}}
+```nim
+{{#shiftinclude auto:../../../examples/optional_fields.nim:proto2_pboption_encode_decode}}
+```
 
 ### Getting the Value
 
-Use `get` to retrieve the value:
+Use `get` to retrieve the value, and `valueOr` to provide a default:
 
-{{#shiftinclude auto:../../../examples/optional_fields.nim:get}}
-
-Use `valueOr` to provide a default:
-
-{{#shiftinclude auto:../../../examples/optional_fields.nim:valueor}}
-
-## Complete Example
-
-{{#shiftinclude auto:../../../examples/optional_fields.nim:usage}}
+```nim
+{{#shiftinclude auto:../../../examples/optional_fields.nim:proto2_pboption_valueor}}
+```
 
 ## When to Use Each Approach
 
