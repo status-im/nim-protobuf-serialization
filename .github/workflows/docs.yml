@@ -25,6 +25,9 @@ jobs:
         with:
           nim-version: 'stable'
 
+      - name: Update Nimble
+        run: nimble install -g nimble
+
       - name: Install dependencies
         run: nimble setup -y
 
