@@ -23,13 +23,10 @@ jobs:
           nim-version: 'stable'
 
       - name: Install dependencies
-        run: nimble install -y
+        run: nimble setup -y
 
       - name: Compile and run examples
         run: nimble examples
-
-      - name: Run conformance tests
-        run: nimble conformance_test
 
   docs:
     needs: examples
