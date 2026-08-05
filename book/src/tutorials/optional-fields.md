@@ -12,7 +12,7 @@ In proto3, fields have implicit default values:
 
 When you decode a message, you can't tell if `count` was explicitly set to `0` or just not set at all.
 
-## Using Opt[T] (Proto3)
+## Using Opt[T] (Proto3 or Proto2)
 
 For proto3, the recommended approach is to use `Opt[T]` from the [results](https://github.com/arnetheduck/nim-results) library (re-exported via `protobuf_serialization/pkg/results`). This wraps a value to make it explicitly optional:
 
