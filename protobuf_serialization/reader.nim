@@ -119,9 +119,8 @@ proc readFieldInto*(
     else:
       false
 
-template readFieldPackedIntoIt*[T: not byte](
+template readFieldPackedIntoIt*(
   stream: InputStream,
-  value: var seq[T],
   header: FieldHeader,
   ProtoType: type SomePrimitive,
   body: untyped
@@ -138,6 +137,15 @@ template readFieldPackedIntoIt*[T: not byte](
     doAssert r
     body
   true
+
+template readFieldPackedIntoIt*[T: not byte](
+  stream: InputStream,
+  value: var seq[T],
+  header: FieldHeader,
+  ProtoType: type SomePrimitive,
+  body: untyped
+): bool {.deprecated: "use readFieldPackedIntoIt without the value param".} =
+  readFieldPackedIntoIt(stream, header, ProtoType, body)
 
 proc readFieldPackedInto*[T: not byte](
   stream: InputStream,
