@@ -26,7 +26,7 @@ Each value has its own field tag (`08` for field 1, wire type 0 = varint).
 
 ## Packed Fields
 
-Packed encoding is more efficient for scalar numeric types. All elements are encoded as a single length-delimited field. Use the [`packed`](../apidocs/protobuf_serialization/types.html#packed.t,bool) pragma with `true` value to enable it:
+Packed encoding is more efficient for scalar numeric types. All elements are encoded as a single length-delimited field. Use the [`packed`](../apidocs/protobuf_serialization/types.html#packed.t,bool) pragma with `true` value to enable it in `proto2`:
 
 ```nim
 {{#shiftinclude auto:../../../examples/repeated_packed.nim:packed}}
