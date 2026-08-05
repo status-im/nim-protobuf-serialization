@@ -34,6 +34,9 @@ type
     a {.fieldNumber: 1, ext.}: Int32Ext
 
   Proto3Int32ExtSeq {.proto3.} = object
+    a {.fieldNumber: 1, ext.}: seq[Int32Ext]
+
+  Proto3Int32ExtSeqUnpacked {.proto3.} = object
     a {.fieldNumber: 1, ext, packed: false.}: seq[Int32Ext]
 
   OneOfKind {.pure.} = enum
@@ -60,6 +63,9 @@ type
     a {.fieldNumber: 1, required, ext.}: Int32Ext
 
   ProtoEditionInt32ExtSeq {.proto.} = object
+    a {.fieldNumber: 1, ext.}: seq[Int32Ext]
+
+  ProtoEditionInt32ExtSeqUnpacked {.proto.} = object
     a {.fieldNumber: 1, ext, packed: false.}: seq[Int32Ext]
 
 Protobuf.extensionDefaults(Int32Ext, pint32, defaultSeq = true)
@@ -142,10 +148,16 @@ suite "Test Int32Ext":
     roundtrip(default(Proto3Int32Ext), "")
 
   test "proto3 repeated Int32Ext":
-    roundtrip(Proto3Int32ExtSeq(a: @[Int32Ext(x: 1'i32)]), "0801")
-    roundtrip(Proto3Int32ExtSeq(a: @[Int32Ext(x: 0'i32)]), "0800")
+    roundtrip(Proto3Int32ExtSeq(a: @[Int32Ext(x: 1'i32)]), "0a0101")
+    roundtrip(Proto3Int32ExtSeq(a: @[Int32Ext(x: 0'i32)]), "0a0100")
     roundtrip(default(Proto3Int32ExtSeq), "")
-    roundtrip(Proto3Int32ExtSeq(a: @[Int32Ext(x: 1'i32), Int32Ext(x: 0'i32)]), "08010800")
+    roundtrip(Proto3Int32ExtSeq(a: @[Int32Ext(x: 1'i32), Int32Ext(x: 0'i32)]), "0a020100")
+
+  test "proto3 repeated Int32Ext unpacked":
+    roundtrip(Proto3Int32ExtSeqUnpacked(a: @[Int32Ext(x: 1'i32)]), "0801")
+    roundtrip(Proto3Int32ExtSeqUnpacked(a: @[Int32Ext(x: 0'i32)]), "0800")
+    roundtrip(default(Proto3Int32ExtSeqUnpacked), "")
+    roundtrip(Proto3Int32ExtSeqUnpacked(a: @[Int32Ext(x: 1'i32), Int32Ext(x: 0'i32)]), "08010800")
 
   test "proto3 oneof Int32Ext":
     let encoded = "0801".hexToSeqByte
@@ -171,10 +183,16 @@ suite "Test Int32Ext":
     roundtrip(default(ProtoEditionInt32ExtReq), "0800")
 
   test "proto editions repeated Int32Ext":
-    roundtrip(ProtoEditionInt32ExtSeq(a: @[Int32Ext(x: 1'i32)]), "0801")
-    roundtrip(ProtoEditionInt32ExtSeq(a: @[Int32Ext(x: 0'i32)]), "0800")
+    roundtrip(ProtoEditionInt32ExtSeq(a: @[Int32Ext(x: 1'i32)]), "0a0101")
+    roundtrip(ProtoEditionInt32ExtSeq(a: @[Int32Ext(x: 0'i32)]), "0a0100")
     roundtrip(default(ProtoEditionInt32ExtSeq), "")
-    roundtrip(ProtoEditionInt32ExtSeq(a: @[Int32Ext(x: 1'i32), Int32Ext(x: 0'i32)]), "08010800")
+    roundtrip(ProtoEditionInt32ExtSeq(a: @[Int32Ext(x: 1'i32), Int32Ext(x: 0'i32)]), "0a020100")
+
+  test "proto editions repeated Int32Ext unpacked":
+    roundtrip(ProtoEditionInt32ExtSeqUnpacked(a: @[Int32Ext(x: 1'i32)]), "0801")
+    roundtrip(ProtoEditionInt32ExtSeqUnpacked(a: @[Int32Ext(x: 0'i32)]), "0800")
+    roundtrip(default(ProtoEditionInt32ExtSeqUnpacked), "")
+    roundtrip(ProtoEditionInt32ExtSeqUnpacked(a: @[Int32Ext(x: 1'i32), Int32Ext(x: 0'i32)]), "08010800")
 
 type
   StringExt2 = object
