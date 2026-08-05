@@ -11,7 +11,7 @@ type
 
 # ANCHOR: packed
 type
-  PackedNumbers {.proto3.} = object
+  PackedNumbers {.proto2.} = object
     values {.fieldNumber: 1, sint, packed: true.}: seq[int32]
     flags {.fieldNumber: 2, packed: true.}: seq[bool]
     scores {.fieldNumber: 3, fixed, packed: true.}: seq[int32]
