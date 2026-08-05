@@ -90,6 +90,7 @@ Use `get` to retrieve the value, and `valueOr` to provide a default:
 **Use `PBOption` when:**
 - Working with proto2
 - You need to distinguish "not set" from "set to default"
+- You need to set a default value other than `default(T)`
 
 **Don't use either when:**
 - Default values are acceptable
