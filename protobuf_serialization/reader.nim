@@ -153,7 +153,7 @@ proc readFieldPackedInto*[T: not byte](
   header: FieldHeader,
   ProtoType: type SomePrimitive
 ): bool {.raises: [SerializationError, IOError].} =
-  readFieldPackedIntoIt(stream, value, header, ProtoType):
+  readFieldPackedIntoIt(stream, header, ProtoType):
     value.add it
 
 proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false) {.raises: [SerializationError, IOError].} =

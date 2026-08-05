@@ -110,6 +110,7 @@ proc readFieldPackedInto(
   header: FieldHeader,
   ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
+  # XXX Remove the value param once the deprecated readFieldPackedIntoIt is removed
   readFieldPackedIntoIt(stream, value, header, pint32):
     value.add Int32Ext(x: it)
 
