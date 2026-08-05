@@ -1,6 +1,6 @@
 # Optional Fields
 
-In protobuf, distinguishing between "field not set" and "field set to default value" can be important. This library provides two ways to handle optional fields: `Opt[T]` for proto3 and `PBOption` for proto2.
+In protobuf, distinguishing between "field not set" and "field set to default value" can be important. This library provides two ways to handle optional fields: `Opt[T]` for proto3/proto2 and `PBOption` for proto2.
 
 ## The Problem with Default Values
 
