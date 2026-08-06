@@ -8,7 +8,6 @@
   - [API Index →](./apidocs/protobuf_serialization/theindex.html)
   - [protobuf_serialization](./apidocs/protobuf_serialization.html)
   - [proto_parser](./apidocs/protobuf_serialization/proto_parser.html)
-  - [std/enums](./apidocs/protobuf_serialization/std/enums.html)
 
 - [Issues →](https://github.com/status-in/nim-protobuf-serialization/issues)
 - [Contributor's Guide →](./contributing.html)
