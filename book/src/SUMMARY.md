@@ -11,12 +11,6 @@
 - [Importing .proto Files](./tutorials/import-proto.md)
 - [Type Extensions](./tutorials/type-extensions.md)
 
-# API Reference
-
-- [API Index](../apidocs/protobuf_serialization/theindex.html)
-- [protobuf_serialization](../apidocs/protobuf_serialization.html)
-- [proto_parser](../apidocs/protobuf_serialization/proto_parser.html)
-
 # Contributor's Guide
 
 - [Contributing](./contributing.md)
