@@ -93,9 +93,11 @@ task examples, "Compile and run all examples":
 
 task book, "Generate book":
   exec "mdbook build book -d ../docs"
+
 task apidocs, "Generate API docs":
   exec "nim doc --project --outdir:docs/apidocs --index:on --git.url:https://github.com/status-im/nim-protobuf-serialization --git.commit:master protobuf_serialization.nim"
   exec "nim doc --project --outdir:docs/apidocs/protobuf_serialization --index:on --git.url:https://github.com/status-im/nim-protobuf-serialization --git.commit:master protobuf_serialization/proto_parser.nim"
+  exec "nim doc --project --outdir:docs/apidocs/protobuf_serialization/std --index:on --git.url:https://github.com/status-im/nim-protobuf-serialization --git.commit:master protobuf_serialization/std/enums.nim"
   exec "nim buildIndex -o:docs/apidocs/protobuf_serialization/theindex.html docs/apidocs/protobuf_serialization"
 
 task docs, "Generate docs":
