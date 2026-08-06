@@ -119,9 +119,8 @@ proc readFieldInto*(
     else:
       false
 
-template readFieldPackedIntoIt*[T: not byte](
+template readFieldPackedIntoIt*(
   stream: InputStream,
-  value: var seq[T],
   header: FieldHeader,
   ProtoType: type SomePrimitive,
   body: untyped
@@ -139,13 +138,22 @@ template readFieldPackedIntoIt*[T: not byte](
     body
   true
 
+template readFieldPackedIntoIt*[T: not byte](
+  stream: InputStream,
+  value: var seq[T],
+  header: FieldHeader,
+  ProtoType: type SomePrimitive,
+  body: untyped
+): bool {.deprecated: "use readFieldPackedIntoIt without the value param".} =
+  readFieldPackedIntoIt(stream, header, ProtoType, body)
+
 proc readFieldPackedInto*[T: not byte](
   stream: InputStream,
   value: var seq[T],
   header: FieldHeader,
   ProtoType: type SomePrimitive
 ): bool {.raises: [SerializationError, IOError].} =
-  readFieldPackedIntoIt(stream, value, header, ProtoType):
+  readFieldPackedIntoIt(stream, header, ProtoType):
     value.add it
 
 proc readValueInternal[T: object](stream: InputStream, value: var T, silent: bool = false) {.raises: [SerializationError, IOError].} =
