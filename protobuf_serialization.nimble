@@ -76,3 +76,29 @@ task conformance_test, "Run conformance tests":
   withDir test:
     exec "nim c -d:ConformanceTest conformance_nim.nim"
     exec "./conformance_test_runner --enforce_recommended --failure_list failure_list.txt conformance_nim"
+
+task examples, "Compile and run all examples":
+  echo "\r\n\x1B[0;94m[Suite]\x1B[0;37m Examples"
+  for path in listFiles(thisDir() / "examples"):
+    if path.splitFile().ext != ".nim":
+      continue
+    let filename = path.splitFile().name
+    echo "  Running: ", filename
+    try:
+      run("", path)
+      echo "  \x1B[0;92m[OK]\x1B[0;37m ", filename
+    except:
+      echo "  \x1B[0;31m[FAILED]\x1B[0;37m ", filename
+      exec "exit 1"
+
+task book, "Generate book":
+  exec "mdbook build book -d ../docs"
+
+task apidocs, "Generate API docs":
+  exec "nim doc --project --outdir:docs/apidocs --index:on --git.url:https://github.com/status-im/nim-protobuf-serialization --git.commit:master protobuf_serialization.nim"
+  exec "nim doc --project --outdir:docs/apidocs/protobuf_serialization --index:on --git.url:https://github.com/status-im/nim-protobuf-serialization --git.commit:master protobuf_serialization/proto_parser.nim"
+  exec "nim buildIndex -o:docs/apidocs/protobuf_serialization/theindex.html docs/apidocs/protobuf_serialization"
+
+task docs, "Generate docs":
+  exec "nimble book"
+  exec "nimble apidocs"

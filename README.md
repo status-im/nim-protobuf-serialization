@@ -7,115 +7,48 @@
 
 Protobuf implementation compatible with the [nim-serialization](https://github.com/status-im/nim-serialization) framework.
 
-## Usage
+## Documentation
 
-Messages in protobuf are serialized according to a schema found in `.proto` files. The library requires that types are annotated with schema information - this can be done either directly in Nim or, for some `proto3` files, generated using the `import_proto3` macro.
+- [Quickstart Guide](https://status-im.github.io/nim-protobuf-serialization/quickstart.html)
+- [API Reference](https://status-im.github.io/nim-protobuf-serialization/apidocs/theindex.html)
+- [Contributor's Guide](https://status-im.github.io/nim-protobuf-serialization/contributing.html)
+- [Report Issues](https://github.com/status-im/nim-protobuf-serialization/issues)
 
-Both Protobuf 2 and Protobuf 3 semantics are supported. When declaring an object, add either the `proto2` or `proto3` pragma to declare which to use, as seen in the `syntax` element in protobuf.
+## Installation
 
-When using Protobuf 3, a `import_proto3` macro is available. Taking in a file path, it can directly parse a Protobuf 3 spec file and generate the matching Nim types, same as if they had been written manually.
-
-### Annotating objects
-
-The protobuf schema can be declared using annotations similar to what is found in a typical `.proto` file - see [types](./protobuf_serialization/types.nim) for available annotations:
-
-**my_protocol.proto3**:
-
-```proto3
-syntax = "proto3";
-
-message ExampleMsg {
-  int32 a = 1;
-  float b = 2;
-}
-```
-
-**Annotated Nim code**
+Add to your `.nimble` file:
 
 ```nim
-type ExampleMsg {.proto3.} = object
-  a {.fieldNumber: 1, pint.}: int32
-  b {.fieldNumber: 2.}: float32
+requires "protobuf_serialization"
 ```
 
-**Importing proto file**:
+Or install directly:
 
-```nim
-import protobuf_serialization/proto_parser
-
-# This generates the same definition as above using a compile-time macro / parser
-import_proto3 "my_protocol.proto3"
+```bash
+nimble install protobuf_serialization
 ```
 
-**Encoding and decoding**
+## Basic Usage
 
 ```nim
-let x = ExampleMsg(a: 10, b: 20.0)
-let encoded = Protobuf.encode(x)
-...
-let decoded = Protobuf.decode(encoded, ExampleMsg)
-```
+import protobuf_serialization
 
-Both Protobuf 2 and Protobuf 3 objects have the following properties:
-
-- Every field requires the `fieldNumber` pragma, which takes in an integer of what field number to encode that field with.
-- Every int/uint must have its bits explicitly specified.
-- int/uint fields require their encoding to be specified. `pint` is valid for both, and uses VarInt encoding, which only uses the amount of bytes it needs. `fixed` is also valid for both, and uses the full amount of bytes the number uses, instead of stripping unused bytes. This has performance advantages for large numbers. Finally, `sint` uses zig-zagged VarInt encoding, which is recommended for numbers which are frequently negative, and is only valid for ints.
-
-Protobuf 2 has the additional properties:
-
-- A `required` pragma is enabled, matching the syntax of Protobuf 2's required keyword.
-- Every primitive value, such as a number or string, must have the `required` pragma or be a `PBOption`. `PBOption`s are a generic type instantiated with the default value for that field. They serve as regular Options, except when they're none, they still return a value when get is called (the default value). `PBOption`s can be constructed using `pbSome(PBOption[T], value)`.
-
-Here is an example demonstrating how the various pragmas can be combined:
-
-```nim
+# Define a protobuf message
 type
-  X {.proto3.} = object
-    a {.fieldNumber: 1, pint.}: int32
-    b {.fieldNumber: 2.}: float32
+  Person {.proto3.} = object
+    name {.fieldNumber: 1.}: string
+    age {.fieldNumber: 2, pint.}: int32
+    email {.fieldNumber: 3.}: string
 
-  Y {.proto2.} = object
-    a {.fieldNumber: 1.}: seq[string]
-    b {.fieldNumber: 2, pint.}: PBOption[int32(2)]
-    c {.fieldNumber: 3, required, sint.}: int32
+# Encode and decode
+let person = Person(name: "Alice", age: 30, email: "alice@example.com")
+let encoded = Protobuf.encode(person)
+let decoded = Protobuf.decode(encoded, Person)
+
+assert decoded == person
 ```
 
-**Type Extensions**
-
-`nim-protobuf-serialization` can encode and decode custom types if they themselves are annotated. However, you can define custom logic to encode and decode a particular field using _type extensions_.
-
-Type extensions are procs that define encode and decode logic for a given type:
-
-- `func supportsPacked*(T: type MyType, ProtoType: type ProtobufExt): bool`
-- `func supportsPacked*(T: type seq[MyType], ProtoType: type ProtobufExt): bool`
-- `func computeFieldSize*(field: int, value: MyType, ProtoType: type ProtobufExt, skipDefault: static bool): int`
-- `proc writeField*(stream: OutputStream, field: int, value: MyType, ProtoType: type ProtobufExt, skipDefault: static bool = false) {.raises: [IOError].}`
-- `proc readFieldInto*(stream: InputStream, value: var MyType, header: FieldHeader, ProtoType: type ProtobufExt): bool {.raises: [SerializationError, IOError].}`
-- `proc readFieldInto*(stream: InputStream, value: var seq[MyType], header: FieldHeader, ProtoType: type ProtobufExt): bool {.raises: [SerializationError, IOError].}`
-  - if not provided, an attempt to apply the single item variant of `readFieldInto` to each item of the sequence will be made
-
-Fields that use type extensions are annotated with `{.ext.}` pragma:
-
-```nim
-from mymodule import MyType
-
-type
-  Z {.proto2.} = object
-    a {.fieldNumber: 1, required, ext.}: MyType   # Annotated with {.ext.}, will be encoded and decoded using custom procs.
-    b {.fieldNumber: 2, required, sint}: int32
-```
-
-Note that the types being extend shouldn't be annotated itself:
-
-```nim
-type
-  MyType* = object   # No {.proto2.} or {.proto3.} needed.
-    c: seq[string]   # Regular, unannotated fields.
-    d: OtherType     # Custom types are allowed (and shouldn't be annoted too).
-```
-
-Type extensions are great way make a type serializable without annotating all of its related types.
+Both Protobuf 2 and Protobuf 3 are supported. You can also import `.proto` files directly at compile-time using `import_proto3`.
 
 ## License
 
