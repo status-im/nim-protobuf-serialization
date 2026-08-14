@@ -88,6 +88,12 @@ Build the documentation site:
 nimble docs
 ```
 
+The docs will be generated in `docs/` directory. The API docs are in `docs/apidocs`. Serve with any static file server, e.g.:
+
+```bash
+python3 -m http.server -d docs
+```
+
 ## Next Steps
 
 - Learn how to [annotate your objects](./tutorials/annotating-objects.md) with protobuf pragmas
