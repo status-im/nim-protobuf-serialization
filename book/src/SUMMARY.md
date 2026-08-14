@@ -11,6 +11,7 @@
 - [Importing .proto Files](./tutorials/import-proto.md)
 - [Type Extensions](./tutorials/type-extensions.md)
 - [Enums](./tutorials/enums.md)
+- [Proto Editions](./tutorials/proto-editions.md)
 
 # Contributor's Guide
 
