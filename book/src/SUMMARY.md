@@ -10,6 +10,7 @@
 - [Optional Fields](./tutorials/optional-fields.md)
 - [Importing .proto Files](./tutorials/import-proto.md)
 - [Type Extensions](./tutorials/type-extensions.md)
+- [Enums](./tutorials/enums.md)
 
 # Contributor's Guide
 
