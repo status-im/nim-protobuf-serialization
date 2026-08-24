@@ -3,27 +3,26 @@ import os, strutils
 mode = ScriptMode.Verbose
 
 packageName   = "protobuf_serialization"
-version       = "0.6.1"
+version       = "0.6.2"
 author        = "Status"
 description   = "Protobuf implementation compatible with the nim-serialization framework."
 license       = "MIT"
 skipDirs      = @["tests"]
 
-requires "nim >= 1.6.20",
-         "stew",
-         "faststreams >= 0.3.0",
-         "serialization",
+requires "nim >= 2.0.10",
+         "faststreams >= 0.5.0",
          "npeg >= 1.3.0",
-         "unittest2"
+         "serialization >= 0.5.0",
+         "stew >= 0.5.0",
+         "unittest2 >= 0.2.0"
 
 let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
 let lang = getEnv("NIMLANG", "c") # Which backend (c/cpp/js)
 let flags = getEnv("NIMFLAGS", "") # Extra flags for the compiler
 let verbose = getEnv("V", "") notin ["", "0"]
 
-let styleCheckStyle = if (NimMajor, NimMinor) < (1, 6): "hint" else: "error"
 let cfg =
-  " --styleCheck:usages --styleCheck:" & styleCheckStyle &
+  " --styleCheck:usages --styleCheck:error" &
   (if verbose: "" else: " --verbosity:0 --hints:off") &
   " --outdir:build " &
   quoteShell("--nimcache:build/nimcache/$projectName") &
@@ -34,8 +33,7 @@ proc build(args, path: string) =
 
 proc run(args, path: string) =
   build args & " --mm:refc -r", path
-  if (NimMajor, NimMinor) > (1, 6):
-    build args & " --mm:orc -r", path
+  build args & " --mm:orc -r", path
 
 task test, "Run all tests":
   for threads in ["--threads:off", "--threads:on"]:
