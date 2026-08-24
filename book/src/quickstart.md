@@ -3,14 +3,12 @@
 **nim-protobuf-serialization** is a Nim library that helps you serialize your Nim objects to Protobuf 2 or 3.
 
 - [Repository →](https://github.com/status-im/nim-protobuf-serialization)
-
 - API docs:
   - [API Index →](./apidocs/protobuf_serialization/theindex.html)
   - [protobuf_serialization](./apidocs/protobuf_serialization.html)
   - [proto_parser](./apidocs/protobuf_serialization/proto_parser.html)
-
-- [Issues →](https://github.com/status-in/nim-protobuf-serialization/issues)
 - [Contributor's Guide →](./contributing.html)
+- [Issues →](https://github.com/status-in/nim-protobuf-serialization/issues)
 
 ## Installation
 
@@ -88,6 +86,12 @@ Build the documentation site:
 
 ```bash
 nimble docs
+```
+
+The docs will be generated in `docs/` directory. The API docs are in `docs/apidocs`. Serve with any static file server, e.g.:
+
+```bash
+python3 -m http.server -d docs
 ```
 
 ## Next Steps
