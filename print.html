@@ -1,0 +1,1681 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>nim-protobuf-serialization</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="./open-in.css">
+        <link rel="stylesheet" href="./mdbook-admonish.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">nim-protobuf-serialization</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/status-im/nim-protobuf-serialization" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="quickstart"><a class="header" href="#quickstart">Quickstart</a></h1>
+<p><strong>nim-protobuf-serialization</strong> is a Nim library that helps you serialize your Nim objects to Protobuf 2 or 3.</p>
+<ul>
+<li><a href="https://github.com/status-im/nim-protobuf-serialization">Repository →</a></li>
+<li>API docs:
+<ul>
+<li><a href="./apidocs/protobuf_serialization/theindex.html">API Index →</a></li>
+<li><a href="./apidocs/protobuf_serialization.html">protobuf_serialization</a></li>
+<li><a href="./apidocs/protobuf_serialization/proto_parser.html">proto_parser</a></li>
+</ul>
+</li>
+<li><a href="./contributing.html">Contributor's Guide →</a></li>
+<li><a href="https://github.com/status-in/nim-protobuf-serialization/issues">Issues →</a></li>
+</ul>
+<h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
+<p>Add the dependency to your <code>.nimble</code> file:</p>
+<pre><code class="language-nim">requires "protobuf_serialization"
+</code></pre>
+<p>Or install directly:</p>
+<pre><code class="language-bash">nimble install protobuf_serialization
+</code></pre>
+<h2 id="basic-usage"><a class="header" href="#basic-usage">Basic Usage</a></h2>
+<h3 id="1-define-your-types"><a class="header" href="#1-define-your-types">1. Define Your Types</a></h3>
+<p>Annotate your Nim types with protobuf pragmas:</p>
+<pre><code class="language-nim">import protobuf_serialization
+type
+  Person {.proto3.} = object
+    name {.fieldNumber: 1.}: string
+    age {.fieldNumber: 2, pint.}: int32
+    email {.fieldNumber: 3.}: string
+</code></pre>
+<h3 id="2-encode-and-decode"><a class="header" href="#2-encode-and-decode">2. Encode and Decode</a></h3>
+<p>Use <code>Protobuf.encode</code> and <code>Protobuf.decode</code> to serialize your objects:</p>
+<pre><code class="language-nim">let person = Person(
+  name: "Alice",
+  age: 30,
+  email: "alice@example.com"
+)
+
+# Encode to bytes
+let encoded = Protobuf.encode(person)
+
+# Decode back to object
+let decoded = Protobuf.decode(encoded, Person)
+
+assert decoded == person
+</code></pre>
+<h2 id="proto2-vs-proto3"><a class="header" href="#proto2-vs-proto3">Proto2 vs Proto3</a></h2>
+<p>Both Protobuf 2 and 3 semantics are supported. Add the <code>proto2</code> or <code>proto3</code> pragma to your object type:</p>
+<pre><code class="language-nim">type
+  MessageV2 {.proto2.} = object
+    id {.fieldNumber: 1, required, pint.}: int32
+    text {.fieldNumber: 2.}: seq[string]
+
+type
+  MessageV3 {.proto3.} = object
+    id {.fieldNumber: 1, pint.}: int32
+    text {.fieldNumber: 2.}: string
+</code></pre>
+<div id="admonition-info" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-title">
+<div class="admonition-title">
+<div id="admonition-info-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="quickstart.html#admonition-info"></a>
+</div>
+<div>
+<p>The <code>required</code> pragma is only available in proto2. This reflects the Protocol Buffers specification: proto2 supports explicit <code>required</code>, <code>optional</code>, and <code>repeated</code> field modifiers, while proto3 removed the <code>required</code> keyword entirely. In proto3, all fields are implicitly optional with default values.</p>
+</div>
+</div>
+<h2 id="importing-proto-files"><a class="header" href="#importing-proto-files">Importing .proto Files</a></h2>
+<p><code>.proto</code> files are Protocol Buffers schema definition files. They define the structure of your messages using a language-neutral, platform-neutral syntax. These files are commonly used to share message definitions across different programming languages and systems.</p>
+<p>You might want to import <code>.proto</code> files when:</p>
+<ul>
+<li>Working with existing protobuf schemas from other projects or teams</li>
+<li>Ensuring compatibility with services that use standard <code>.proto</code> definitions</li>
+<li>Avoiding manual annotation of Nim types when a schema already exists</li>
+</ul>
+<p>This library can generate Nim types directly from <code>.proto</code> files at <strong>compile-time</strong>:</p>
+<pre><code class="language-nim">import protobuf_serialization/proto_parser
+
+# This generates Nim types from your .proto file at compile-time
+import_proto3 "my_protocol.proto3"
+</code></pre>
+<div id="admonition-info-1" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-1-title">
+<div class="admonition-title">
+<div id="admonition-info-1-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="quickstart.html#admonition-info-1"></a>
+</div>
+<div>
+<p>The <code>import_proto3</code> macro reads and parses the <code>.proto</code> file during compilation, generating equivalent Nim types. This means there's no runtime overhead—the types are fully available as if you had written them manually in Nim.</p>
+</div>
+</div>
+<h2 id="building-documentation"><a class="header" href="#building-documentation">Building Documentation</a></h2>
+<p>Build the documentation site:</p>
+<pre><code class="language-bash">nimble docs
+</code></pre>
+<p>The docs will be generated in <code>docs/</code> directory. The API docs are in <code>docs/apidocs</code>. Serve with any static file server, e.g.:</p>
+<pre><code class="language-bash">python3 -m http.server -d docs
+</code></pre>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next Steps</a></h2>
+<ul>
+<li>Learn how to <a href="./tutorials/annotating-objects.html">annotate your objects</a> with protobuf pragmas</li>
+<li>Explore <a href="./tutorials/repeated-packed.html">repeated and packed fields</a></li>
+<li>Understand <a href="./tutorials/oneof.html">oneof fields</a> for union types</li>
+<li>Handle <a href="./tutorials/optional-fields.html">optional fields</a> with <code>PBOption</code></li>
+<li>Import existing <a href="./tutorials/import-proto.html">.proto files</a></li>
+<li>Use <a href="./tutorials/type-extensions.html">type extensions</a> for custom serialization</li>
+</ul>
+<footer id="open-on-gh">Found a bug? <a href="https://github.com/status-im/nim-protobuf-serialization/edit/master/book/src/quickstart.md">Edit this page on GitHub.</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="annotating-objects"><a class="header" href="#annotating-objects">Annotating Objects</a></h1>
+<p>To make your Nim types protobuf-serializable, you need to annotate them with pragmas that define the protobuf schema.</p>
+<h2 id="message-types"><a class="header" href="#message-types">Message Types</a></h2>
+<p>Every protobuf message must be annotated with either <a href="tutorials/../apidocs/protobuf_serialization/types.html#proto2.t"><code>{.proto2.}</code></a> or <a href="tutorials/../apidocs/protobuf_serialization/types.html#proto3.t"><code>{.proto3.}</code></a>:</p>
+<pre><code class="language-nim">type
+  MyMessage {.proto3.} = object
+    # fields here
+</code></pre>
+<p>This corresponds to the <code>syntax</code> declaration in <code>.proto</code> files:</p>
+<pre><code class="language-proto">syntax = "proto3";
+
+message MyMessage {
+  // fields here
+}
+</code></pre>
+<h2 id="field-numbers"><a class="header" href="#field-numbers">Field Numbers</a></h2>
+<p>Every field must have a unique field number using the <a href="tutorials/../apidocs/protobuf_serialization/types.html#fieldNumber.t,int"><code>{.fieldNumber: N.}</code></a> pragma:</p>
+<pre><code class="language-nim">type
+  Person {.proto3.} = object
+    name {.fieldNumber: 1.}: string
+    age {.fieldNumber: 2, pint.}: int32
+    email {.fieldNumber: 3.}: string
+</code></pre>
+<p>Field numbers are permanent—once assigned, they should never change for a given field.</p>
+<h2 id="scalar-types"><a class="header" href="#scalar-types">Scalar Types</a></h2>
+<p>Protobuf supports several scalar types. Here's how they map to Nim types:</p>
+<div class="table-wrapper"><table><thead><tr><th>Protobuf Type</th><th>Nim Type</th><th>Pragma</th><th>Notes</th></tr></thead><tbody>
+<tr><td><code>int32</code>, <code>int64</code></td><td><code>int32</code>, <code>int64</code></td><td><code>{.pint.}</code></td><td>Varint-encoded (inefficient for negative values)</td></tr>
+<tr><td><code>sint32</code>, <code>sint64</code></td><td><code>int32</code>, <code>int64</code></td><td><code>{.sint.}</code></td><td>Zig-zag encoded (efficient for negative values)</td></tr>
+<tr><td><code>uint32</code>, <code>uint64</code></td><td><code>uint32</code>, <code>uint64</code></td><td><code>{.pint.}</code></td><td>Varint-encoded</td></tr>
+<tr><td><code>fixed32</code>, <code>fixed64</code></td><td><code>uint32</code>, <code>uint64</code></td><td><code>{.fixed.}</code></td><td>Fixed-width, always 4 or 8 bytes</td></tr>
+<tr><td><code>sfixed32</code>, <code>sfixed64</code></td><td><code>int32</code>, <code>int64</code></td><td><code>{.fixed.}</code></td><td>Fixed-width signed</td></tr>
+<tr><td><code>float</code></td><td><code>float32</code></td><td>-</td><td>32-bit floating point</td></tr>
+<tr><td><code>double</code></td><td><code>float64</code></td><td>-</td><td>64-bit floating point</td></tr>
+<tr><td><code>bool</code></td><td><code>bool</code></td><td>-</td><td>Boolean value</td></tr>
+<tr><td><code>string</code></td><td><code>string</code></td><td>-</td><td>UTF-8 encoded string</td></tr>
+<tr><td><code>bytes</code></td><td><code>seq[byte]</code></td><td>-</td><td>Arbitrary byte sequence</td></tr>
+</tbody></table>
+</div>
+<h3 id="integer-encoding-strategies"><a class="header" href="#integer-encoding-strategies">Integer Encoding Strategies</a></h3>
+<p>Choose the right encoding for your integers:</p>
+<p><strong><a href="tutorials/../apidocs/protobuf_serialization/types.html#pint.t"><code>pint</code></a></strong> (p stands for "plain")—uses standard varint encoding. Best for positive values or small negative values</p>
+<pre><code class="language-nim">type
+  Counter {.proto3.} = object
+    count {.fieldNumber: 1, pint.}: int32
+</code></pre>
+<p><strong><a href="tutorials/../apidocs/protobuf_serialization/types.html#sint.t"><code>sint</code></a></strong> (s stands for "signed")—uses zig-zag encoding. Best for negative values</p>
+<pre><code class="language-nim">type
+  Temperature {.proto3.} = object
+    celsius {.fieldNumber: 1, sint.}: int32
+</code></pre>
+<p><strong><a href="tutorials/../apidocs/protobuf_serialization/types.html#fixed.t"><code>fixed</code></a></strong>: Best for large values or when size predictability matters</p>
+<pre><code class="language-nim">type
+  LargeNumber {.proto3.} = object
+    value {.fieldNumber: 1, fixed.}: uint64
+</code></pre>
+<h2 id="nested-messages"><a class="header" href="#nested-messages">Nested Messages</a></h2>
+<p>You can use other protobuf messages as field types:</p>
+<pre><code class="language-nim">type
+  Address {.proto3.} = object
+    street {.fieldNumber: 1.}: string
+    city {.fieldNumber: 2.}: string
+    zipCode {.fieldNumber: 3.}: string
+
+  PersonWithAddress {.proto3.} = object
+    name {.fieldNumber: 1.}: string
+    age {.fieldNumber: 2, pint.}: int32
+    address {.fieldNumber: 3.}: Address
+</code></pre>
+<h2 id="proto2-vs-proto3-differences"><a class="header" href="#proto2-vs-proto3-differences">Proto2 vs Proto3 Differences</a></h2>
+<h3 id="required-fields-proto2-only"><a class="header" href="#required-fields-proto2-only">Required Fields (Proto2 only)</a></h3>
+<p>In proto2, every field must be explicitly marked as <a href="tutorials/../apidocs/protobuf_serialization/types.html#required.t"><code>required</code></a>, be a repeated field (<code>seq</code>), be a <a href="tutorials/../apidocs/protobuf_serialization/types.html#PBOption"><code>PBOption</code></a>, or be an extension type:</p>
+<p><strong>1. <a href="tutorials/../apidocs/protobuf_serialization/types.html#required.t"><code>required</code></a> pragma</strong> — the field must be present in the encoded message:</p>
+<pre><code class="language-nim"># 1. required pragma
+type
+  Message1 {.proto2.} = object
+    id {.fieldNumber: 1, required, pint.}: int32
+</code></pre>
+<p><strong>2. Repeated field (<code>seq</code>)</strong> — repeated fields are always allowed without <code>required</code>:</p>
+<pre><code class="language-nim"># 2. Repeated field (seq)
+type
+  Message2 {.proto2.} = object
+    tags {.fieldNumber: 1.}: seq[string]
+</code></pre>
+<p><strong>3. <a href="tutorials/../apidocs/protobuf_serialization/types.html#PBOption"><code>PBOption</code></a></strong> — explicitly optional field that can be absent:</p>
+<pre><code class="language-nim"># 3. PBOption
+type
+  Message3 {.proto2.} = object
+    name {.fieldNumber: 1.}: PBOption[default(string)]
+</code></pre>
+<p><strong>4. Extension type (<a href="tutorials/../apidocs/protobuf_serialization/types.html#ext.t"><code>ext</code></a>)</strong> — a custom type with user-defined serialization logic:</p>
+<pre><code class="language-nim"># 4. Extension type
+type
+  MyCustomType = object
+    value: int32
+
+Protobuf.extensionDefaults(MyCustomType, pint32)
+
+func computeFieldSize(
+    field: int,
+    value: MyCustomType,
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool
+): int =
+  computeFieldSize(field, value.value, pint32, skipDefault)
+
+proc writeField(
+    stream: OutputStream,
+    field: int,
+    value: MyCustomType,
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool = false
+) {.raises: [IOError].} =
+  writeField(stream, field, value.value, pint32, skipDefault)
+
+proc readFieldInto(
+    stream: InputStream,
+    value: var MyCustomType,
+    header: FieldHeader,
+    ProtoType: type ProtobufExt
+): bool {.raises: [SerializationError, IOError].} =
+  readFieldInto(stream, value.value, header, pint32)
+
+type
+  Message4 {.proto2.} = object
+    data {.fieldNumber: 1, required, ext.}: MyCustomType
+</code></pre>
+<h2 id="complete-example"><a class="header" href="#complete-example">Complete Example</a></h2>
+<p>Here's a complete example with various field types:</p>
+<pre><code class="language-nim">import protobuf_serialization
+
+type
+  Person {.proto3.} = object
+    name {.fieldNumber: 1.}: string
+    age {.fieldNumber: 2, pint.}: int32
+    email {.fieldNumber: 3.}: string
+
+type
+  Counter {.proto3.} = object
+    count {.fieldNumber: 1, pint.}: int32
+
+type
+  Temperature {.proto3.} = object
+    celsius {.fieldNumber: 1, sint.}: int32
+
+type
+  LargeNumber {.proto3.} = object
+    value {.fieldNumber: 1, fixed.}: uint64
+
+type
+  Address {.proto3.} = object
+    street {.fieldNumber: 1.}: string
+    city {.fieldNumber: 2.}: string
+    zipCode {.fieldNumber: 3.}: string
+
+  PersonWithAddress {.proto3.} = object
+    name {.fieldNumber: 1.}: string
+    age {.fieldNumber: 2, pint.}: int32
+    address {.fieldNumber: 3.}: Address
+
+let person = Person(name: "Bob", age: 25, email: "bob@example.com")
+let encoded = Protobuf.encode(person)
+let decoded = Protobuf.decode(encoded, Person)
+assert decoded == person
+
+echo "Annotating objects example passed!"
+</code></pre>
+<h2 id="next-steps-1"><a class="header" href="#next-steps-1">Next Steps</a></h2>
+<ul>
+<li>Learn about <a href="tutorials/./repeated-packed.html">repeated and packed fields</a> for arrays</li>
+<li>Explore <a href="tutorials/./oneof.html">oneof fields</a> for union types</li>
+</ul>
+<footer id="open-on-gh">Found a bug? <a href="https://github.com/status-im/nim-protobuf-serialization/edit/master/book/src/tutorials/annotating-objects.md">Edit this page on GitHub.</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="repeated--packed-fields"><a class="header" href="#repeated--packed-fields">Repeated &amp; Packed Fields</a></h1>
+<p>Protobuf supports repeated fields (arrays/lists) with two encoding modes: unpacked and packed.</p>
+<h2 id="repeated-fields-unpacked"><a class="header" href="#repeated-fields-unpacked">Repeated Fields (Unpacked)</a></h2>
+<p>In proto2, repeated fields are encoded as separate entries for each element.</p>
+<p>In proto3, <a href="tutorials/../apidocs/protobuf_serialization/types.html#packed.t,bool"><code>packed</code></a> pragma with <code>false</code> value is used to mark fields as unpacked:</p>
+<pre><code class="language-nim">type
+  Numbers {.proto3.} = object
+    values {.fieldNumber: 1, sint, packed: false.}: seq[int32]
+    names {.fieldNumber: 2, packed: false.}: seq[string]
+    flags {.fieldNumber: 3, packed: false.}: seq[bool]
+</code></pre>
+<h3 id="example"><a class="header" href="#example">Example</a></h3>
+<pre><code class="language-nim">let nums = Numbers(
+  values: @[5'i32, -3, 300, -612],
+  names: @["zero", "one", "two"],
+  flags: @[true, false, true]
+)
+
+let encoded = Protobuf.encode(nums)
+let decoded = Protobuf.decode(encoded, Numbers)
+assert decoded == nums
+</code></pre>
+<p>The encoded bytes for the <code>values</code> field look like this:</p>
+<pre><code>08 0a 08 05 08 d8 04 08 c7 09
+</code></pre>
+<p>Each value has its own field tag (<code>08</code> for field 1, wire type 0 = varint).</p>
+<h2 id="packed-fields"><a class="header" href="#packed-fields">Packed Fields</a></h2>
+<p>Packed encoding is more efficient for scalar numeric types. All elements are encoded as a single length-delimited field. Use the <a href="tutorials/../apidocs/protobuf_serialization/types.html#packed.t,bool"><code>packed</code></a> pragma with <code>true</code> value to enable it in <code>proto2</code>:</p>
+<pre><code class="language-nim">type
+  PackedNumbers {.proto2.} = object
+    values {.fieldNumber: 1, sint, packed: true.}: seq[int32]
+    flags {.fieldNumber: 2, packed: true.}: seq[bool]
+    scores {.fieldNumber: 3, fixed, packed: true.}: seq[int32]
+    weights {.fieldNumber: 4, packed: true.}: seq[float32]
+</code></pre>
+<h3 id="benefits-of-packed-encoding"><a class="header" href="#benefits-of-packed-encoding">Benefits of Packed Encoding</a></h3>
+<ul>
+<li><strong>Smaller size</strong>: Single length prefix instead of one per element</li>
+<li><strong>Faster parsing</strong>: Elements are contiguous in memory</li>
+<li><strong>Better for large arrays</strong>: Especially beneficial for numeric data</li>
+</ul>
+<h3 id="when-to-use-packed"><a class="header" href="#when-to-use-packed">When to Use Packed</a></h3>
+<p>✅ <strong>Use packed for:</strong></p>
+<ul>
+<li>Numeric arrays (int, uint, float, bool)</li>
+<li>Large sequences</li>
+<li>Performance-critical code</li>
+</ul>
+<p>❌ <strong>Don't use packed for:</strong></p>
+<ul>
+<li>String arrays (not supported)</li>
+<li>Message arrays (not supported)</li>
+<li>Small arrays (overhead may not be worth it)</li>
+</ul>
+<h3 id="example-1"><a class="header" href="#example-1">Example</a></h3>
+<pre><code class="language-nim">let packed = PackedNumbers(
+  values: @[5'i32, -3, 300],
+  flags: @[true, false, true],
+  scores: @[100'i32, 200, 300],
+  weights: @[1.5'f32, 2.5, 3.5]
+)
+
+let encodedPacked = Protobuf.encode(packed)
+let decodedPacked = Protobuf.decode(encodedPacked, PackedNumbers)
+assert decodedPacked == packed
+</code></pre>
+<p>The encoded bytes for the <code>values</code> field look like this:</p>
+<pre><code>0a 04 0a 05 d8 04
+</code></pre>
+<p>All values are grouped together after a single field tag (<code>0a</code> for field 1, wire type 2 = length-delimited) and a length prefix (<code>04</code> = 4 bytes).</p>
+<h2 id="proto2-vs-proto3-1"><a class="header" href="#proto2-vs-proto3-1">Proto2 vs Proto3</a></h2>
+<p><strong>Proto2</strong>: Repeated fields are unpacked by default</p>
+<pre><code class="language-nim">type
+  Message {.proto2.} = object
+    values {.fieldNumber: 1.}: seq[int32]  # Unpacked by default
+</code></pre>
+<p><strong>Proto3</strong>: Scalar numeric types are packed by default</p>
+<pre><code class="language-nim">type
+  Message {.proto3.} = object
+    values {.fieldNumber: 1.}: seq[int32]  # Packed by default
+</code></pre>
+<p>You can explicitly control this with the <a href="tutorials/../apidocs/protobuf_serialization/types.html#packed.t,bool"><code>packed</code></a> pragma:</p>
+<pre><code class="language-nim">type
+  Message {.proto3.} = object
+    unpacked {.fieldNumber: 1, packed: false.}: seq[int32]
+    packed {.fieldNumber: 2, packed: true.}: seq[int32]
+</code></pre>
+<h2 id="empty-sequences"><a class="header" href="#empty-sequences">Empty Sequences</a></h2>
+<p>Empty sequences are omitted from the encoded output entirely. When decoded, they become empty sequences:</p>
+<pre><code class="language-nim">let empty = DataSet()
+let encoded = Protobuf.encode(empty)
+# encoded is empty - no bytes at all
+
+let decoded = Protobuf.decode(encoded, DataSet)
+assert decoded.temperatures.len == 0
+assert decoded.labels.len == 0
+</code></pre>
+<h2 id="next-steps-2"><a class="header" href="#next-steps-2">Next Steps</a></h2>
+<ul>
+<li>Learn about <a href="tutorials/./oneof.html">oneof fields</a> for union types</li>
+<li>Explore <a href="tutorials/./optional-fields.html">optional fields</a> with <code>PBOption</code></li>
+</ul>
+<footer id="open-on-gh">Found a bug? <a href="https://github.com/status-im/nim-protobuf-serialization/edit/master/book/src/tutorials/repeated-packed.md">Edit this page on GitHub.</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="oneof-fields"><a class="header" href="#oneof-fields">Oneof Fields</a></h1>
+<p>The <code>oneof</code> field allows you to define a union type where only one field can be set at a time. This is useful for representing variant data.</p>
+<h2 id="defining-oneof-types"><a class="header" href="#defining-oneof-types">Defining Oneof Types</a></h2>
+<p>A oneof is defined as a separate object type with the <a href="tutorials/../apidocs/protobuf_serialization/types.html#oneof.t"><code>{.oneof.}</code></a> pragma, using a Nim <code>case</code> object:</p>
+<pre><code class="language-nim">type
+  ContactKind {.pure.} = enum
+    notSet
+    email
+    phone
+    address
+
+  ContactInfo {.proto3, oneof.} = object
+    case kind: ContactKind
+    of ContactKind.notSet:
+      discard
+    of ContactKind.email:
+      email {.fieldNumber: 1.}: string
+    of ContactKind.phone:
+      phone {.fieldNumber: 2.}: string
+    of ContactKind.address:
+      address {.fieldNumber: 3.}: string
+
+  Person {.proto3.} = object
+    name {.fieldNumber: 10.}: string
+    contact {.oneof.}: ContactInfo
+</code></pre>
+<h2 id="how-oneof-works"><a class="header" href="#how-oneof-works">How Oneof Works</a></h2>
+<p>Only one field in a oneof can be set at a time. When you set a field, all other fields are cleared:</p>
+<pre><code class="language-nim"># Create a person with email contact
+let person1 = Person(
+  name: "Alice",
+  contact: ContactInfo(kind: ContactKind.email, email: "alice@example.com")
+)
+
+assert person1.contact.kind == ContactKind.email
+assert person1.contact.email == "alice@example.com"
+
+# Encode and decode
+let encoded = Protobuf.encode(person1)
+let decoded = Protobuf.decode(encoded, Person)
+
+assert decoded.name == "Alice"
+assert decoded.contact.kind == ContactKind.email
+assert decoded.contact.email == "alice@example.com"
+
+# Create a person with phone contact
+let person2 = Person(
+  name: "Bob",
+  contact: ContactInfo(kind: ContactKind.phone, phone: "+1234567890")
+)
+
+assert person2.contact.kind == ContactKind.phone
+assert person2.contact.phone == "+1234567890"
+</code></pre>
+<h2 id="default-state"><a class="header" href="#default-state">Default State</a></h2>
+<p>When a oneof is not set, it defaults to the first value of the discriminator enum. In the example above, that's <code>ContactKind.notSet</code>, but you can name it whatever makes sense for your use case:</p>
+<pre><code class="language-nim">let person = Person(name: "Bob")
+assert person.contact.kind == ContactKind.notSet
+
+let encoded = Protobuf.encode(person)
+let decoded = Protobuf.decode(encoded, Person)
+assert decoded.contact.kind == ContactKind.notSet
+</code></pre>
+<h2 id="oneof-with-different-types"><a class="header" href="#oneof-with-different-types">Oneof with Different Types</a></h2>
+<p>Oneof fields can have different types:</p>
+<pre><code class="language-nim">import protobuf_serialization
+
+type
+  ValueKind {.pure.} = enum
+    notSet
+    intValue
+    stringValue
+    boolValue
+
+  Value {.proto3, oneof.} = object
+    case kind: ValueKind
+    of ValueKind.notSet:
+      discard
+    of ValueKind.intValue:
+      intValue {.fieldNumber: 10, sint.}: int32
+    of ValueKind.stringValue:
+      stringValue {.fieldNumber: 11.}: string
+    of ValueKind.boolValue:
+      boolValue {.fieldNumber: 12.}: bool
+
+  Config {.proto3.} = object
+    key {.fieldNumber: 1.}: string
+    value {.oneof.}: Value
+
+# Usage
+let config1 = Config(
+  key: "timeout",
+  value: Value(kind: ValueKind.intValue, intValue: 30)
+)
+
+let config2 = Config(
+  key: "name",
+  value: Value(kind: ValueKind.stringValue, stringValue: "Alice")
+)
+
+let config3 = Config(
+  key: "enabled",
+  value: Value(kind: ValueKind.boolValue, boolValue: true)
+)
+
+# Encode and decode
+let encoded1 = Protobuf.encode(config1)
+let decoded1 = Protobuf.decode(encoded1, Config)
+assert decoded1.key == "timeout"
+assert decoded1.value.kind == ValueKind.intValue
+assert decoded1.value.intValue == 30
+
+echo "Oneof with different types example passed!"
+</code></pre>
+<h2 id="oneof-with-nested-messages"><a class="header" href="#oneof-with-nested-messages">Oneof with Nested Messages</a></h2>
+<p>Oneof fields can contain nested message types:</p>
+<pre><code class="language-nim">import protobuf_serialization
+
+type
+  Error {.proto3.} = object
+    code {.fieldNumber: 1, pint.}: int32
+    message {.fieldNumber: 2.}: string
+
+  Success {.proto3.} = object
+    data {.fieldNumber: 1.}: string
+
+  ResultKind {.pure.} = enum
+    notSet
+    success
+    error
+
+  Result {.proto3, oneof.} = object
+    case kind: ResultKind
+    of ResultKind.notSet:
+      discard
+    of ResultKind.success:
+      success {.fieldNumber: 10.}: Success
+    of ResultKind.error:
+      error {.fieldNumber: 11.}: Error
+
+  Response {.proto3.} = object
+    id {.fieldNumber: 1.}: string
+    result {.oneof.}: Result
+
+# Usage
+let response = Response(
+  id: "req-123",
+  result: Result(
+    kind: ResultKind.success,
+    success: Success(data: "Operation completed")
+  )
+)
+
+# Encode and decode
+let encoded = Protobuf.encode(response)
+let decoded = Protobuf.decode(encoded, Response)
+assert decoded.id == "req-123"
+assert decoded.result.kind == ResultKind.success
+assert decoded.result.success.data == "Operation completed"
+
+echo "Oneof with nested messages example passed!"
+</code></pre>
+<h2 id="next-steps-3"><a class="header" href="#next-steps-3">Next Steps</a></h2>
+<ul>
+<li>Learn about <a href="tutorials/./optional-fields.html">optional fields</a> with <code>PBOption</code></li>
+<li>Explore <a href="tutorials/./type-extensions.html">type extensions</a> for custom serialization</li>
+</ul>
+<footer id="open-on-gh">Found a bug? <a href="https://github.com/status-im/nim-protobuf-serialization/edit/master/book/src/tutorials/oneof.md">Edit this page on GitHub.</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="optional-fields"><a class="header" href="#optional-fields">Optional Fields</a></h1>
+<p>In protobuf, distinguishing between "field not set" and "field set to default value" can be important. This library provides two ways to handle optional fields: <code>Opt[T]</code> for proto3/proto2 and <code>PBOption</code> for proto2.</p>
+<h2 id="the-problem-with-default-values"><a class="header" href="#the-problem-with-default-values">The Problem with Default Values</a></h2>
+<p>In proto3, fields have implicit default values:</p>
+<pre><code class="language-nim"># Problem: In proto3, you can't distinguish between "not set" and "set to default"
+type
+  MessageDefault {.proto3.} = object
+    count {.fieldNumber: 1.}: int32  # Defaults to 0
+    text {.fieldNumber: 2.}: string  # Defaults to ""
+</code></pre>
+<p>When you decode a message, you can't tell if <code>count</code> was explicitly set to <code>0</code> or just not set at all.</p>
+<h2 id="using-optt-proto3-or-proto2"><a class="header" href="#using-optt-proto3-or-proto2">Using Opt[T] (Proto3 or Proto2)</a></h2>
+<p>For proto3, the recommended approach is to use <code>Opt[T]</code> from the <a href="https://github.com/arnetheduck/nim-results">results</a> library (re-exported via <code>protobuf_serialization/pkg/results</code>). This wraps a value to make it explicitly optional:</p>
+<pre><code class="language-nim"># Solution: Use Opt[T] to make fields explicitly optional
+type
+  MessageOpt {.proto3.} = object
+    count {.fieldNumber: 1, ext.}: Opt[int32]
+    text {.fieldNumber: 2, ext.}: Opt[string]
+</code></pre>
+<h3 id="creating-optional-values"><a class="header" href="#creating-optional-values">Creating Optional Values</a></h3>
+<p>Use <code>Opt.some()</code> to create a value that is present, and <code>Opt.none()</code> to create a value that is absent:</p>
+<pre><code class="language-nim"># Creating optional values with Opt.some() and Opt.none()
+let msg1 = MessageOpt(
+  count: Opt.some(42'i32),
+  text: Opt.some("hello")
+)
+
+let msg2 = MessageOpt(
+  count: Opt.none(int32),
+  text: Opt.none(string)
+)
+</code></pre>
+<h3 id="checking-if-a-value-is-present"><a class="header" href="#checking-if-a-value-is-present">Checking if a Value is Present</a></h3>
+<p>Use <code>isSome()</code> and <code>isNone()</code> to check presence:</p>
+<pre><code class="language-nim"># Checking if a value is present
+if msg1.count.isSome():
+  echo "Count is set to: ", msg1.count.get()
+else:
+  echo "Count is not set"
+</code></pre>
+<h3 id="getting-the-value"><a class="header" href="#getting-the-value">Getting the Value</a></h3>
+<p>Use <code>get()</code> to retrieve the value:</p>
+<pre><code class="language-nim"># Getting the value
+let count = msg1.count.get()  # Returns the int32 value
+echo "Count: ", count
+</code></pre>
+<p>Use <code>valueOr()</code> to provide a default:</p>
+<pre><code class="language-nim"># Providing a default value
+let count2 = msg2.count.valueOr(0'i32)  # Returns 0 if not set
+echo "Count2: ", count2
+</code></pre>
+<h2 id="using-pboption-proto2"><a class="header" href="#using-pboption-proto2">Using PBOption (Proto2)</a></h2>
+<p>For proto2, use <a href="tutorials/../apidocs/protobuf_serialization/types.html#PBOption"><code>PBOption</code></a> to make fields explicitly optional:</p>
+<pre><code class="language-nim"># For proto2, use PBOption to make fields explicitly optional
+type
+  Settings {.proto2.} = object
+    username {.fieldNumber: 1, required.}: string
+    theme {.fieldNumber: 2.}: PBOption[default(string)]
+    fontSize {.fieldNumber: 3, pint.}: PBOption[0'i32]
+    notifications {.fieldNumber: 4.}: PBOption[false]
+</code></pre>
+<h3 id="creating-optional-values-1"><a class="header" href="#creating-optional-values-1">Creating Optional Values</a></h3>
+<p>Use <code>pbSome()</code> to create a value that is present, and <code>pbNone()</code> to create a value that is absent:</p>
+<pre><code class="language-nim"># Creating optional values with pbSome() and pbNone()
+let settings1 = Settings(
+  username: "alice",
+  theme: pbSome("dark"),
+  fontSize: pbSome(14'i32),
+  notifications: pbSome(true)
+)
+
+let settings2 = Settings(
+  username: "bob",
+  theme: pbSome("light"),
+  fontSize: pbNone(0'i32),
+  notifications: pbNone(false)
+)
+</code></pre>
+<h3 id="encoding-and-decoding"><a class="header" href="#encoding-and-decoding">Encoding and Decoding</a></h3>
+<pre><code class="language-nim"># Encoding and decoding
+let encoded = Protobuf.encode(settings2)
+let decoded = Protobuf.decode(encoded, Settings)
+
+assert decoded.username == "bob"
+assert decoded.theme.isSome
+assert decoded.theme.get == "light"
+assert decoded.fontSize.isNone
+assert decoded.notifications.isNone
+</code></pre>
+<h3 id="getting-the-value-1"><a class="header" href="#getting-the-value-1">Getting the Value</a></h3>
+<p>Use <code>get</code> to retrieve the value, and <code>valueOr</code> to provide a default:</p>
+<pre><code class="language-nim"># Providing a default value
+let fontSize = decoded.fontSize.valueOr(12'i32)
+assert fontSize == 12
+echo "Font size: ", fontSize
+</code></pre>
+<h2 id="when-to-use-each-approach"><a class="header" href="#when-to-use-each-approach">When to Use Each Approach</a></h2>
+<p><strong>Use <code>Opt[T]</code> when:</strong></p>
+<ul>
+<li>Working with proto3</li>
+<li>You need to distinguish "not set" from "set to default"</li>
+<li>Building APIs where presence matters</li>
+</ul>
+<p><strong>Use <code>PBOption</code> when:</strong></p>
+<ul>
+<li>Working with proto2</li>
+<li>You need to distinguish "not set" from "set to default"</li>
+<li>You need to set a default value other than <code>default(T)</code></li>
+</ul>
+<p><strong>Don't use either when:</strong></p>
+<ul>
+<li>Default values are acceptable</li>
+<li>You don't need presence tracking</li>
+<li>Performance is critical (adds overhead)</li>
+</ul>
+<h2 id="next-steps-4"><a class="header" href="#next-steps-4">Next Steps</a></h2>
+<ul>
+<li>Learn about <a href="tutorials/./import-proto.html">importing .proto files</a></li>
+<li>Explore <a href="tutorials/./type-extensions.html">type extensions</a> for custom serialization</li>
+</ul>
+<footer id="open-on-gh">Found a bug? <a href="https://github.com/status-im/nim-protobuf-serialization/edit/master/book/src/tutorials/optional-fields.md">Edit this page on GitHub.</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="importing-proto-files-1"><a class="header" href="#importing-proto-files-1">Importing .proto Files</a></h1>
+<p>Instead of manually annotating Nim types, you can generate them directly from <code>.proto</code> files using the <a href="tutorials/../apidocs/protobuf_serialization/files/type_generator.html#import_proto3.t,static%5Bstring%5D"><code>import_proto3</code></a> template.</p>
+<h2 id="basic-usage-1"><a class="header" href="#basic-usage-1">Basic Usage</a></h2>
+<pre><code class="language-nim">import protobuf_serialization/proto_parser
+
+# Generate Nim types from a .proto file
+import_proto3 "my_protocol.proto3"
+</code></pre>
+<p>This template reads the <code>.proto</code> file at compile time and generates equivalent Nim types.</p>
+<h2 id="example-proto-file"><a class="header" href="#example-proto-file">Example .proto File</a></h2>
+<p><strong>person.proto3</strong>:</p>
+<pre><code class="language-proto">syntax = "proto3";
+
+message Person {
+  string name = 1;
+  int32 age = 2;
+  string email = 3;
+}
+
+message AddressBook {
+  repeated Person people = 1;
+}
+</code></pre>
+<p><strong>Nim code</strong>:</p>
+<pre><code class="language-nim">import protobuf_serialization
+import protobuf_serialization/proto_parser
+
+# This macro generates Person and AddressBook types at compile time
+import_proto3 "person.proto3"
+
+# Now you can use the generated types as if they were manually defined
+let person = Person(
+  name: "Alice",
+  age: 30,
+  email: "alice@example.com"
+)
+
+let encoded = Protobuf.encode(person)
+let decoded = Protobuf.decode(encoded, Person)
+
+assert decoded.name == "Alice"
+assert decoded.age == 30
+assert decoded.email == "alice@example.com"
+
+echo "Import proto basic example passed!"
+</code></pre>
+<h2 id="supported-features"><a class="header" href="#supported-features">Supported Features</a></h2>
+<p>The proto parser supports most proto3 features:</p>
+<h3 id="messages"><a class="header" href="#messages">Messages</a></h3>
+<pre><code class="language-proto">message User {
+  string username = 1;
+  int32 score = 2;
+}
+</code></pre>
+<h3 id="enums"><a class="header" href="#enums">Enums</a></h3>
+<pre><code class="language-proto">enum Status {
+  UNKNOWN = 0;
+  ACTIVE = 1;
+  INACTIVE = 2;
+}
+
+message User {
+  string name = 1;
+  Status status = 2;
+}
+</code></pre>
+<h3 id="nested-messages-1"><a class="header" href="#nested-messages-1">Nested Messages</a></h3>
+<pre><code class="language-proto">message Outer {
+  message Inner {
+    string value = 1;
+  }
+  Inner data = 1;
+}
+</code></pre>
+<h3 id="repeated-fields"><a class="header" href="#repeated-fields">Repeated Fields</a></h3>
+<pre><code class="language-proto">message Numbers {
+  repeated int32 values = 1;
+  repeated string names = 2;
+}
+</code></pre>
+<h3 id="oneof"><a class="header" href="#oneof">Oneof</a></h3>
+<pre><code class="language-proto">message Contact {
+  oneof contact_info {
+    string email = 1;
+    string phone = 2;
+    string address = 3;
+  }
+}
+</code></pre>
+<h3 id="packages"><a class="header" href="#packages">Packages</a></h3>
+<pre><code class="language-proto">package mypackage;
+
+message Request {
+  string query = 1;
+}
+</code></pre>
+<h2 id="field-type-mapping"><a class="header" href="#field-type-mapping">Field Type Mapping</a></h2>
+<p>The parser automatically maps proto types to appropriate Nim types with correct pragmas:</p>
+<div class="table-wrapper"><table><thead><tr><th>Proto Type</th><th>Generated Nim Type</th><th>Pragma</th></tr></thead><tbody>
+<tr><td><code>int32</code>, <code>int64</code></td><td><code>int32</code>, <code>int64</code></td><td><code>{.pint.}</code></td></tr>
+<tr><td><code>uint32</code>, <code>uint64</code></td><td><code>uint32</code>, <code>uint64</code></td><td><code>{.pint.}</code></td></tr>
+<tr><td><code>sint32</code>, <code>sint64</code></td><td><code>int32</code>, <code>int64</code></td><td><code>{.sint.}</code></td></tr>
+<tr><td><code>fixed32</code>, <code>fixed64</code></td><td><code>uint32</code>, <code>uint64</code></td><td><code>{.fixed.}</code></td></tr>
+<tr><td><code>sfixed32</code>, <code>sfixed64</code></td><td><code>int32</code>, <code>int64</code></td><td><code>{.fixed.}</code></td></tr>
+<tr><td><code>float</code></td><td><code>float32</code></td><td>-</td></tr>
+<tr><td><code>double</code></td><td><code>float64</code></td><td>-</td></tr>
+<tr><td><code>bool</code></td><td><code>bool</code></td><td>-</td></tr>
+<tr><td><code>string</code></td><td><code>string</code></td><td>-</td></tr>
+<tr><td><code>bytes</code></td><td><code>seq[byte]</code></td><td>-</td></tr>
+</tbody></table>
+</div>
+<h2 id="complete-example-1"><a class="header" href="#complete-example-1">Complete Example</a></h2>
+<p><strong>protocol.proto3</strong>:</p>
+<pre><code class="language-proto">syntax = "proto3";
+
+package example;
+
+enum Priority {
+  LOW = 0;
+  MEDIUM = 1;
+  HIGH = 2;
+}
+
+message Task {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  Priority priority = 4;
+  repeated string tags = 5;
+  bool completed = 6;
+}
+
+message TaskList {
+  repeated Task tasks = 1;
+  string owner = 2;
+}
+</code></pre>
+<p><strong>Nim code</strong>:</p>
+<pre><code class="language-nim">import protobuf_serialization
+import protobuf_serialization/proto_parser
+
+# This macro generates Task, TaskList, and Priority types at compile time
+import_proto3 "protocol.proto3"
+
+# Use the generated types as if they were manually defined
+let task = Task(
+  id: "task-001",
+  title: "Implement feature",
+  description: "Add new functionality",
+  priority: Priority.HIGH,
+  tags: @["urgent", "backend"],
+  completed: false
+)
+
+let taskList = TaskList(
+  tasks: @[task],
+  owner: "alice"
+)
+
+# Encode and decode
+let encoded = Protobuf.encode(taskList)
+let decoded = Protobuf.decode(encoded, TaskList)
+
+assert decoded.tasks[0].title == "Implement feature"
+assert decoded.tasks[0].priority == Priority.HIGH
+assert decoded.tasks[0].tags == @["urgent", "backend"]
+assert decoded.owner == "alice"
+
+echo "Import proto complete example passed!"
+</code></pre>
+<h2 id="file-paths"><a class="header" href="#file-paths">File Paths</a></h2>
+<p>The <code>.proto</code> file path is relative to the Nim source file:</p>
+<pre><code class="language-nim"># If your Nim file is in src/main.nim
+# and proto file is in src/protocol.proto3
+import_proto3 "protocol.proto3"
+
+# Or use absolute/relative paths
+import_proto3 "../protos/protocol.proto3"
+</code></pre>
+<h2 id="services-and-rpcs"><a class="header" href="#services-and-rpcs">Services and RPCs</a></h2>
+<p>Services and RPCs are fully parsed from <code>.proto</code> files. The library provides a hook mechanism that allows you to generate custom code for services. This is useful for generating RPC client/server stubs.</p>
+<p>The <code>import_proto3</code> template accepts an optional <code>protoHook</code> parameter that receives the parsed proto definitions and can generate additional Nim code. See the test suite for an example of generating service proc definitions and path constants: <a href="https://github.com/status-im/nim-protobuf-serialization/blob/master/tests/test_proto_file.nim">tests/test_proto_file.nim</a>.</p>
+<p>For a real-world example of using this hook to generate gRPC client/server code, see <a href="https://github.com/nitely/nim-grpc/blob/e97aac4310ad18f852fbfffc32334b680c8c296d/src/grpc/protobuf.nim">nim-grpc</a>.</p>
+<h2 id="maps"><a class="header" href="#maps">Maps</a></h2>
+<p>Maps are supported and are mapped to repeated fields rather than Nim <code>Table</code> types. This is because protobuf spec allows repeated keys, which <code>Table</code> doesn't support. In the future, there may be a way to provide custom type mappings (proto-type → nim-type), but this requires a more general solution for any type.</p>
+<h2 id="other-limitations"><a class="header" href="#other-limitations">Other Limitations</a></h2>
+<ul>
+<li>Custom options</li>
+<li>Extensions (proto2 feature)</li>
+</ul>
+<h2 id="next-steps-5"><a class="header" href="#next-steps-5">Next Steps</a></h2>
+<ul>
+<li>Learn about <a href="tutorials/./type-extensions.html">type extensions</a> for custom serialization</li>
+<li>Read the <a href="tutorials/../contributing.html">contributor's guide</a></li>
+</ul>
+<footer id="open-on-gh">Found a bug? <a href="https://github.com/status-im/nim-protobuf-serialization/edit/master/book/src/tutorials/import-proto.md">Edit this page on GitHub.</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="type-extensions"><a class="header" href="#type-extensions">Type Extensions</a></h1>
+<p>Type extensions allow you to define custom serialization logic for types that aren't directly annotated with protobuf pragmas. This is useful when you want to serialize external types or types with custom encoding requirements.</p>
+<h2 id="when-to-use-type-extensions"><a class="header" href="#when-to-use-type-extensions">When to Use Type Extensions</a></h2>
+<p>Use type extensions when:</p>
+<ul>
+<li>You need to serialize types from external libraries</li>
+<li>You want custom encoding logic (e.g., compression, encryption)</li>
+<li>You're working with types that can't be annotated directly</li>
+<li>You need to serialize wrapper types</li>
+</ul>
+<h2 id="basic-structure"><a class="header" href="#basic-structure">Basic Structure</a></h2>
+<p>A type extension consists of three procedures:</p>
+<ol>
+<li><code>computeFieldSize</code>—calculates the encoded size</li>
+<li><code>writeField</code>—encodes the value</li>
+<li><code>readFieldInto</code>—decodes the value</li>
+</ol>
+<h2 id="simple-example"><a class="header" href="#simple-example">Simple Example</a></h2>
+<p>Let's create a custom type and make it serializable:</p>
+<pre><code class="language-nim"># Custom wrapper type (not annotated with proto2/proto3)
+type
+  IntWrapper = object
+    value: int32
+</code></pre>
+<p>Now we define a message that uses this custom type:</p>
+<pre><code class="language-nim"># Message that uses the custom type
+type
+  Container {.proto3.} = object
+    name {.fieldNumber: 1.}: string
+    data {.fieldNumber: 2, ext.}: IntWrapper
+</code></pre>
+<p>To make <code>IntWrapper</code> serializable, we need to implement the three required procedures:</p>
+<pre><code class="language-nim"># Define type extension for IntWrapper
+Protobuf.extensionDefaults(IntWrapper, pint32, defaultSeq = true)
+
+func computeFieldSize(
+    field: int,
+    value: IntWrapper,
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool
+): int =
+  computeFieldSize(field, value.value, pint32, skipDefault)
+
+proc writeField(
+    stream: OutputStream,
+    field: int,
+    value: IntWrapper,
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool = false
+) {.raises: [IOError].} =
+  writeField(stream, field, value.value, pint32, skipDefault)
+
+proc readFieldInto(
+    stream: InputStream,
+    value: var IntWrapper,
+    header: FieldHeader,
+    ProtoType: type ProtobufExt
+): bool {.raises: [SerializationError, IOError].} =
+  readFieldInto(stream, value.value, header, pint32)
+</code></pre>
+<h2 id="using-the-extension"><a class="header" href="#using-the-extension">Using the Extension</a></h2>
+<p>Now you can use the custom type in your protobuf messages:</p>
+<pre><code class="language-nim">let container = Container(
+  name: "Test",
+  data: IntWrapper(value: 42)
+)
+
+let encoded = Protobuf.encode(container)
+let decoded = Protobuf.decode(encoded, Container)
+
+assert decoded.data.value == 42
+</code></pre>
+<h2 id="extension-with-sequences"><a class="header" href="#extension-with-sequences">Extension with Sequences</a></h2>
+<p>The <a href="tutorials/../apidocs/protobuf_serialization/extension.html#extensionDefaults.t,typeProtobuf,type,typeSomeProto"><code>extensionDefaults</code></a> macro can generate default handlers for sequences:</p>
+<pre><code class="language-nim">import protobuf_serialization
+
+type
+  CustomType = object
+    value: string
+
+# Generate defaults for seq[CustomType]
+Protobuf.extensionDefaults(CustomType, pstring, defaultSeq = true)
+
+func computeFieldSize(
+    field: int,
+    value: CustomType,
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool
+): int =
+  computeFieldSize(field, value.value, pstring, skipDefault)
+
+proc writeField(
+    stream: OutputStream,
+    field: int,
+    value: CustomType,
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool = false
+) {.raises: [IOError].} =
+  writeField(stream, field, value.value, pstring, skipDefault)
+
+proc readFieldInto(
+    stream: InputStream,
+    value: var CustomType,
+    header: FieldHeader,
+    ProtoType: type ProtobufExt
+): bool {.raises: [SerializationError, IOError].} =
+  readFieldInto(stream, value.value, header, pstring)
+
+# Now you can use seq[CustomType]
+type
+  Container {.proto3.} = object
+    items {.fieldNumber: 1, ext.}: seq[CustomType]
+
+let container = Container(
+  items: @[
+    CustomType(value: "first"),
+    CustomType(value: "second"),
+    CustomType(value: "third")
+  ]
+)
+
+let encoded = Protobuf.encode(container)
+let decoded = Protobuf.decode(encoded, Container)
+
+assert decoded.items.len == 3
+assert decoded.items[0].value == "first"
+assert decoded.items[1].value == "second"
+assert decoded.items[2].value == "third"
+
+echo "Extension with sequences example passed!"
+</code></pre>
+<h2 id="complete-example-2"><a class="header" href="#complete-example-2">Complete Example</a></h2>
+<p>Here's a complete example with a custom timestamp type:</p>
+<pre><code class="language-nim">import protobuf_serialization
+
+# Custom timestamp type
+type
+  Timestamp = object
+    seconds: int64
+
+# Message using the custom type
+type
+  Event {.proto3.} = object
+    name {.fieldNumber: 1.}: string
+    timestamp {.fieldNumber: 2, ext.}: Timestamp
+
+# Type extension for Timestamp
+Protobuf.extensionDefaults(Timestamp, pint64, defaultSeq = false)
+
+func computeFieldSize(
+    field: int,
+    value: Timestamp,
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool
+): int =
+  computeFieldSize(field, value.seconds, pint64, skipDefault)
+
+proc writeField(
+    stream: OutputStream,
+    field: int,
+    value: Timestamp,
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool = false
+) {.raises: [IOError].} =
+  writeField(stream, field, value.seconds, pint64, skipDefault)
+
+proc readFieldInto(
+    stream: InputStream,
+    value: var Timestamp,
+    header: FieldHeader,
+    ProtoType: type ProtobufExt
+): bool {.raises: [SerializationError, IOError].} =
+  readFieldInto(stream, value.seconds, header, pint64)
+
+# Usage
+let event = Event(
+  name: "UserLogin",
+  timestamp: Timestamp(seconds: 1234567890'i64)
+)
+
+let encoded = Protobuf.encode(event)
+let decoded = Protobuf.decode(encoded, Event)
+
+assert decoded.timestamp.seconds == 1234567890
+
+echo "Complete type extension example passed!"
+</code></pre>
+<h2 id="key-points"><a class="header" href="#key-points">Key Points</a></h2>
+<ul>
+<li>Mark fields using extensions with <code>{.ext.}</code> pragma</li>
+<li>The extended type itself should NOT be annotated with <code>{.proto2.}</code> or <code>{.proto3.}</code></li>
+<li>Use <a href="tutorials/../apidocs/protobuf_serialization/extension.html#extensionDefaults.t,typeProtobuf,type,typeSomeProto"><code>extensionDefaults</code></a> to generate default sequence handlers</li>
+<li>Implement all three procedures: <code>computeFieldSize</code>, <code>writeField</code>, <code>readFieldInto</code></li>
+<li>Extensions work with both single values and sequences</li>
+</ul>
+<h2 id="next-steps-6"><a class="header" href="#next-steps-6">Next Steps</a></h2>
+<ul>
+<li>Read the <a href="tutorials/../contributing.html">contributor's guide</a> to learn how to contribute to the library</li>
+</ul>
+<footer id="open-on-gh">Found a bug? <a href="https://github.com/status-im/nim-protobuf-serialization/edit/master/book/src/tutorials/type-extensions.md">Edit this page on GitHub.</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="enums-1"><a class="header" href="#enums-1">Enums</a></h1>
+<p>Protobuf enums map naturally to Nim enums. Support for enum fields is not part
+of the default import—it lives in a separate module that you have to import
+explicitly.</p>
+<h2 id="importing-stdenums"><a class="header" href="#importing-stdenums">Importing <code>std/enums</code></a></h2>
+<p>The core <code>protobuf_serialization</code> module does not know how to serialize enum
+fields. To use them, import <code>protobuf_serialization/std/enums</code>:</p>
+<pre><code class="language-nim">import protobuf_serialization
+import protobuf_serialization/std/enums
+</code></pre>
+<p>Without this import, the compiler has no serialization handlers for your enum
+type and the code will not compile.</p>
+<p>Enum fields are annotated with the <a href="tutorials/../apidocs/protobuf_serialization/types.html#ext.t"><code>{.ext.}</code></a>
+pragma, because enum support is implemented as a type extension:</p>
+<pre><code class="language-nim">type
+  Status = enum
+    Unknown  # ord 0
+    Active   # ord 1
+    Banned   # ord 2
+
+  Account {.proto3.} = object
+    status {.fieldNumber: 1, ext.}: Status
+</code></pre>
+<p>Encoding and decoding then works like any other field:</p>
+<pre><code class="language-nim">let account = Account(status: Active)
+let encoded = Protobuf.encode(account)
+let decoded = Protobuf.decode(encoded, Account)
+assert decoded == account
+</code></pre>
+<h2 id="the-zero-value-requirement"><a class="header" href="#the-zero-value-requirement">The Zero-Value Requirement</a></h2>
+<p>In proto3, an enum must contain a constant that maps to <code>0</code>. If it does not,
+compilation fails with a <code>{.fatal.}</code> error. In the example above, <code>Unknown</code>
+satisfies this requirement because it is the first value and therefore has
+ordinal <code>0</code>.</p>
+<h2 id="closed-enum-semantics"><a class="header" href="#closed-enum-semantics">Closed Enum Semantics</a></h2>
+<p>Nim enums are <strong>closed</strong>: a value of an enum type can only be one of the
+constants defined for that type. There is no way to hold a <code>Status</code> whose value
+is <code>3</code> when only <code>0</code>, <code>1</code>, and <code>2</code> are defined.</p>
+<p>Because protobuf enums are mapped onto Nim enums, they inherit this closed
+behavior. This is <strong>not</strong> conformant with proto3's open-enum semantics, where an
+unknown value is preserved so it can be re-serialized unchanged. In <code>nim-protobuf-protobuf_serialization</code>, unknown
+values are not stored at all and therefore cannot be serialized back.</p>
+<p>If you need proto3-conformant behavior, use an <code>int32</code> field instead—see
+<a href="tutorials/enums.html#preserving-proto3-compatible-semantics">Preserving proto3-Compatible Semantics</a>
+below.</p>
+<h3 id="unknown-values"><a class="header" href="#unknown-values">Unknown Values</a></h3>
+<p>How an unknown value is handled on decode depends on the syntax:</p>
+<p><strong>proto3</strong>—the unknown value is dropped and the field keeps its zero value:</p>
+<pre><code class="language-nim"># Nim enums are closed: a decoded value that is not part of the enum cannot
+# be represented, so it is dropped and the field keeps its zero value.
+# The bytes "0803" encode field 1 (tag 08) with the value 3, which is not a
+# valid Status. Decoding maps it to the zero value (Unknown) and drops the 3.
+block:
+  let encoded = "0803".hexToSeqByte
+  let decoded = Protobuf.decode(encoded, Account)
+  assert decoded.status == Unknown
+</code></pre>
+<p><strong>proto2 with <a href="tutorials/../apidocs/protobuf_serialization/types.html#required.t"><code>required</code></a></strong>—the unknown value is a decode error:</p>
+<pre><code class="language-nim">type
+  RequiredAccount {.proto2.} = object
+    status {.fieldNumber: 1, required, ext.}: Status
+</code></pre>
+<pre><code class="language-nim"># In proto2 with a required enum, an unknown value is a decode error.
+block:
+  let encoded = "0803".hexToSeqByte
+  var raised = false
+  try:
+    discard Protobuf.decode(encoded, RequiredAccount)
+  except ProtobufReadError:
+    raised = true
+  assert raised
+</code></pre>
+<h2 id="enums-with-holes"><a class="header" href="#enums-with-holes">Enums With Holes</a></h2>
+<p>Enum ordinals do not have to be contiguous, and they may be negative:</p>
+<pre><code class="language-nim"># Enum ordinals do not have to be contiguous.
+type
+  Priority = enum
+    Low = -10
+    Normal = 0
+    High = 10
+    Critical  # ord 11
+
+  Task {.proto3.} = object
+    priority {.fieldNumber: 1, ext.}: Priority
+</code></pre>
+<h2 id="optional-enums"><a class="header" href="#optional-enums">Optional Enums</a></h2>
+<p>In proto2, wrap an enum field in a <a href="tutorials/../apidocs/protobuf_serialization/types.html#PBOption"><code>PBOption</code></a>
+to distinguish "not set" from "set to the default value". Use <code>pbSome</code> and
+<code>pbNone</code> to construct the values:</p>
+<pre><code class="language-nim">type
+  OptionalAccount {.proto2.} = object
+    status {.fieldNumber: 1, ext.}: PBOption[default(Status)]
+</code></pre>
+<pre><code class="language-nim">let present = OptionalAccount(status: pbSome(Active))
+assert Protobuf.decode(Protobuf.encode(present), OptionalAccount) == present
+
+# The PBOption parameter is the field's default value, not its type, so
+# pbNone takes the default value too: default(Status), i.e. Unknown.
+let absent = OptionalAccount(status: pbNone(default(Status)))
+assert Protobuf.decode(Protobuf.encode(absent), OptionalAccount) == absent
+</code></pre>
+<div id="admonition-info" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-title">
+<div class="admonition-title">
+<div id="admonition-info-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="tutorials/enums.html#admonition-info"></a>
+</div>
+<div>
+<p>The <code>PBOption</code> parameter is the field's default <em>value</em>, not its type. Writing
+<code>PBOption[default(Status)]</code> stores a full <code>Status</code> (the value type is derived
+from the default), and falls back to <code>default(Status)</code> (that is, <code>Unknown</code>) when
+the field is not set. So this reads as "either a <code>Status</code>, or not set with a
+default of <code>Unknown</code>". Passing the type directly (<code>PBOption[Status]</code>) does not
+compile, because the parameter expects a value. <code>pbNone</code> likewise takes the
+default value, matching the field declaration.</p>
+</div>
+</div>
+<h2 id="repeated--packed-enums"><a class="header" href="#repeated--packed-enums">Repeated &amp; Packed Enums</a></h2>
+<p>Repeated enum fields follow the same packing rules as other repeated numeric
+fields (see <a href="tutorials/./repeated-packed.html">Repeated &amp; Packed Fields</a>): proto2 defaults to
+unpacked, proto3 defaults to packed, and the
+<a href="tutorials/../apidocs/protobuf_serialization/types.html#packed.t,bool"><code>{.packed.}</code></a> pragma
+overrides the default:</p>
+<pre><code class="language-nim">type
+  # proto2 repeated fields are unpacked by default.
+  StatusLogP2 {.proto2.} = object
+    statuses {.fieldNumber: 1, ext.}: seq[Status]
+
+  # proto3 repeated numeric/enum fields are packed by default.
+  StatusLogP3 {.proto3.} = object
+    statuses {.fieldNumber: 1, ext.}: seq[Status]
+
+  # The packed pragma overrides the default in either syntax.
+  StatusLogPacked {.proto2.} = object
+    statuses {.fieldNumber: 1, ext, packed: true.}: seq[Status]
+</code></pre>
+<p>Unknown entries in a repeated enum field are dropped; the valid entries are kept:</p>
+<pre><code class="language-nim"># Unknown entries in a repeated enum field are dropped; valid ones are kept.
+# "080008030802" is three unpacked entries: 0, 3 (invalid), 2.
+let encoded = "080008030802".hexToSeqByte
+let decoded = Protobuf.decode(encoded, StatusLogP2)
+assert decoded.statuses == @[Unknown, Banned]
+</code></pre>
+<h2 id="preserving-proto3-compatible-semantics"><a class="header" href="#preserving-proto3-compatible-semantics">Preserving proto3-Compatible Semantics</a></h2>
+<p>Because Nim enums are closed, they cannot preserve unknown values. If you need
+the proto3-conformant behavior—where unknown values survive a decode/encode
+round-trip—store the value as an <code>int32</code> field with the
+<a href="tutorials/../apidocs/protobuf_serialization/types.html#pint.t"><code>{.pint.}</code></a> pragma instead
+of a Nim enum. Named values become plain constants:</p>
+<pre><code class="language-nim"># To get proto3-conformant, open-enum behavior, store the value as an int32
+# instead of a Nim enum. Named values become constants, and any unknown value
+# is preserved on decode instead of being dropped.
+const
+  StatusUnknown = 0'i32
+  StatusActive = 1'i32
+  StatusBanned = 2'i32
+
+type
+  OpenAccount {.proto3.} = object
+    status {.fieldNumber: 1, pint.}: int32
+</code></pre>
+<p>Now an unknown value is preserved rather than dropped:</p>
+<pre><code class="language-nim"># The same "0803" bytes now round-trip: the unknown value 3 is preserved.
+let encoded = "0803".hexToSeqByte
+let decoded = Protobuf.decode(encoded, OpenAccount)
+assert decoded.status == 3'i32
+assert Protobuf.encode(decoded) == encoded
+</code></pre>
+<p>Compare this with the <a href="tutorials/enums.html#unknown-values">proto3 unknown-value behavior</a> of a Nim
+enum, where the value <code>3</code> was dropped and replaced with the zero value.</p>
+<h2 id="next-steps-7"><a class="header" href="#next-steps-7">Next Steps</a></h2>
+<ul>
+<li>Learn about <a href="tutorials/./repeated-packed.html">repeated and packed fields</a> for arrays</li>
+<li>Explore <a href="tutorials/./optional-fields.html">optional fields</a> with <code>PBOption</code></li>
+</ul>
+<footer id="open-on-gh">Found a bug? <a href="https://github.com/status-im/nim-protobuf-serialization/edit/master/book/src/tutorials/enums.md">Edit this page on GitHub.</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="proto-editions"><a class="header" href="#proto-editions">Proto Editions</a></h1>
+<p>Protobuf <em>editions</em> are the successor to the proto2/proto3 split. Instead of
+picking a syntax for the whole file, an edition (identified by a year, such as
+2023) defines a set of default behaviors, and individual features—like field
+presence—are configured per field. The goal is smoother, incremental evolution
+of the format while preserving backward compatibility.</p>
+<p><code>nim-protobuf-serialization</code> exposes editions through the <code>{.proto.}</code> pragma.</p>
+<h2 id="the-proto-pragma"><a class="header" href="#the-proto-pragma">The <code>{.proto.}</code> Pragma</a></h2>
+<p>Annotate a message with
+<a href="tutorials/../apidocs/protobuf_serialization/types.html#proto.t,int"><code>{.proto.}</code></a> instead of
+<a href="tutorials/../apidocs/protobuf_serialization/types.html#proto2.t"><code>{.proto2.}</code></a> or
+<a href="tutorials/../apidocs/protobuf_serialization/types.html#proto3.t"><code>{.proto3.}</code></a>:</p>
+<pre><code class="language-nim"># With {.proto.}, presence is chosen per field:
+#   - PBExplicit: explicit presence (like proto2 optional)
+#   - required:   must be present in the encoded message
+#   - implicit:   no presence tracking (like proto3 scalars)
+type
+  Mixed {.proto.} = object
+    a {.fieldNumber: 1, pint.}: PBExplicit[0'i32]
+    b {.fieldNumber: 2, pint, required.}: int32
+    c {.fieldNumber: 3, pint, implicit.}: int32
+</code></pre>
+<p>Unlike proto2 and proto3, <code>{.proto.}</code> lets you choose <em>presence</em> for each field:</p>
+<ul>
+<li><strong><a href="tutorials/../apidocs/protobuf_serialization/types.html#PBExplicit"><code>PBExplicit</code></a></strong>—explicit presence: the field can distinguish "not set" from
+"set to the default value" (this is an alias of
+<a href="tutorials/../apidocs/protobuf_serialization/types.html#PBOption"><code>PBOption</code></a>).</li>
+<li><strong><a href="tutorials/../apidocs/protobuf_serialization/types.html#required.t"><code>required</code></a></strong>—the
+field must be present in the encoded message.</li>
+<li><strong><a href="tutorials/../apidocs/protobuf_serialization/types.html#implicit.t"><code>implicit</code></a></strong>—no presence tracking: the field behaves like a proto3 scalar,
+where the zero value is indistinguishable from "not set".</li>
+</ul>
+<p>Every field in a <code>{.proto.}</code> message must be exactly one of <code>implicit</code>,
+<code>required</code>, <code>PBExplicit</code>, or a repeated field (<code>seq[T]</code>).</p>
+<p>Encoding and decoding work as usual:</p>
+<pre><code class="language-nim">let msg = Mixed(a: pbSome(1'i32), b: 7'i32, c: 3'i32)
+let encoded = Protobuf.encode(msg)
+let decoded = Protobuf.decode(encoded, Mixed)
+assert decoded == msg
+</code></pre>
+<p>A <code>required</code> field that is missing from the encoded message is a decode error:</p>
+<pre><code class="language-nim"># A required field that is absent from the encoded message is a decode error.
+block:
+  var raised = false
+  try:
+    discard Protobuf.decode(default(seq[byte]), Mixed)
+  except ProtobufReadError:
+    raised = true
+  assert raised
+</code></pre>
+<h2 id="implicit-by-default"><a class="header" href="#implicit-by-default">Implicit by Default</a></h2>
+<p>Adding <code>implicit</code> at the type level makes fields implicit by default, so they no
+longer need a per-field presence pragma (except <code>required</code>):</p>
+<pre><code class="language-nim"># {.proto, implicit.} makes fields implicit by default, so they no longer
+# need a per-field presence pragma (except required).
+type
+  Settings {.proto, implicit.} = object
+    host {.fieldNumber: 1.}: string
+    port {.fieldNumber: 2, pint.}: int32
+    token {.fieldNumber: 3, pint.}: PBExplicit[0'i32]
+</code></pre>
+<h2 id="the-edition-year"><a class="header" href="#the-edition-year">The Edition Year</a></h2>
+<p>The <code>edition</code> parameter selects the protobuf edition the type conforms to. It
+must be one of the supported editions—<strong>2023</strong>, <strong>2024</strong>, or <strong>2026</strong>—and bare
+<code>{.proto.}</code> defaults to <strong>2023</strong>:</p>
+<pre><code class="language-nim"># The edition year selects the protobuf edition the type conforms to. It must
+# be one of the supported editions (2023, 2024, 2026); bare {.proto.} defaults
+# to 2023. The year is validated at compile time but does not currently change
+# the wire format, so these three types serialize identically.
+type
+  Config2023 {.proto: 2023, implicit.} = object
+    value {.fieldNumber: 1, pint.}: int32
+
+  Config2024 {.proto: 2024, implicit.} = object
+    value {.fieldNumber: 1, pint.}: int32
+
+  Config2026 {.proto: 2026, implicit.} = object
+    value {.fieldNumber: 1, pint.}: int32
+</code></pre>
+<div id="admonition-info" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-title">
+<div class="admonition-title">
+<div id="admonition-info-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="tutorials/proto-editions.html#admonition-info"></a>
+</div>
+<div>
+<p>The edition year is validated at compile time (an unsupported year fails to
+compile), but it does <strong>not</strong> currently change the wire format. The behavioral
+differences between editions live in <code>.proto</code> file parsing, which is not yet
+supported. As a result, <code>{.proto: 2023.}</code>, <code>{.proto: 2024.}</code>, and
+<code>{.proto: 2026.}</code> serialize identically today:</p>
+</div>
+</div>
+<pre><code class="language-nim"># All three editions produce the same bytes.
+let a = Protobuf.encode(Config2023(value: 5'i32))
+let b = Protobuf.encode(Config2024(value: 5'i32))
+let c = Protobuf.encode(Config2026(value: 5'i32))
+assert a == b
+assert b == c
+</code></pre>
+<h2 id="next-steps-8"><a class="header" href="#next-steps-8">Next Steps</a></h2>
+<ul>
+<li>Learn about <a href="tutorials/./optional-fields.html">optional fields</a> with <code>PBOption</code></li>
+<li>Read the <a href="tutorials/./annotating-objects.html">annotating objects</a> tutorial for proto2 and
+proto3 basics</li>
+</ul>
+<footer id="open-on-gh">Found a bug? <a href="https://github.com/status-im/nim-protobuf-serialization/edit/master/book/src/tutorials/proto-editions.md">Edit this page on GitHub.</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="contributing"><a class="header" href="#contributing">Contributing</a></h1>
+<p>Thank you for your interest in contributing to nim-protobuf-serialization! This guide will help you get started.</p>
+<h2 id="getting-the-source"><a class="header" href="#getting-the-source">Getting the Source</a></h2>
+<pre><code class="language-bash">git clone https://github.com/status-im/nim-protobuf-serialization.git
+cd nim-protobuf-serialization
+</code></pre>
+<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
+<ul>
+<li><a href="https://nim-lang.org/">Nim</a> &gt;= 1.6.20</li>
+<li><a href="https://rust-lang.github.io/mdBook/">mdBook</a> (for building documentation)</li>
+</ul>
+<h2 id="project-structure"><a class="header" href="#project-structure">Project Structure</a></h2>
+<pre><code>├── protobuf_serialization/       # Library source code
+│   ├── codec.nim                 # Core codec implementation
+│   ├── extension.nim             # Type extension support
+│   ├── format.nim                # Format definition
+│   ├── internal.nim              # Internal utilities
+│   ├── reader.nim                # Decoding logic
+│   ├── writer.nim                # Encoding logic
+│   ├── sizer.nim                 # Size computation
+│   ├── types.nim                 # Type definitions and pragmas
+│   ├── proto_parser.nim          # Proto file parser entry
+│   └── files/
+│       ├── type_generator.nim    # Code generation from .proto files
+│       └── proto_parser.nim      # PEG-based proto parser
+├── tests/                        # Test suite
+├── book/                         # mdBook documentation source
+│   ├── book.toml                 # mdBook configuration
+│   └── src/                      # Markdown source files
+└── docs/                         # Generated documentation (output)
+</code></pre>
+<h2 id="running-tests"><a class="header" href="#running-tests">Running Tests</a></h2>
+<p>Run the full test suite:</p>
+<pre><code class="language-bash">nimble test
+</code></pre>
+<p>This runs tests with multiple configurations:</p>
+<ul>
+<li><code>--threads:off</code> and <code>--threads:on</code></li>
+<li><code>-d:release</code> and <code>-d:danger</code></li>
+<li>Address sanitizer (on Linux/amd64 with Nim &gt;= 2.2)</li>
+</ul>
+<p>The test suite also includes compile-fail tests in <code>tests/fail/</code>. These are negative tests that verify the library correctly rejects invalid code—for example, using proto2-only features in proto3, or missing required pragmas. The test suite automatically attempts to compile each file in this directory and expects compilation to fail.</p>
+<h3 id="running-individual-tests"><a class="header" href="#running-individual-tests">Running Individual Tests</a></h3>
+<pre><code class="language-bash">nim c -r tests/test_objects.nim
+nim c -r tests/test_oneof.nim
+nim c -r tests/test_extension.nim
+</code></pre>
+<h3 id="conformance-tests"><a class="header" href="#conformance-tests">Conformance Tests</a></h3>
+<p>Run the official protobuf conformance test suite:</p>
+<pre><code class="language-bash">nimble conformance_test
+</code></pre>
+<h2 id="building-documentation-1"><a class="header" href="#building-documentation-1">Building Documentation</a></h2>
+<p>Build the book documentation:</p>
+<pre><code class="language-bash">nimble book
+</code></pre>
+<p>Generate API documentation:</p>
+<pre><code class="language-bash">nimble apidocs
+</code></pre>
+<p>To preview the book locally with live reload:</p>
+<pre><code class="language-bash">mdbook serve book
+</code></pre>
+<h2 id="code-style"><a class="header" href="#code-style">Code Style</a></h2>
+<ul>
+<li>Follow the <a href="https://status-im.github.io/nim-style-guide/">Status Nim Style Guide</a></li>
+<li>Use <code>{.push raises: [], gcsafe.}</code> at the top of modules</li>
+</ul>
+<h2 id="adding-tests"><a class="header" href="#adding-tests">Adding Tests</a></h2>
+<p>Tests live in the <code>tests/</code> directory. Each test file should:</p>
+<ol>
+<li>Import <code>unittest2</code> and the library</li>
+<li>Define test types with protobuf annotations</li>
+<li>Use the <code>roundtrip</code> helper from <code>tests/utils.nim</code> for encode/decode verification</li>
+</ol>
+<pre><code class="language-nim">import unittest2
+import ../protobuf_serialization
+import ./utils
+
+type
+  MyType {.proto3.} = object
+    field {.fieldNumber: 1.}: string
+
+suite "My feature":
+  test "roundtrip":
+    roundtrip(MyType(field: "hello"), "0a0568656c6c6f")
+</code></pre>
+<h2 id="submitting-changes"><a class="header" href="#submitting-changes">Submitting Changes</a></h2>
+<ol>
+<li>Create a feature branch from <code>master</code></li>
+<li>Make your changes</li>
+<li>Run the test suite: <code>nimble test</code> and build docs: <code>nimble docs</code></li>
+<li>Commit with a clear message</li>
+<li>Open a pull request</li>
+</ol>
+<h2 id="reporting-issues"><a class="header" href="#reporting-issues">Reporting Issues</a></h2>
+<p>Open an issue on <a href="https://github.com/status-im/nim-protobuf-serialization/issues">GitHub</a> with:</p>
+<ul>
+<li>A clear description of the problem</li>
+<li>Steps to reproduce (if applicable)</li>
+<li>Nim version and platform information</li>
+<li>Minimal code example (if applicable)</li>
+</ul>
+<h2 id="license"><a class="header" href="#license">License</a></h2>
+<p>By contributing, you agree that your contributions will be licensed under the same terms as the project (MIT / Apache 2.0, at your option).</p>
+<footer id="open-on-gh">Found a bug? <a href="https://github.com/status-im/nim-protobuf-serialization/edit/master/book/src/contributing.md">Edit this page on GitHub.</a></footer>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+
+    </div>
+    </body>
+</html>

@@ -1,0 +1,15 @@
+nimTitle	sizer	sizer.html	module protobuf_serialization/sizer		0
+nim	computeObjectSize	sizer.html#computeObjectSize,T	proc computeObjectSize[T: object](value: T): int		9
+nim	computeFieldSize	sizer.html#computeFieldSize,int,T,typeProtobufExt,staticbool	proc computeFieldSize[T: not seq and not PBOption](field: int; value: T;\n    ProtoType: type ProtobufExt; _: static bool)		11
+nim	computeFieldSizePacked	sizer.html#computeFieldSizePacked,int,openArray,typeProtobufExt	proc computeFieldSizePacked(field: int; values: openArray;\n                       ProtoType: type ProtobufExt): int		16
+nim	computeFieldSize	sizer.html#computeFieldSize,int,seq[T],typeProtobufExt,staticbool	proc computeFieldSize[T](field: int; value: seq[T]; ProtoType: type ProtobufExt;\n                    skipDefault: static bool): int		20
+nim	computeFieldSize	sizer.html#computeFieldSize,int,T,typepbytes,staticbool	proc computeFieldSize[T: object and not PBOption](field: int; value: T;\n    ProtoType: type pbytes; skipDefault: static bool): int		31
+nim	computeFieldSize	sizer.html#computeFieldSize,int,T,typeSomeScalar,staticbool	proc computeFieldSize[T: not object and (seq[byte] or not seq)](field: int; value: T;\n    ProtoType: type SomeScalar; skipDefault: static bool): int		45
+nim	computeFieldSize	sizer.html#computeFieldSize,int,PBOption,type,staticbool	proc computeFieldSize(field: int; value: PBOption; ProtoType: type;\n                 skipDefault: static bool): int		55
+nim	computeFieldSize	sizer.html#computeFieldSize,int,openArray[T],typeSomeProto,staticbool	proc computeFieldSize[T: not byte](field: int; value: openArray[T];\n                              ProtoType: type SomeProto;\n                              skipDefault: static bool): int		72
+nim	computeSizePackedIt	sizer.html#computeSizePackedIt.t,openArray[T],typeSomePrimitive,untyped	template computeSizePackedIt[T: not byte](value: openArray[T];\n                                 ProtoType: type SomePrimitive; item: untyped): int		84
+nim	computeFieldSizePackedIt	sizer.html#computeFieldSizePackedIt.t,int,openArray[T],typeSomePrimitive,untyped	template computeFieldSizePackedIt[T](field: int; value: openArray[T];\n                            ProtoType: type SomePrimitive; item: untyped): int		98
+nim	computeSizePacked	sizer.html#computeSizePacked,openArray[T],typeSomePrimitive	proc computeSizePacked[T: not byte](value: openArray[T];\n                               ProtoType: type SomePrimitive): int		109
+nim	computeFieldSizePacked	sizer.html#computeFieldSizePacked,int,openArray,typeSomePrimitive	proc computeFieldSizePacked(field: int; value: openArray;\n                       ProtoType: type SomePrimitive): int		113
+nimgrp	computefieldsizepacked	sizer.html#computeFieldSizePacked-procs-all	proc		16
+nimgrp	computefieldsize	sizer.html#computeFieldSize-procs-all	proc		11

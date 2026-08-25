@@ -1,0 +1,2 @@
+nimTitle	proto_parser	files/proto_parser.html	module protobuf_serialization/files/proto_parser		0
+nim	parseProtobuf	files/proto_parser.html#parseProtobuf,string	proc parseProtobuf(file: string): ProtoNode		342

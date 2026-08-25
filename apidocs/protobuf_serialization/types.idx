@@ -1,0 +1,40 @@
+nimTitle	types	types.html	module protobuf_serialization/types		0
+nim	ProtobufError	types.html#ProtobufError	object ProtobufError		12
+nim	ProtobufReadError	types.html#ProtobufReadError	object ProtobufReadError		14
+nim	ProtobufEOFError	types.html#ProtobufEOFError	object ProtobufEOFError		16
+nim	ProtobufMessageError	types.html#ProtobufMessageError	object ProtobufMessageError		18
+nim	ProtobufValueError	types.html#ProtobufValueError	object ProtobufValueError		20
+nim	ProtobufGroupError	types.html#ProtobufGroupError	object ProtobufGroupError		22
+nim	VarIntLengthPrefix	types.html#VarIntLengthPrefix	ProtobufFlags.VarIntLengthPrefix		25
+nim	ProtobufFlags	types.html#ProtobufFlags	enum ProtobufFlags		25
+nim	ProtobufWriter	types.html#ProtobufWriter	object ProtobufWriter		29
+nim	ProtobufReader	types.html#ProtobufReader	type ProtobufReader		34
+nim	PBOption	types.html#PBOption	object PBOption		39
+nim	PBExplicit	types.html#PBExplicit	type PBExplicit		45
+nim	ProtobufExt	types.html#ProtobufExt	object ProtobufExt		47
+nim	proto2	types.html#proto2.t	template proto2()		51
+nim	proto3	types.html#proto3.t	template proto3()		55
+nim	proto	types.html#proto.t,int	template proto(edition = 2023)		59
+nim	implicit	types.html#implicit.t	template implicit()		62
+nim	fieldNumber	types.html#fieldNumber.t,int	template fieldNumber(num: int)		65
+nim	required	types.html#required.t	template required()		69
+nim	packed	types.html#packed.t,bool	template packed(v: bool)		73
+nim	pint	types.html#pint.t	template pint()		77
+nim	sint	types.html#sint.t	template sint()		81
+nim	fixed	types.html#fixed.t	template fixed()		85
+nim	ext	types.html#ext.t	template ext()		89
+nim	oneof	types.html#oneof.t	template oneof()		93
+nim	init	types.html#init,typeProtobufWriter,OutputStream,staticset[ProtobufFlags]	proc init(T: type ProtobufWriter; stream: OutputStream;\n     flags: static set[ProtobufFlags] = {}): T:type		96
+nim	init	types.html#init,typeProtobufReader,InputStream,bool	proc init(T: type ProtobufReader; stream: InputStream; closeAfter: bool = true): T:type		103
+nim	finish	types.html#finish,ProtobufWriter	proc finish(writer: ProtobufWriter): seq[byte]		115
+nim	isNone	types.html#isNone,PBOption	proc isNone(opt: PBOption): bool		119
+nim	isSome	types.html#isSome,PBOption	proc isSome(opt: PBOption): bool		123
+nim	get	types.html#get,PBOption	proc get(opt: PBOption): auto		127
+nim	mget	types.html#mget.t,PBOption	template mget(opt: var PBOption): untyped		134
+nim	valueOr	types.html#valueOr.t,PBOption,untyped	template valueOr(opt: PBOption; def: untyped): untyped		140
+nim	pbSome	types.html#pbSome,typedesc[T],auto	proc pbSome[T: PBOption](optType: typedesc[T]; value: auto): T		148
+nim	pbSome	types.html#pbSome.t,untyped	template pbSome(value: untyped): untyped		172
+nim	pbNone	types.html#pbNone.t,untyped	template pbNone(value: untyped): untyped		178
+nim	init	types.html#init,PBOption,auto	proc init(opt: var PBOption; val: auto)		183
+nim	toValue	types.html#toValue.c,PBOption	converter toValue(opt: PBOption): auto		187
+nimgrp	init	types.html#init-procs-all	proc		96

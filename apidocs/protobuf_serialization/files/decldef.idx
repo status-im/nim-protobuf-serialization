@@ -1,0 +1,28 @@
+nimTitle	decldef	files/decldef.html	module protobuf_serialization/files/decldef		0
+nim	String	files/decldef.html#String	ReservedType.String		13
+nim	Number	files/decldef.html#Number	ReservedType.Number		13
+nim	Range	files/decldef.html#Range	ReservedType.Range		13
+nim	ReservedType	files/decldef.html#ReservedType	enum ReservedType		13
+nim	Field	files/decldef.html#Field	ProtoType.Field		15
+nim	Enum	files/decldef.html#Enum	ProtoType.Enum		15
+nim	EnumVal	files/decldef.html#EnumVal	ProtoType.EnumVal		15
+nim	ReservedBlock	files/decldef.html#ReservedBlock	ProtoType.ReservedBlock		15
+nim	Reserved	files/decldef.html#Reserved	ProtoType.Reserved		15
+nim	Message	files/decldef.html#Message	ProtoType.Message		15
+nim	File	files/decldef.html#File	ProtoType.File		15
+nim	Imported	files/decldef.html#Imported	ProtoType.Imported		15
+nim	Oneof	files/decldef.html#Oneof	ProtoType.Oneof		15
+nim	Package	files/decldef.html#Package	ProtoType.Package		15
+nim	ProtoDef	files/decldef.html#ProtoDef	ProtoType.ProtoDef		15
+nim	Extend	files/decldef.html#Extend	ProtoType.Extend		15
+nim	FieldOption	files/decldef.html#FieldOption	ProtoType.FieldOption		15
+nim	Service	files/decldef.html#Service	ProtoType.Service		15
+nim	Rpc	files/decldef.html#Rpc	ProtoType.Rpc		15
+nim	ProtoType	files/decldef.html#ProtoType	enum ProtoType		15
+nim	Singular	files/decldef.html#Singular	Presence.Singular		17
+nim	Repeated	files/decldef.html#Repeated	Presence.Repeated		17
+nim	Optional	files/decldef.html#Optional	Presence.Optional		17
+nim	Required	files/decldef.html#Required	Presence.Required		17
+nim	Presence	files/decldef.html#Presence	enum Presence		17
+nim	ProtoNode	files/decldef.html#ProtoNode	type ProtoNode		19
+nim	`$`	files/decldef.html#$,ProtoNode	proc `$`(node: ProtoNode): string		83

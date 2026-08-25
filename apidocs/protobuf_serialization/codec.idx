@@ -1,0 +1,73 @@
+nimTitle	codec	codec.html	module protobuf_serialization/codec		0
+nim	Varint	codec.html#Varint	WireKind.Varint		23
+nim	Fixed64	codec.html#Fixed64	WireKind.Fixed64		23
+nim	LengthDelim	codec.html#LengthDelim	WireKind.LengthDelim		23
+nim	Fixed32	codec.html#Fixed32	WireKind.Fixed32		23
+nim	WireKind	codec.html#WireKind	enum WireKind		23
+nim	SomePBInt	codec.html#SomePBInt	type SomePBInt		31
+nim	FieldHeader	codec.html#FieldHeader	type FieldHeader		33
+nim	pdouble	codec.html#pdouble	type pdouble		37
+nim	pfloat	codec.html#pfloat	type pfloat		38
+nim	pint32	codec.html#pint32	type pint32		40
+nim	pint64	codec.html#pint64	type pint64		41
+nim	puint32	codec.html#puint32	type puint32		43
+nim	puint64	codec.html#puint64	type puint64		44
+nim	sint32	codec.html#sint32	type sint32		46
+nim	sint64	codec.html#sint64	type sint64		47
+nim	fixed32	codec.html#fixed32_2	type fixed32		49
+nim	fixed64	codec.html#fixed64_2	type fixed64		50
+nim	sfixed32	codec.html#sfixed32	type sfixed32		52
+nim	sfixed64	codec.html#sfixed64	type sfixed64		53
+nim	pbool	codec.html#pbool	type pbool		55
+nim	penum	codec.html#penum	type penum		56
+nim	pstring	codec.html#pstring	type pstring		58
+nim	pbytes	codec.html#pbytes	type pbytes		59
+nim	SomeScalar	codec.html#SomeScalar	type SomeScalar		61
+nim	SomeVarint	codec.html#SomeVarint	type SomeVarint		69
+nim	SomeFixed64	codec.html#SomeFixed64	type SomeFixed64		71
+nim	SomeLengthDelim	codec.html#SomeLengthDelim	type SomeLengthDelim		72
+nim	SomeFixed32	codec.html#SomeFixed32	type SomeFixed32		73
+nim	SomePrimitive	codec.html#SomePrimitive	type SomePrimitive		75
+nim	SomeProto	codec.html#SomeProto	type SomeProto		78
+nim	SupportedWireKinds	codec.html#SupportedWireKinds	const SupportedWireKinds		84
+nim	wireKind	codec.html#wireKind.t,typeSomeVarint	template wireKind(T: type SomeVarint): WireKind		91
+nim	wireKind	codec.html#wireKind.t,typeSomeFixed64	template wireKind(T: type SomeFixed64): WireKind		92
+nim	wireKind	codec.html#wireKind.t,typeSomeLengthDelim	template wireKind(T: type SomeLengthDelim): WireKind		93
+nim	wireKind	codec.html#wireKind.t,typeSomeFixed32	template wireKind(T: type SomeFixed32): WireKind		94
+nim	validFieldNumber	codec.html#validFieldNumber.t,int,bool	template validFieldNumber(i: int; strict: bool = false): bool		96
+nim	init	codec.html#init.t,typeFieldHeader,int,WireKind	template init(_: type FieldHeader; index: int; wire: WireKind): FieldHeader		101
+nim	number	codec.html#number.t,FieldHeader	template number(p: FieldHeader): int		105
+nim	kind	codec.html#kind.t,FieldHeader	template kind(p: FieldHeader): WireKind		108
+nim	toBytes	codec.html#toBytes.t,SomeVarint	template toBytes(x: SomeVarint): openArray[byte]		142
+nim	toBytes	codec.html#toBytes.t	template toBytes(x: fixed32 | fixed64): openArray[byte]		145
+nim	toBytes	codec.html#toBytes.t,sfixed32	template toBytes(x: sfixed32): openArray[byte]		149
+nim	toBytes	codec.html#toBytes.t,sfixed64	template toBytes(x: sfixed64): openArray[byte]		151
+nim	toBytes	codec.html#toBytes.t,pdouble	template toBytes(x: pdouble): openArray[byte]		154
+nim	toBytes	codec.html#toBytes.t,pfloat	template toBytes(x: pfloat): openArray[byte]		156
+nim	toBytes	codec.html#toBytes.t,FieldHeader	template toBytes(header: FieldHeader): openArray[byte]		159
+nim	computeSize	codec.html#computeSize,SomeVarint	proc computeSize(x: SomeVarint): int		162
+nim	computeSize	codec.html#computeSize	proc computeSize(x: SomeFixed64 | SomeFixed32): int		166
+nim	computeSize	codec.html#computeSize_2	proc computeSize(x: pstring | pbytes): int		170
+nim	computeSize	codec.html#computeSize,FieldHeader	proc computeSize(x: FieldHeader): int		174
+nim	computeSize	codec.html#computeSize,int,SomeScalar	proc computeSize(field: int; x: SomeScalar): int		178
+nim	writeValue	codec.html#writeValue,OutputStream,SomeVarint	proc writeValue(output: OutputStream; value: SomeVarint)		182
+nim	writeValue	codec.html#writeValue,OutputStream,SomeFixed64	proc writeValue(output: OutputStream; value: SomeFixed64)		185
+nim	writeValue	codec.html#writeValue,OutputStream,pstring	proc writeValue(output: OutputStream; value: pstring)		188
+nim	writeValue	codec.html#writeValue,OutputStream,pbytes	proc writeValue(output: OutputStream; value: pbytes)		192
+nim	writeValue	codec.html#writeValue,OutputStream,SomeFixed32	proc writeValue(output: OutputStream; value: SomeFixed32)		196
+nim	writeValue	codec.html#writeValue,OutputStream,FieldHeader	proc writeValue(output: OutputStream; value: FieldHeader)		199
+nim	writeField	codec.html#writeField,OutputStream,int,SomeScalar	proc writeField(output: OutputStream; field: int; value: SomeScalar)		202
+nim	readValue	codec.html#readValue,InputStream,typeT	proc readValue[T: SomeVarint](input: InputStream; _: type T): T		226
+nim	skipValue	codec.html#skipValue,InputStream,typeT	proc skipValue[T: SomeVarint](input: InputStream; _: type T)		233
+nim	readValue	codec.html#readValue,InputStream,typeT_2	proc readValue[T: SomeFixed32 | SomeFixed64](input: InputStream; _: type T): T		236
+nim	skipValue	codec.html#skipValue,InputStream,typeT_2	proc skipValue[T: SomeFixed32 | SomeFixed64](input: InputStream; _: type T)		247
+nim	readLength	codec.html#readLength,InputStream	proc readLength(input: InputStream): int		254
+nim	readValue	codec.html#readValue,InputStream,typeT_3	proc readValue[T: SomeLengthDelim](input: InputStream; _: type T): T		260
+nim	skipValue	codec.html#skipValue,InputStream,typeT_3	proc skipValue[T: SomeLengthDelim](input: InputStream; _: type T)		282
+nim	readHeader	codec.html#readHeader,InputStream	proc readHeader(input: InputStream): FieldHeader		286
+nimgrp	writevalue	codec.html#writeValue-procs-all	proc		182
+nimgrp	computesize	codec.html#computeSize-procs-all	proc		162
+nimgrp	readvalue	codec.html#readValue-procs-all	proc		226
+nimgrp	skipvalue	codec.html#skipValue-procs-all	proc		233
+nimgrp	tobytes	codec.html#toBytes-templates-all	template		142
+nimgrp	wirekind	codec.html#wireKind-templates-all	template		91

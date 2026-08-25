@@ -1,0 +1,8 @@
+nimTitle	protobuf_serialization	protobuf_serialization.html	module protobuf_serialization		0
+nim	ReaderType	protobuf_serialization.html#ReaderType.t,typeProtobuf	template ReaderType(T`gensym0: type Protobuf): type		58
+nim	Reader	protobuf_serialization.html#Reader.t,typeProtobuf	template Reader(T`gensym0: type Protobuf): type		59
+nim	WriterType	protobuf_serialization.html#WriterType.t,typeProtobuf	template WriterType(T`gensym2: type Protobuf): type		67
+nim	Writer	protobuf_serialization.html#Writer.t,typeProtobuf	template Writer(T`gensym2: type Protobuf): type		68
+nim	PreferredOutputType	protobuf_serialization.html#PreferredOutputType.t,typeProtobuf	template PreferredOutputType(T`gensym2: type Protobuf): type		10
+nim	supports	protobuf_serialization.html#supports,typeProtobuf,typedesc[T]	proc supports[T](_: type Protobuf; ty: typedesc[T]): bool		24
+nim	computeSize	protobuf_serialization.html#computeSize,typeProtobuf,T	proc computeSize[T: object](_: type Protobuf; value: T): int		29

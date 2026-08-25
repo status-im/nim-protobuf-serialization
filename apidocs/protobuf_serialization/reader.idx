@@ -1,0 +1,15 @@
+nimTitle	reader	reader.html	module protobuf_serialization/reader		0
+nim	readFieldInto	reader.html#readFieldInto,InputStream,T,FieldHeader,typeProtobufExt	proc readFieldInto[T: not seq and not PBOption](stream: InputStream; value: var T;\n    header: FieldHeader; ProtoType: type ProtobufExt): bool		18
+nim	readFieldPackedInto	reader.html#readFieldPackedInto,InputStream,T,FieldHeader,typeProtobufExt	proc readFieldPackedInto[T](stream: InputStream; value: var T; header: FieldHeader;\n                       ProtoType: type ProtobufExt): bool		26
+nim	readFieldInto	reader.html#readFieldInto,InputStream,seq[T],FieldHeader,typeProtobufExt	proc readFieldInto[T: not PBOption](stream: InputStream; value: var seq[T];\n                               header: FieldHeader; ProtoType: type ProtobufExt): bool		34
+nim	readFieldInto	reader.html#readFieldInto,InputStream,T,FieldHeader,typepbytes	proc readFieldInto[T: object and not PBOption](stream: InputStream; value: var T;\n    header: FieldHeader; ProtoType: type pbytes): bool		55
+nim	readFieldInto	reader.html#readFieldInto,InputStream,T,FieldHeader,typeSomeProto	proc readFieldInto[T: not object and (seq[byte] or not seq)](stream: InputStream;\n    value: var T; header: FieldHeader; ProtoType: type SomeProto): bool		81
+nim	readFieldInto	reader.html#readFieldInto,InputStream,seq[T],FieldHeader,typeSomeProto	proc readFieldInto[T: not byte](stream: InputStream; value: var seq[T];\n                           header: FieldHeader; ProtoType: type SomeProto): bool		93
+nim	readFieldInto	reader.html#readFieldInto,InputStream,PBOption,FieldHeader,type	proc readFieldInto(stream: InputStream; value: var PBOption; header: FieldHeader;\n              ProtoType: type): bool		106
+nim	readFieldPackedIntoIt	reader.html#readFieldPackedIntoIt.t,InputStream,FieldHeader,typeSomePrimitive,untyped	template readFieldPackedIntoIt(stream: InputStream; header: FieldHeader;\n                      ProtoType: type SomePrimitive; body: untyped): bool		122
+nim	readFieldPackedIntoIt	reader.html#readFieldPackedIntoIt.t,InputStream,seq[T],FieldHeader,typeSomePrimitive,untyped	template readFieldPackedIntoIt[T: not byte](stream: InputStream; value: var seq[T];\n                                   header: FieldHeader;\n                                   ProtoType: type SomePrimitive; body: untyped): bool		141
+nim	readFieldPackedInto	reader.html#readFieldPackedInto,InputStream,seq[T],FieldHeader,typeSomePrimitive	proc readFieldPackedInto[T: not byte](stream: InputStream; value: var seq[T];\n                                 header: FieldHeader;\n                                 ProtoType: type SomePrimitive): bool		150
+nim	readValue	reader.html#readValue,ProtobufReader,T	proc readValue[T: object](reader: ProtobufReader; value: var T)		236
+nimgrp	readfieldinto	reader.html#readFieldInto-procs-all	proc		18
+nimgrp	readfieldpackedinto	reader.html#readFieldPackedInto-procs-all	proc		26
+nimgrp	readfieldpackedintoit	reader.html#readFieldPackedIntoIt-templates-all	template		122

@@ -1,0 +1,4 @@
+nimTitle	format	format.html	module protobuf_serialization/format		0
+nim	Protobuf	format.html#Protobuf	object Protobuf		23
+nim	mimeType	format.html#mimeType.t,typeProtobuf	template mimeType(T: type Protobuf): string		24
+nim	versionInt	format.html#versionInt.t,typeProtobuf	template versionInt(T: type Protobuf): uint		15

@@ -1,0 +1,7 @@
+nimTitle	results	pkg/results.html	module protobuf_serialization/pkg/results		0
+nim	supportsPacked	pkg/results.html#supportsPacked,typeOpt,typeProtobufExt	proc supportsPacked(_: type Opt; ProtoType: type ProtobufExt): bool		18
+nim	flatType	pkg/results.html#flatType.t,typeProtobuf,Opt[U]	template flatType[U](T: type Protobuf; value: Opt[U]): type		21
+nim	isExtension	pkg/results.html#isExtension,typeProtobuf,typeOpt	proc isExtension(T: type Protobuf; FieldType: type Opt): bool		23
+nim	computeFieldSize	pkg/results.html#computeFieldSize,int,Opt,typeProtobufExt,staticbool	proc computeFieldSize(field: int; value: Opt; ProtoType: type ProtobufExt;\n                 skipDefault: static bool): int		34
+nim	writeField	pkg/results.html#writeField,OutputStream,int,Opt,typeProtobufExt,staticbool	proc writeField(stream: OutputStream; field: int; value: Opt;\n           ProtoType: type ProtobufExt; skipDefault: static bool = false)		47
+nim	readFieldInto	pkg/results.html#readFieldInto,InputStream,Opt,FieldHeader,typeProtobufExt	proc readFieldInto(stream: InputStream; value: var Opt; header: FieldHeader;\n              ProtoType: type ProtobufExt): bool		59

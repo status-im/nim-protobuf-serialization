@@ -1,0 +1,16 @@
+nimTitle	enums	std/enums.html	module protobuf_serialization/std/enums		0
+nim	supportsPacked	std/enums.html#supportsPacked,type,typeProtobufExt	proc supportsPacked(_: type enum; ProtoType`gensym5: type ProtobufExt): bool		29
+nim	supportsPacked	std/enums.html#supportsPacked,type,typeProtobufExt_2	proc supportsPacked(_: type seq[enum]; ProtoType`gensym5: type ProtobufExt): bool		32
+nim	computeFieldSize	std/enums.html#computeFieldSize,int,,typeProtobufExt,staticbool	proc computeFieldSize(field`gensym5: int; value`gensym5: seq[enum];\n                 ProtoType`gensym5: type ProtobufExt;\n                 skipDefault`gensym5: static bool): int		36
+nim	writeField	std/enums.html#writeField,OutputStream,int,,typeProtobufExt,staticbool	proc writeField(stream`gensym5: OutputStream; field`gensym5: int;\n           value`gensym5: seq[enum]; ProtoType`gensym5: type ProtobufExt;\n           skipDefault`gensym5: static bool = false)		47
+nim	readFieldInto	std/enums.html#readFieldInto,InputStream,,FieldHeader,typeProtobufExt	proc readFieldInto(stream`gensym5: InputStream; value`gensym5: var seq[enum];\n              header`gensym5: FieldHeader; ProtoType`gensym5: type ProtobufExt): bool		58
+nim	computeFieldSize	std/enums.html#computeFieldSize,int,,typeProtobufExt,staticbool_2	proc computeFieldSize(field: int; value: enum; ProtoType: type ProtobufExt;\n                 skipDefault: static bool): int		57
+nim	writeField	std/enums.html#writeField,OutputStream,int,,typeProtobufExt,staticbool_2	proc writeField(stream: OutputStream; field: int; value: enum;\n           ProtoType: type ProtobufExt; skipDefault: static bool = false)		66
+nim	readFieldInto	std/enums.html#readFieldInto,InputStream,,FieldHeader,typeProtobufExt_2	proc readFieldInto(stream: InputStream; value: var (enum); header: FieldHeader;\n              ProtoType: type ProtobufExt): bool		76
+nim	computeFieldSizePacked	std/enums.html#computeFieldSizePacked,int,openArray[],typeProtobufExt	proc computeFieldSizePacked(field: int; value: openArray[enum];\n                       ProtoType: type ProtobufExt): int		89
+nim	writeFieldPacked	std/enums.html#writeFieldPacked,OutputStream,int,openArray[],typeProtobufExt	proc writeFieldPacked(stream: OutputStream; field: int; value: openArray[enum];\n                 ProtoType: type ProtobufExt)		97
+nim	readFieldPackedInto	std/enums.html#readFieldPackedInto,InputStream,seq[],FieldHeader,typeProtobufExt	proc readFieldPackedInto(stream: InputStream; value: var seq[enum];\n                    header: FieldHeader; ProtoType: type ProtobufExt): bool		106
+nimgrp	supportspacked	std/enums.html#supportsPacked-procs-all	proc		29
+nimgrp	readfieldinto	std/enums.html#readFieldInto-procs-all	proc		58
+nimgrp	writefield	std/enums.html#writeField-procs-all	proc		47
+nimgrp	computefieldsize	std/enums.html#computeFieldSize-procs-all	proc		36

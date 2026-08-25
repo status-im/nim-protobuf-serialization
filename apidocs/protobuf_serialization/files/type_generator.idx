@@ -1,0 +1,6 @@
+nimTitle	type_generator	files/type_generator.html	module protobuf_serialization/files/type_generator		0
+nim	ProtoHook	files/type_generator.html#ProtoHook	type ProtoHook		20
+nim	protoToTypesImpl	files/type_generator.html#protoToTypesImpl,string,ProtoHook	proc protoToTypesImpl(filepath: string; protoHook: ProtoHook = nil): NimNode		374
+nim	protoToTypesInternal	files/type_generator.html#protoToTypesInternal,string	proc protoToTypesInternal(filepath: string): NimNode		377
+nim	protoToTypes	files/type_generator.html#protoToTypes.m,static[string]	macro protoToTypes(filepath: static[string]): untyped		380
+nim	import_proto3	files/type_generator.html#import_proto3.t,static[string]	template import_proto3(file: static[string]): untyped		383

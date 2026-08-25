@@ -1,0 +1,411 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Enums - nim-protobuf-serialization</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="../highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="../tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././open-in.css">
+        <link rel="stylesheet" href=".././mdbook-admonish.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">nim-protobuf-serialization</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/status-im/nim-protobuf-serialization" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="enums"><a class="header" href="#enums">Enums</a></h1>
+<p>Protobuf enums map naturally to Nim enums. Support for enum fields is not part
+of the default import—it lives in a separate module that you have to import
+explicitly.</p>
+<h2 id="importing-stdenums"><a class="header" href="#importing-stdenums">Importing <code>std/enums</code></a></h2>
+<p>The core <code>protobuf_serialization</code> module does not know how to serialize enum
+fields. To use them, import <code>protobuf_serialization/std/enums</code>:</p>
+<pre><code class="language-nim">import protobuf_serialization
+import protobuf_serialization/std/enums
+</code></pre>
+<p>Without this import, the compiler has no serialization handlers for your enum
+type and the code will not compile.</p>
+<p>Enum fields are annotated with the <a href="../apidocs/protobuf_serialization/types.html#ext.t"><code>{.ext.}</code></a>
+pragma, because enum support is implemented as a type extension:</p>
+<pre><code class="language-nim">type
+  Status = enum
+    Unknown  # ord 0
+    Active   # ord 1
+    Banned   # ord 2
+
+  Account {.proto3.} = object
+    status {.fieldNumber: 1, ext.}: Status
+</code></pre>
+<p>Encoding and decoding then works like any other field:</p>
+<pre><code class="language-nim">let account = Account(status: Active)
+let encoded = Protobuf.encode(account)
+let decoded = Protobuf.decode(encoded, Account)
+assert decoded == account
+</code></pre>
+<h2 id="the-zero-value-requirement"><a class="header" href="#the-zero-value-requirement">The Zero-Value Requirement</a></h2>
+<p>In proto3, an enum must contain a constant that maps to <code>0</code>. If it does not,
+compilation fails with a <code>{.fatal.}</code> error. In the example above, <code>Unknown</code>
+satisfies this requirement because it is the first value and therefore has
+ordinal <code>0</code>.</p>
+<h2 id="closed-enum-semantics"><a class="header" href="#closed-enum-semantics">Closed Enum Semantics</a></h2>
+<p>Nim enums are <strong>closed</strong>: a value of an enum type can only be one of the
+constants defined for that type. There is no way to hold a <code>Status</code> whose value
+is <code>3</code> when only <code>0</code>, <code>1</code>, and <code>2</code> are defined.</p>
+<p>Because protobuf enums are mapped onto Nim enums, they inherit this closed
+behavior. This is <strong>not</strong> conformant with proto3's open-enum semantics, where an
+unknown value is preserved so it can be re-serialized unchanged. In <code>nim-protobuf-protobuf_serialization</code>, unknown
+values are not stored at all and therefore cannot be serialized back.</p>
+<p>If you need proto3-conformant behavior, use an <code>int32</code> field instead—see
+<a href="#preserving-proto3-compatible-semantics">Preserving proto3-Compatible Semantics</a>
+below.</p>
+<h3 id="unknown-values"><a class="header" href="#unknown-values">Unknown Values</a></h3>
+<p>How an unknown value is handled on decode depends on the syntax:</p>
+<p><strong>proto3</strong>—the unknown value is dropped and the field keeps its zero value:</p>
+<pre><code class="language-nim"># Nim enums are closed: a decoded value that is not part of the enum cannot
+# be represented, so it is dropped and the field keeps its zero value.
+# The bytes "0803" encode field 1 (tag 08) with the value 3, which is not a
+# valid Status. Decoding maps it to the zero value (Unknown) and drops the 3.
+block:
+  let encoded = "0803".hexToSeqByte
+  let decoded = Protobuf.decode(encoded, Account)
+  assert decoded.status == Unknown
+</code></pre>
+<p><strong>proto2 with <a href="../apidocs/protobuf_serialization/types.html#required.t"><code>required</code></a></strong>—the unknown value is a decode error:</p>
+<pre><code class="language-nim">type
+  RequiredAccount {.proto2.} = object
+    status {.fieldNumber: 1, required, ext.}: Status
+</code></pre>
+<pre><code class="language-nim"># In proto2 with a required enum, an unknown value is a decode error.
+block:
+  let encoded = "0803".hexToSeqByte
+  var raised = false
+  try:
+    discard Protobuf.decode(encoded, RequiredAccount)
+  except ProtobufReadError:
+    raised = true
+  assert raised
+</code></pre>
+<h2 id="enums-with-holes"><a class="header" href="#enums-with-holes">Enums With Holes</a></h2>
+<p>Enum ordinals do not have to be contiguous, and they may be negative:</p>
+<pre><code class="language-nim"># Enum ordinals do not have to be contiguous.
+type
+  Priority = enum
+    Low = -10
+    Normal = 0
+    High = 10
+    Critical  # ord 11
+
+  Task {.proto3.} = object
+    priority {.fieldNumber: 1, ext.}: Priority
+</code></pre>
+<h2 id="optional-enums"><a class="header" href="#optional-enums">Optional Enums</a></h2>
+<p>In proto2, wrap an enum field in a <a href="../apidocs/protobuf_serialization/types.html#PBOption"><code>PBOption</code></a>
+to distinguish "not set" from "set to the default value". Use <code>pbSome</code> and
+<code>pbNone</code> to construct the values:</p>
+<pre><code class="language-nim">type
+  OptionalAccount {.proto2.} = object
+    status {.fieldNumber: 1, ext.}: PBOption[default(Status)]
+</code></pre>
+<pre><code class="language-nim">let present = OptionalAccount(status: pbSome(Active))
+assert Protobuf.decode(Protobuf.encode(present), OptionalAccount) == present
+
+# The PBOption parameter is the field's default value, not its type, so
+# pbNone takes the default value too: default(Status), i.e. Unknown.
+let absent = OptionalAccount(status: pbNone(default(Status)))
+assert Protobuf.decode(Protobuf.encode(absent), OptionalAccount) == absent
+</code></pre>
+<div id="admonition-info" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-title">
+<div class="admonition-title">
+<div id="admonition-info-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-info"></a>
+</div>
+<div>
+<p>The <code>PBOption</code> parameter is the field's default <em>value</em>, not its type. Writing
+<code>PBOption[default(Status)]</code> stores a full <code>Status</code> (the value type is derived
+from the default), and falls back to <code>default(Status)</code> (that is, <code>Unknown</code>) when
+the field is not set. So this reads as "either a <code>Status</code>, or not set with a
+default of <code>Unknown</code>". Passing the type directly (<code>PBOption[Status]</code>) does not
+compile, because the parameter expects a value. <code>pbNone</code> likewise takes the
+default value, matching the field declaration.</p>
+</div>
+</div>
+<h2 id="repeated--packed-enums"><a class="header" href="#repeated--packed-enums">Repeated &amp; Packed Enums</a></h2>
+<p>Repeated enum fields follow the same packing rules as other repeated numeric
+fields (see <a href="./repeated-packed.html">Repeated &amp; Packed Fields</a>): proto2 defaults to
+unpacked, proto3 defaults to packed, and the
+<a href="../apidocs/protobuf_serialization/types.html#packed.t,bool"><code>{.packed.}</code></a> pragma
+overrides the default:</p>
+<pre><code class="language-nim">type
+  # proto2 repeated fields are unpacked by default.
+  StatusLogP2 {.proto2.} = object
+    statuses {.fieldNumber: 1, ext.}: seq[Status]
+
+  # proto3 repeated numeric/enum fields are packed by default.
+  StatusLogP3 {.proto3.} = object
+    statuses {.fieldNumber: 1, ext.}: seq[Status]
+
+  # The packed pragma overrides the default in either syntax.
+  StatusLogPacked {.proto2.} = object
+    statuses {.fieldNumber: 1, ext, packed: true.}: seq[Status]
+</code></pre>
+<p>Unknown entries in a repeated enum field are dropped; the valid entries are kept:</p>
+<pre><code class="language-nim"># Unknown entries in a repeated enum field are dropped; valid ones are kept.
+# "080008030802" is three unpacked entries: 0, 3 (invalid), 2.
+let encoded = "080008030802".hexToSeqByte
+let decoded = Protobuf.decode(encoded, StatusLogP2)
+assert decoded.statuses == @[Unknown, Banned]
+</code></pre>
+<h2 id="preserving-proto3-compatible-semantics"><a class="header" href="#preserving-proto3-compatible-semantics">Preserving proto3-Compatible Semantics</a></h2>
+<p>Because Nim enums are closed, they cannot preserve unknown values. If you need
+the proto3-conformant behavior—where unknown values survive a decode/encode
+round-trip—store the value as an <code>int32</code> field with the
+<a href="../apidocs/protobuf_serialization/types.html#pint.t"><code>{.pint.}</code></a> pragma instead
+of a Nim enum. Named values become plain constants:</p>
+<pre><code class="language-nim"># To get proto3-conformant, open-enum behavior, store the value as an int32
+# instead of a Nim enum. Named values become constants, and any unknown value
+# is preserved on decode instead of being dropped.
+const
+  StatusUnknown = 0'i32
+  StatusActive = 1'i32
+  StatusBanned = 2'i32
+
+type
+  OpenAccount {.proto3.} = object
+    status {.fieldNumber: 1, pint.}: int32
+</code></pre>
+<p>Now an unknown value is preserved rather than dropped:</p>
+<pre><code class="language-nim"># The same "0803" bytes now round-trip: the unknown value 3 is preserved.
+let encoded = "0803".hexToSeqByte
+let decoded = Protobuf.decode(encoded, OpenAccount)
+assert decoded.status == 3'i32
+assert Protobuf.encode(decoded) == encoded
+</code></pre>
+<p>Compare this with the <a href="#unknown-values">proto3 unknown-value behavior</a> of a Nim
+enum, where the value <code>3</code> was dropped and replaced with the zero value.</p>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next Steps</a></h2>
+<ul>
+<li>Learn about <a href="./repeated-packed.html">repeated and packed fields</a> for arrays</li>
+<li>Explore <a href="./optional-fields.html">optional fields</a> with <code>PBOption</code></li>
+</ul>
+<footer id="open-on-gh">Found a bug? <a href="https://github.com/status-im/nim-protobuf-serialization/edit/master/book/src/tutorials/enums.md">Edit this page on GitHub.</a></footer>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../tutorials/type-extensions.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../tutorials/proto-editions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../tutorials/type-extensions.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../tutorials/proto-editions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

@@ -1,0 +1,434 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Type Extensions - nim-protobuf-serialization</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="../highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="../tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././open-in.css">
+        <link rel="stylesheet" href=".././mdbook-admonish.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">nim-protobuf-serialization</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/status-im/nim-protobuf-serialization" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="type-extensions"><a class="header" href="#type-extensions">Type Extensions</a></h1>
+<p>Type extensions allow you to define custom serialization logic for types that aren't directly annotated with protobuf pragmas. This is useful when you want to serialize external types or types with custom encoding requirements.</p>
+<h2 id="when-to-use-type-extensions"><a class="header" href="#when-to-use-type-extensions">When to Use Type Extensions</a></h2>
+<p>Use type extensions when:</p>
+<ul>
+<li>You need to serialize types from external libraries</li>
+<li>You want custom encoding logic (e.g., compression, encryption)</li>
+<li>You're working with types that can't be annotated directly</li>
+<li>You need to serialize wrapper types</li>
+</ul>
+<h2 id="basic-structure"><a class="header" href="#basic-structure">Basic Structure</a></h2>
+<p>A type extension consists of three procedures:</p>
+<ol>
+<li><code>computeFieldSize</code>—calculates the encoded size</li>
+<li><code>writeField</code>—encodes the value</li>
+<li><code>readFieldInto</code>—decodes the value</li>
+</ol>
+<h2 id="simple-example"><a class="header" href="#simple-example">Simple Example</a></h2>
+<p>Let's create a custom type and make it serializable:</p>
+<pre><code class="language-nim"># Custom wrapper type (not annotated with proto2/proto3)
+type
+  IntWrapper = object
+    value: int32
+</code></pre>
+<p>Now we define a message that uses this custom type:</p>
+<pre><code class="language-nim"># Message that uses the custom type
+type
+  Container {.proto3.} = object
+    name {.fieldNumber: 1.}: string
+    data {.fieldNumber: 2, ext.}: IntWrapper
+</code></pre>
+<p>To make <code>IntWrapper</code> serializable, we need to implement the three required procedures:</p>
+<pre><code class="language-nim"># Define type extension for IntWrapper
+Protobuf.extensionDefaults(IntWrapper, pint32, defaultSeq = true)
+
+func computeFieldSize(
+    field: int,
+    value: IntWrapper,
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool
+): int =
+  computeFieldSize(field, value.value, pint32, skipDefault)
+
+proc writeField(
+    stream: OutputStream,
+    field: int,
+    value: IntWrapper,
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool = false
+) {.raises: [IOError].} =
+  writeField(stream, field, value.value, pint32, skipDefault)
+
+proc readFieldInto(
+    stream: InputStream,
+    value: var IntWrapper,
+    header: FieldHeader,
+    ProtoType: type ProtobufExt
+): bool {.raises: [SerializationError, IOError].} =
+  readFieldInto(stream, value.value, header, pint32)
+</code></pre>
+<h2 id="using-the-extension"><a class="header" href="#using-the-extension">Using the Extension</a></h2>
+<p>Now you can use the custom type in your protobuf messages:</p>
+<pre><code class="language-nim">let container = Container(
+  name: "Test",
+  data: IntWrapper(value: 42)
+)
+
+let encoded = Protobuf.encode(container)
+let decoded = Protobuf.decode(encoded, Container)
+
+assert decoded.data.value == 42
+</code></pre>
+<h2 id="extension-with-sequences"><a class="header" href="#extension-with-sequences">Extension with Sequences</a></h2>
+<p>The <a href="../apidocs/protobuf_serialization/extension.html#extensionDefaults.t,typeProtobuf,type,typeSomeProto"><code>extensionDefaults</code></a> macro can generate default handlers for sequences:</p>
+<pre><code class="language-nim">import protobuf_serialization
+
+type
+  CustomType = object
+    value: string
+
+# Generate defaults for seq[CustomType]
+Protobuf.extensionDefaults(CustomType, pstring, defaultSeq = true)
+
+func computeFieldSize(
+    field: int,
+    value: CustomType,
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool
+): int =
+  computeFieldSize(field, value.value, pstring, skipDefault)
+
+proc writeField(
+    stream: OutputStream,
+    field: int,
+    value: CustomType,
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool = false
+) {.raises: [IOError].} =
+  writeField(stream, field, value.value, pstring, skipDefault)
+
+proc readFieldInto(
+    stream: InputStream,
+    value: var CustomType,
+    header: FieldHeader,
+    ProtoType: type ProtobufExt
+): bool {.raises: [SerializationError, IOError].} =
+  readFieldInto(stream, value.value, header, pstring)
+
+# Now you can use seq[CustomType]
+type
+  Container {.proto3.} = object
+    items {.fieldNumber: 1, ext.}: seq[CustomType]
+
+let container = Container(
+  items: @[
+    CustomType(value: "first"),
+    CustomType(value: "second"),
+    CustomType(value: "third")
+  ]
+)
+
+let encoded = Protobuf.encode(container)
+let decoded = Protobuf.decode(encoded, Container)
+
+assert decoded.items.len == 3
+assert decoded.items[0].value == "first"
+assert decoded.items[1].value == "second"
+assert decoded.items[2].value == "third"
+
+echo "Extension with sequences example passed!"
+</code></pre>
+<h2 id="complete-example"><a class="header" href="#complete-example">Complete Example</a></h2>
+<p>Here's a complete example with a custom timestamp type:</p>
+<pre><code class="language-nim">import protobuf_serialization
+
+# Custom timestamp type
+type
+  Timestamp = object
+    seconds: int64
+
+# Message using the custom type
+type
+  Event {.proto3.} = object
+    name {.fieldNumber: 1.}: string
+    timestamp {.fieldNumber: 2, ext.}: Timestamp
+
+# Type extension for Timestamp
+Protobuf.extensionDefaults(Timestamp, pint64, defaultSeq = false)
+
+func computeFieldSize(
+    field: int,
+    value: Timestamp,
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool
+): int =
+  computeFieldSize(field, value.seconds, pint64, skipDefault)
+
+proc writeField(
+    stream: OutputStream,
+    field: int,
+    value: Timestamp,
+    ProtoType: type ProtobufExt,
+    skipDefault: static bool = false
+) {.raises: [IOError].} =
+  writeField(stream, field, value.seconds, pint64, skipDefault)
+
+proc readFieldInto(
+    stream: InputStream,
+    value: var Timestamp,
+    header: FieldHeader,
+    ProtoType: type ProtobufExt
+): bool {.raises: [SerializationError, IOError].} =
+  readFieldInto(stream, value.seconds, header, pint64)
+
+# Usage
+let event = Event(
+  name: "UserLogin",
+  timestamp: Timestamp(seconds: 1234567890'i64)
+)
+
+let encoded = Protobuf.encode(event)
+let decoded = Protobuf.decode(encoded, Event)
+
+assert decoded.timestamp.seconds == 1234567890
+
+echo "Complete type extension example passed!"
+</code></pre>
+<h2 id="key-points"><a class="header" href="#key-points">Key Points</a></h2>
+<ul>
+<li>Mark fields using extensions with <code>{.ext.}</code> pragma</li>
+<li>The extended type itself should NOT be annotated with <code>{.proto2.}</code> or <code>{.proto3.}</code></li>
+<li>Use <a href="../apidocs/protobuf_serialization/extension.html#extensionDefaults.t,typeProtobuf,type,typeSomeProto"><code>extensionDefaults</code></a> to generate default sequence handlers</li>
+<li>Implement all three procedures: <code>computeFieldSize</code>, <code>writeField</code>, <code>readFieldInto</code></li>
+<li>Extensions work with both single values and sequences</li>
+</ul>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next Steps</a></h2>
+<ul>
+<li>Read the <a href="../contributing.html">contributor's guide</a> to learn how to contribute to the library</li>
+</ul>
+<footer id="open-on-gh">Found a bug? <a href="https://github.com/status-im/nim-protobuf-serialization/edit/master/book/src/tutorials/type-extensions.md">Edit this page on GitHub.</a></footer>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../tutorials/import-proto.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../tutorials/enums.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../tutorials/import-proto.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../tutorials/enums.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

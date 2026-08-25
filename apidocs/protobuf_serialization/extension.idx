@@ -1,0 +1,4 @@
+nimTitle	extension	extension.html	module protobuf_serialization/extension		0
+nim	extensionDefaults	extension.html#extensionDefaults.t,typeProtobuf,type,typeSomeProto	template extensionDefaults(Format: type Protobuf; ExtType: type; PbType: type SomeProto;\n                  defaultWriteSeq = false; defaultReadSeq = false;\n                  defaultSeq = false): untyped		71
+nim	extensionDefaults	extension.html#extensionDefaults.t,typeProtobuf,type	template extensionDefaults(Format: type Protobuf; ExtType: type; defaultWriteSeq = false;\n                  defaultReadSeq = false; defaultSeq = false; packed = false): untyped		92
+nimgrp	extensiondefaults	extension.html#extensionDefaults-templates-all	template		71
