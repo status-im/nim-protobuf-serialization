@@ -9,7 +9,7 @@ description   = "Protobuf implementation compatible with the nim-serialization f
 license       = "MIT"
 skipDirs      = @["tests"]
 
-requires "nim >= 1.6.20",
+requires "nim >= 2.0.10",
          "faststreams >= 0.5.0",
          "npeg >= 1.3.0",
          "serialization >= 0.5.4",
@@ -33,8 +33,7 @@ proc build(args, path: string) =
 
 proc run(args, path: string) =
   build args & " --mm:refc -r", path
-  if (NimMajor, NimMinor) > (1, 6):
-    build args & " --mm:orc -r", path
+  build args & " --mm:orc -r", path
 
 task test, "Run all tests":
   for threads in ["--threads:off", "--threads:on"]:
