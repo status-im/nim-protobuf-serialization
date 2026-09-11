@@ -92,7 +92,7 @@ proc writeFieldPacked*[T: not byte](
     output.write(toBytes(puint64(dataSize)))
     output.write(
       cast[ptr UncheckedArray[byte]](
-        unsafeAddr values[0]).toOpenArray(0, dataSize - 1))
+        addr values[0]).toOpenArray(0, dataSize - 1))
   else:
     writeFieldPackedIt(output, field, values, ProtoType, it)
 
