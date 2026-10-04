@@ -20,29 +20,30 @@ let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
 let lang = getEnv("NIMLANG", "c") # Which backend (c/cpp/js)
 let flags = getEnv("NIMFLAGS", "") # Extra flags for the compiler
 let verbose = getEnv("V", "") notin ["", "0"]
+let platform = getEnv("PLATFORM", "")
+let testArguments = [
+  "-d:debug",
+  "-d:release",
+  "-d:danger",
+]
 
 let cfg =
   " --styleCheck:usages --styleCheck:error" &
-  (if verbose: "" else: " --verbosity:0 --hints:off") &
-  " --outdir:build " &
-  quoteShell("--nimcache:build/nimcache/$projectName") &
-  " -f"
+  (if verbose: "" else: " --verbosity:0") &
+  " --skipParentCfg --skipUserCfg --outdir:build -f " &
+  quoteShell("--nimcache:build/nimcache/$projectName")
 
 proc build(args, path: string) =
   exec nimc & " " & lang & " " & cfg & " " & flags & " " & args & " " & path
 
 proc run(args, path: string) =
-  build args & " --mm:refc -r", path
-  build args & " --mm:orc -r", path
+  build args & " -r", path
 
 task test, "Run all tests":
   for threads in ["--threads:off", "--threads:on"]:
-    run threads, "tests/test_all"
-  for mode in ["-d:release", "-d:danger"]:
-    run mode, "tests/test_all"
-
-  if (NimMajor, NimMinor) >= (2, 2) and defined(linux) and defined(amd64):
-    build " -d:danger --mm:orc -d:useMalloc --cc:clang --passc:-fsanitize=address --passl:-fsanitize=address --debugger:native -r", "tests/test_all"
+    for args in testArguments:
+      run threads & " " & args & " --mm:refc", "tests/test_all"
+      run threads & " " & args & " --mm:orc", "tests/test_all"
 
   #Also iterate over every test in tests/fail, and verify they fail to compile.
   echo "\r\n\x1B[0;94m[Suite]\x1B[0;37m Test Fail to Compile"
@@ -56,6 +57,28 @@ task test, "Run all tests":
     else:
       echo "  \x1B[0;31m[FAILED]\x1B[0;37m ", path.split(DirSep)[^1]
       exec "exit 1"
+
+task test_asan, "Run all tests with ASAN":
+  if platform != "x86" and (NimMajor, NimMinor) >= (2, 2):
+    try:
+      exec "echo '#if __clang_major__ < 20\n#error\n#endif' | clang -E - >/dev/null"
+    except OSError:
+      return
+
+    # https://clang.llvm.org/docs/AddressSanitizer.html
+    putEnv("ASAN_OPTIONS", "detect_leaks=0:detect_stack_use_after_return=1")
+    # https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html
+    putEnv("UBSAN_OPTIONS", "print_stacktrace=1")
+    let asanArgs =
+      " --mm:orc -d:useMalloc --cc:clang --debugger:native" &
+      " --passC:-fsanitize=address,undefined" &
+      " --passL:-fsanitize=address,undefined" &
+      " --passC:-fno-sanitize-recover=undefined" &
+      " --passC:-fno-sanitize-merge" &
+      " --passC:-fno-omit-frame-pointer"
+    for threads in ["--threads:off", "--threads:on"]:
+      for args in testArguments:
+        run threads & " " & args & asanArgs, "tests/test_all"
 
 task conformance_test, "Run conformance tests":
   let
@@ -83,7 +106,8 @@ task examples, "Compile and run all examples":
     let filename = path.splitFile().name
     echo "  Running: ", filename
     try:
-      run("", path)
+      run("--mm:refc", path)
+      run("--mm:orc", path)
       echo "  \x1B[0;92m[OK]\x1B[0;37m ", filename
     except:
       echo "  \x1B[0;31m[FAILED]\x1B[0;37m ", filename

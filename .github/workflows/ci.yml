@@ -10,15 +10,8 @@ jobs:
   build:
     uses: status-im/nimbus-common-workflow/.github/workflows/common.yml@main
     with:
-      nimble-version: 42ef70c2102a942c46f13eb76872326edd525cec # v0.22.3
       test-command: |
-        if [[ "${{ matrix.target.os }}" == "windows" ]]; then
-          # https://github.com/status-im/nimbus-eth2/issues/3121
-          export NIMFLAGS="-d:nimRawSetjmp"
-        fi
-        nimble dump --solve
-        nimble list --installed --version
-        nimble setup
-        env NIMLANG="c" nimble test
-        env NIMLANG="cpp" nimble test
+        nimble test_asan
+        env NIMLANG=c nimble test
+        env NIMLANG=cpp nimble test
         nimble examples
