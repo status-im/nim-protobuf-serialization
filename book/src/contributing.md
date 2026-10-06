@@ -11,7 +11,7 @@ cd nim-protobuf-serialization
 
 ## Prerequisites
 
-- [Nim](https://nim-lang.org/) >= 1.6.20
+- [Nim](https://nim-lang.org/) >= 2.2.4
 - [mdBook](https://rust-lang.github.io/mdBook/) (for building documentation)
 
 ## Project Structure

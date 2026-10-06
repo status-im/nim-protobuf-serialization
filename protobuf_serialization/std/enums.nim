@@ -75,7 +75,7 @@ proc writeField*(
 
 proc readFieldInto*(
     stream: InputStream,
-    value: var (enum),  # Nim 1.6 requires parens
+    value: var enum,
     header: FieldHeader,
     ProtoType: type ProtobufExt
 ): bool {.raises: [SerializationError, IOError].} =
