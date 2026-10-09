@@ -369,7 +369,8 @@ proc protoToTypesInternalImpl(filepath: string, isProto3 = true, protoHook: Prot
   else:
     typeSection
   when defined(LogGeneratedTypes):
-    result.storeMacroResult(true)
+    LineInfo(filename: filepath).storeMacroResult(
+      result, writeOutputImmediately = true)
 
 proc protoToTypesImpl*(filepath: string, protoHook: ProtoHook = nil): NimNode {.compileTime.} =
   protoToTypesInternalImpl(filepath, protoHook = protoHook)
