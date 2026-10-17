@@ -1,5 +1,3 @@
-import std/[sets]
-
 import serialization
 export serialization
 
@@ -9,17 +7,9 @@ export types, reader, sizer, writer, format, extension
 Protobuf.setReader ProtobufReader
 Protobuf.setWriter ProtobufWriter, PreferredOutput = seq[byte]
 
-func supportsInternal[T](ty: typedesc[T], handled: var HashSet[string]) {.compileTime.} =
-  if handled.contains($T):
-    return
-  handled.incl($T)
-
-  verifySerializable(T)
-
 func supportsCompileTime[T](_: typedesc[T]) =
   when Protobuf.flatType(default(T)) is (object or tuple):
-    var handled = initHashSet[string]()
-    supportsInternal(Protobuf.flatType(default(T)), handled)
+    verifySerializable(Protobuf.flatType(default(T)))
 
 func supports*[T](_: type Protobuf, ty: typedesc[T]): bool =
   # TODO return false when not supporting, instead of crashing compiler
