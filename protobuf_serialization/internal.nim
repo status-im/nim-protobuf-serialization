@@ -29,20 +29,22 @@ template unsupportedProtoType*(FieldType, RootType, fieldName: untyped): untyped
 template fieldError(T: type, name, msg: static string) =
   {.fatal: $T & "." & name & ": " & msg.}
 
-proc isProto2*(T: type): bool {.compileTime.} = T.hasCustomPragma(proto2)
-proc isProto3*(T: type): bool {.compileTime.} = T.hasCustomPragma(proto3)
-proc isProto*(T: type): bool {.compileTime.} = T.hasCustomPragma(proto)
+func isProto2*(T: type): bool {.compileTime.} = T.hasCustomPragma(proto2)
+func isProto3*(T: type): bool {.compileTime.} = T.hasCustomPragma(proto3)
+func isProto*(T: type): bool {.compileTime.} = T.hasCustomPragma(proto)
 
-proc protoEdition*(T: type): int {.compileTime.} =
+func protoEdition*(T: type): int {.compileTime.} =
   when T.isProto:
     T.getCustomPragmaVal(proto)
   else:
     0
 
-proc isImplicit*(T: type): bool {.compileTime.} =
+func isImplicit*(T: type): bool {.compileTime.} =
   T.hasCustomPragma(implicit)
 
-proc isPacked*(T: type, fieldName: static string): Option[bool] {.compileTime.} =
+func isPacked*(
+    T: type, fieldName: static string
+): Option[bool] {.compileTime.} =
   if T.hasCustomPragmaFixed(fieldName, packed):
     const p = T.getCustomPragmaFixed(fieldName, packed)
     when p is NimNode:
@@ -52,16 +54,16 @@ proc isPacked*(T: type, fieldName: static string): Option[bool] {.compileTime.} 
   else:
     none(bool)
 
-proc isRequired*(T: type, fieldName: static string): bool {.compileTime.} =
+func isRequired*(T: type, fieldName: static string): bool {.compileTime.} =
   T.hasCustomPragmaFixed(fieldName, required)
 
-proc isImplicit*(T: type, fieldName: static string): bool {.compileTime.} =
+func isImplicit*(T: type, fieldName: static string): bool {.compileTime.} =
   T.hasCustomPragmaFixed(fieldName, implicit)
 
-proc supportsPacked*(T: type, ProtoType: type SomeProto): bool =
+func supportsPacked*(T: type, ProtoType: type SomeProto): bool =
   ProtoType is SomePrimitive and T is seq and T isnot seq[byte]
 
-proc supportsPacked*(T: type, ProtoType: type ProtobufExt): bool =
+func supportsPacked*(T: type, ProtoType: type ProtobufExt): bool =
   when T is PBOption:
     false
   else:
@@ -69,17 +71,17 @@ proc supportsPacked*(T: type, ProtoType: type ProtobufExt): bool =
 
 template isExtension(T: type Protobuf, FieldType: type): bool = false
 
-proc fieldNumberOf*(T: type, fieldName: static string): int {.compileTime.} =
+func fieldNumberOf*(T: type, fieldName: static string): int {.compileTime.} =
   const fieldNum = T.getCustomPragmaFixed(fieldName, fieldNumber)
   when fieldNum is NimNode:
     fieldError T, fieldName, "Missing {.fieldNumber: N.}"
   else:
     fieldNum
 
-proc isOneof*(T: type, fieldName: static string): bool {.compileTime.} =
+func isOneof*(T: type, fieldName: static string): bool {.compileTime.} =
   T.hasCustomPragmaFixed(fieldName, oneof)
 
-proc getIdent(n: NimNode): NimNode =
+func getIdent(n: NimNode): NimNode =
   ## Skip pragmas and `*` and return a fresh ident
   case n.kind
   of nnkPragmaExpr:
