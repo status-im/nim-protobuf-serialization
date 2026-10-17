@@ -16,7 +16,7 @@ nim	isOneof	internal.html#isOneof,type,staticstring	proc isOneof(T: type; fieldN
 nim	enumOneofFields	internal.html#enumOneofFields.m,type,untyped,untyped,untyped,untyped,untyped	macro enumOneofFields(T: type; kName, kVal, fName, fTyp, body: untyped): untyped		91
 nim	setOneof	internal.html#setOneof.m,,static[string],untyped,static[string],untyped	macro setOneof(fieldVar: var object; kName: static[string]; kVal: untyped;\n         fName: static[string]; fVal: untyped): untyped		121
 nim	oneofCaseOf	internal.html#oneofCaseOf.m,type,untyped,untyped,untyped,untyped	macro oneofCaseOf(T: type; value, fVar, fName, body: untyped): untyped		129
-nim	protoType	internal.html#protoType.t,untyped,untyped,untyped,untyped	template protoType(InnerType, RootType, FieldType: untyped; fieldName: untyped)		154
+nim	protoType	internal.html#protoType.t,untyped,untyped,untyped,untyped	template protoType(InnerType, RootType, FieldType: untyped; fieldName: untyped)		156
 nim	verifySerializable	internal.html#verifySerializable,typedesc[T]	proc verifySerializable[T](ty: typedesc[T])		227
 nimgrp	isimplicit	internal.html#isImplicit-procs-all	proc		42
 nimgrp	supportspacked	internal.html#supportsPacked-procs-all	proc		59
