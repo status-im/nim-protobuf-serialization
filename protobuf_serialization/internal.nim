@@ -151,11 +151,13 @@ macro oneofCaseOf*(T: type, value, fVar, fName, body: untyped): untyped =
   doAssert caseStmt.len > 0
   newStmtList().add(newTree(nnkCaseStmt, caseStmt))
 
+template elementType[T](_: type seq[T]): type = typeof(T)
+
 template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped) =
   mixin flatType, isExtension
 
   when FieldType is seq and FieldType isnot seq[byte]:
-    type FlatType = Protobuf.flatType(default(typeof(for a in default(FieldType): a)))
+    type FlatType = Protobuf.flatType(default(elementType(FieldType)))
   else:
     type FlatType = Protobuf.flatType(default(FieldType))
 
@@ -221,8 +223,6 @@ template protoType*(InnerType, RootType, FieldType: untyped, fieldName: untyped)
     type InnerType = pbytes
   else:
     unsupportedProtoType(FieldType, RootType, fieldName)
-
-template elementType[T](_: type seq[T]): type = typeof(T)
 
 func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
   mixin flatType, isExtension
