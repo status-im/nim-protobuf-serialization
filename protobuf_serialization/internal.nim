@@ -45,12 +45,8 @@ func isImplicit*(T: type): bool {.compileTime.} =
 func isPacked*(
     T: type, fieldName: static string
 ): Option[bool] {.compileTime.} =
-  if T.hasCustomPragmaFixed(fieldName, packed):
-    const p = T.getCustomPragmaFixed(fieldName, packed)
-    when p is NimNode:
-      none(bool)
-    else:
-      some(p)
+  when T.hasCustomPragmaFixed(fieldName, packed):
+    some(T.getCustomPragmaFixed(fieldName, packed))
   else:
     none(bool)
 
@@ -72,11 +68,10 @@ func supportsPacked*(T: type, ProtoType: type ProtobufExt): bool =
 template isExtension(T: type Protobuf, FieldType: type): bool = false
 
 func fieldNumberOf*(T: type, fieldName: static string): int {.compileTime.} =
-  const fieldNum = T.getCustomPragmaFixed(fieldName, fieldNumber)
-  when fieldNum is NimNode:
-    fieldError T, fieldName, "Missing {.fieldNumber: N.}"
+  when T.hasCustomPragmaFixed(fieldName, fieldNumber):
+    T.getCustomPragmaFixed(fieldName, fieldNumber)
   else:
-    fieldNum
+    fieldError T, fieldName, "Missing {.fieldNumber: N.}"
 
 func isOneof*(T: type, fieldName: static string): bool {.compileTime.} =
   T.hasCustomPragmaFixed(fieldName, oneof)
