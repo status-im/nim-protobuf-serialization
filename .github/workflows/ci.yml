@@ -15,3 +15,12 @@ jobs:
         env NIMLANG=c nimble test
         env NIMLANG=cpp nimble test
         nimble examples
+
+  conformance:
+    uses: status-im/nimbus-common-workflow/.github/workflows/common.yml@main
+    with:
+      concurrency-suffix: conformance
+      test-command: |
+        if [[ "$MATRIX_OS" != "windows" ]]; then
+          nimble conformance_test
+        fi

@@ -9,7 +9,7 @@ description   = "Protobuf implementation compatible with the nim-serialization f
 license       = "MIT"
 skipDirs      = @["tests"]
 
-requires "nim >= 2.2.4",
+requires "nim >= 2.2.6",
          "faststreams >= 0.6.0",
          "npeg >= 1.3.0",
          "serialization >= 0.5.4",
@@ -85,7 +85,7 @@ task conformance_test, "Run conformance tests":
     exec "git clone -b v30.0 --recurse-submodules https://github.com/protocolbuffers/protobuf/ " & conformance
 
   withDir conformance:
-    exec "cmake . -Dprotobuf_BUILD_CONFORMANCE=ON"
+    exec "cmake . -Dprotobuf_BUILD_CONFORMANCE=ON -DCMAKE_CXX_STANDARD=17"
     exec "make -j4 conformance_test_runner"
 
   exec "cp " & conformance / "conformance_test_runner" & " " & test

@@ -346,8 +346,10 @@ proc parseProtobuf*(file: string): ProtoNode =
     imported: HashSet[string]
   result = ProtoNode(kind: ProtoDef, packages: @[])
   while imported.len != toImport.len:
+    var next: string
     for toImp in toImport:
       if toImp notin imported:
-        result.packages.add(parseProtoPackage(toImp, toImport))
-        imported.incl(toImp)
+        next = toImp
         break
+    result.packages.add(parseProtoPackage(next, toImport))
+    imported.incl(next)
