@@ -4,11 +4,7 @@
 
 import std/[options, sets]
 import stew/shims/macros
-#Depending on the situation, one of these two are used.
-#Sometimes, one works where the other doesn't.
-#It all comes down to bugs in Nim and managing them.
-export getCustomPragmaVal, getCustomPragmaFixed
-export hasCustomPragmaFixed
+export getCustomPragmaFixed, hasCustomPragmaFixed
 
 import serialization
 
@@ -29,18 +25,18 @@ template unsupportedProtoType*(FieldType, RootType, fieldName: untyped): untyped
 template fieldError(T: type, name, msg: static string) =
   {.fatal: $T & "." & name & ": " & msg.}
 
-func isProto2*(T: type): bool {.compileTime.} = T.hasCustomPragma(proto2)
-func isProto3*(T: type): bool {.compileTime.} = T.hasCustomPragma(proto3)
-func isProto*(T: type): bool {.compileTime.} = T.hasCustomPragma(proto)
+func isProto2*(T: type): bool {.compileTime.} = T.hasCustomPragmaFixed(proto2)
+func isProto3*(T: type): bool {.compileTime.} = T.hasCustomPragmaFixed(proto3)
+func isProto*(T: type): bool {.compileTime.} = T.hasCustomPragmaFixed(proto)
 
 func protoEdition*(T: type): int {.compileTime.} =
   when T.isProto:
-    T.getCustomPragmaVal(proto)
+    T.getCustomPragmaFixed(proto)
   else:
     0
 
 func isImplicit*(T: type): bool {.compileTime.} =
-  T.hasCustomPragma(implicit)
+  T.hasCustomPragmaFixed(implicit)
 
 func isPacked*(
     T: type, fieldName: static string
@@ -255,7 +251,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
       {.fatal: $T & ": requires one of {.proto2.}, {.proto3.} or {.proto.}".}
     when isProto and T.protoEdition() notin protoEditions:
       {.fatal: $T & ": invalid edition; must be one of 2023, 2024, or 2026".}
-    when T.hasCustomPragma(oneof):
+    when T.hasCustomPragmaFixed(oneof):
       {.fatal: $T & ": unexpected oneof value; missing {.oneof.} field?".}
 
     enumInstanceSerializedFields(inst, fieldName, fieldVal):
@@ -275,7 +271,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
           fieldError T, fieldName, $fieldValTyp & " object requires one of {.proto2.}, {.proto3.} or {.proto.}"
         elif fieldValTyp.isProto() and fieldValTyp.protoEdition() notin protoEditions:
           fieldError T, fieldName, $fieldValTyp & " invalid edition; must be one of 2023, 2024, or 2026"
-        elif not fieldValTyp.hasCustomPragma(oneof):
+        elif not fieldValTyp.hasCustomPragmaFixed(oneof):
           fieldError T, fieldName, $fieldValTyp & " object missing {.oneof.}"
         enumOneofFields(fieldValTyp, kName, kVal, fName, fTyp):
           when kVal == default(typeof(kVal)):
@@ -292,7 +288,7 @@ func verifySerializable*[T](ty: typedesc[T]) {.compileTime.} =
             fieldError fieldValTyp, fName, "Oneof field can't be seq[T] / repeated"
           elif fTyp is PBOption:
             fieldError fieldValTyp, fName, "Oneof field can't be PBOption"
-          elif fTyp.hasCustomPragma(oneof):
+          elif fTyp.hasCustomPragmaFixed(oneof):
             fieldError fieldValTyp, fName, "Oneof field can't be oneof (nested)"
           else:
             verifySerializable(fTyp)
