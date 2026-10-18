@@ -8,6 +8,6 @@ nim	writeField	writer.html#writeField,OutputStream,int,openArray[T],typeSomeProt
 nim	writeFieldPackedIt	writer.html#writeFieldPackedIt.t,OutputStream,int,openArray[T],typeSomePrimitive,untyped	template writeFieldPackedIt[T: not byte](output: OutputStream; field: int;\n                                values: openArray[T];\n                                ProtoType: type SomePrimitive; item: untyped): untyped		71
 nim	writeFieldPacked	writer.html#writeFieldPacked,OutputStream,int,openArray[T],typeSomePrimitive	proc writeFieldPacked[T: not byte](output: OutputStream; field: int;\n                              values: openArray[T];\n                              ProtoType: type SomePrimitive)		81
 nim	writeField	writer.html#writeField,OutputStream,int,PBOption,type,staticbool	proc writeField(stream: OutputStream; field: int; value: PBOption; ProtoType: type;\n           skipDefault: static bool = false)		99
-nim	writeValue	writer.html#writeValue,ProtobufWriter,T	proc writeValue[T: object](writer: ProtobufWriter; value: T)		134
+nim	writeValue	writer.html#writeValue,ProtobufWriter,T	proc writeValue[T: object](writer: ProtobufWriter; value: T)		135
 nimgrp	writefieldpacked	writer.html#writeFieldPacked-procs-all	proc		22
 nimgrp	writefield	writer.html#writeField-procs-all	proc		17
