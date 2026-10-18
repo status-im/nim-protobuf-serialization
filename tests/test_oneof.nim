@@ -10,6 +10,7 @@
 import unittest2
 import stew/byteutils
 import ../protobuf_serialization
+import ./oneof_private_kind
 
 type
   Kind1 {.pure.} = enum
@@ -54,6 +55,7 @@ suite "Test oneof":
       ret.one.kind == Kind1.x
       ret.one.x == 1
       Protobuf.encode(ret) == encoded
+      Protobuf.computeSize(ret) == encoded.len
 
   test "oneof field 2 set":
     let encoded = "1001".hexToSeqByte
@@ -402,3 +404,55 @@ suite "Test all types in oneof":
       ret.one.kind == KindAll.x15
       ret.one.x15 == SomeMessage(x: 1, y: 1)
       Protobuf.encode(ret) == "7a0408011001".hexToSeqByte
+
+const xSet = {Kind1.x}
+
+type
+  OneOfSet {.proto3, oneof.} = object
+    case kind: Kind1
+    of Kind1.notSet:
+      discard
+    of xSet:
+      x {.fieldNumber: 1, pint.}: int64
+    of Kind1.y:
+      y {.fieldNumber: 2, pint.}: int64
+
+  OneOfElse {.proto3, oneof.} = object
+    case kind: Kind1
+    of Kind1.notSet:
+      discard
+    of Kind1.x:
+      x {.fieldNumber: 1, pint.}: int64
+    else:
+      y {.fieldNumber: 2, pint.}: int64
+
+  ObjSet {.proto3.} = object
+    one {.oneof.}: OneOfSet
+
+  ObjElse {.proto3.} = object
+    one {.oneof.}: OneOfElse
+
+suite "Test oneof branch values":
+  test "set constant oneof set":
+    let encoded = "0801".hexToSeqByte
+    let ret = Protobuf.decode(encoded, ObjSet)
+    check:
+      ret.one.kind == Kind1.x
+      ret.one.x == 1
+      Protobuf.encode(ret) == encoded
+
+  test "else oneof set":
+    let encoded = "1001".hexToSeqByte
+    let ret = Protobuf.decode(encoded, ObjElse)
+    check:
+      ret.one.kind == Kind1.y
+      ret.one.y == 1
+      Protobuf.encode(ret) == encoded
+
+  test "private enum oneof set":
+    let encoded = "0801".hexToSeqByte
+    let ret = Protobuf.decode(encoded, ObjPrivateKind)
+    check:
+      $ret.one.kind == "x"
+      ret.one.x == 1
+      Protobuf.encode(ret) == encoded
