@@ -2,7 +2,7 @@
 
 {.push raises: [], gcsafe.}
 
-import std/[options, sets]
+import std/[options, sets, setutils]
 import stew/shims/macros
 export getCustomPragmaFixed, hasCustomPragmaFixed
 
@@ -72,47 +72,55 @@ func fieldNumberOf*(T: type, fieldName: static string): int {.compileTime.} =
 func isOneof*(T: type, fieldName: static string): bool {.compileTime.} =
   T.hasCustomPragmaFixed(fieldName, oneof)
 
-func getIdent(n: NimNode): NimNode =
-  ## Skip pragmas and `*` and return a fresh ident
-  case n.kind
-  of nnkPragmaExpr:
-    getIdent(n[0])
-  of nnkPostfix:
-    getIdent(n[1])
-  of nnkSym, nnkIdent:
-    ident($n)
-  else:
-    raiseAssert "Expected ident but found: " & $n.kind
+func oneofValue[T](values: set[T]): T =
+  for value in values:
+    return value
 
 macro enumOneofFields*(T: type, kName, kVal, fName, fTyp, body: untyped): untyped =
   result = newStmtList()
-  let typeImpl = getType(T)[1].getImpl()
-  var discriminatorCount = 0
-  var lastBranch: NimNode = nil
-  for field in recordFields(typeImpl):
+  var
+    discriminatorCount = 0
+    lastBranch: NimNode = nil
+    discriminatorName, unselectedValues: NimNode
+  for field in T.recordFields:
     if field.caseField == nil:
       if not field.isDiscriminator:
-        error $typeImpl[0].getIdent() & "." & $field.name.getIdent() & ": unexpected oneof field; field must be within a `case` branch"
+        error $field.name &
+          ": unexpected oneof field; must be within a `case` branch", field.name
       if discriminatorCount > 0:
-        error $typeImpl[0].getIdent() & "." & $field.name.getIdent() & ": only one `case` is allowed"
+        error $field.name & ": only one `case` is allowed", field.name
       inc discriminatorCount
+      let discriminatorTyp = field.typ
+      discriminatorName = newLit($field.name)
+      unselectedValues = quote do:
+        complement({default(typeof(`discriminatorTyp`))})
     else:
-      let discriminatorName = newLit($field.caseField[0].getIdent())
-      let fieldName = newLit($field.name.getIdent())
-      let fieldTyp = field.typ
-      let branchVal = field.caseBranch[0]
-      if branchVal == lastBranch:
-        error $typeImpl[0].getIdent() & "." & $field.name.getIdent() & ": only one field is allowed per branch"
-      lastBranch = branchVal
+      if field.caseBranch == lastBranch:
+        error $field.name & ": only one field is allowed per branch", field.name
+      let
+        fieldName = newLit($field.name)
+        fieldTyp = field.typ
+        branchValues = field.caseBranchValues
+      lastBranch = field.caseBranch
+      unselectedValues = infix(unselectedValues, "-", branchValues)
       result.add quote do:
         block:
           const `kName` {.used.} = `discriminatorName`
           const `fName` {.used.} = `fieldName`
-          template `kVal`(): untyped {.used.} =
-            `branchVal`
+          const values = `branchValues`
+          when card(values) != 1:
+            fieldError `T`, `fName`, "Oneof branch must have exactly one value"
+          const `kVal` {.used.} = values.oneofValue
           template `fTyp`(): untyped {.used.} =
             `fieldTyp`
           `body`
+  if unselectedValues != nil:
+    result.add quote do:
+      block:
+        const values = `unselectedValues`
+        when values != {}:
+          fieldError `T`, `discriminatorName`,
+            "Oneof branch of non-default value must contain a field: " & $values
 
 macro setOneof*(
     fieldVar: var object, kName: static[string], kVal: untyped, fName: static[string], fVal: untyped
@@ -121,31 +129,6 @@ macro setOneof*(
   let field = ident(fName)
   quote do:
     `fieldVar` = typeof(`fieldVar`)(`kind`: `kVal`, `field`: move(`fVal`))
-
-macro oneofCaseOf*(T: type, value, fVar, fName, body: untyped): untyped =
-  var caseStmt = newSeq[NimNode]()
-  let typeImpl = getType(T)[1].getImpl()
-  for field in recordFields(typeImpl):
-    if field.caseField == nil:
-      doAssert caseStmt.len == 0
-      caseStmt.add newDotExpr(value, field.name.getIdent())
-      let enumTyp = field.typ
-      let defVal = quote do: default(typeof(`enumTyp`))
-      let discardStmt = quote do: discard
-      caseStmt.add newTree(nnkOfBranch, defVal, discardStmt)
-    else:
-      doAssert caseStmt.len > 0
-      let branchVal = field.caseBranch[0]
-      let fieldName = newLit($field.name.getIdent())
-      let fieldVal = newDotExpr(value, field.name.getIdent())
-      let body2 = quote do:
-        const `fName` {.used.} = `fieldName`
-        template `fVar`(): untyped {.used.} =
-          `fieldVal`
-        `body`
-      caseStmt.add newTree(nnkOfBranch, branchVal, body2)
-  doAssert caseStmt.len > 0
-  newStmtList().add(newTree(nnkCaseStmt, caseStmt))
 
 template elementType[T](_: type seq[T]): type = typeof(T)
 

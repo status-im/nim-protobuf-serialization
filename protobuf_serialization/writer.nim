@@ -113,10 +113,11 @@ proc writeObject[T: object](stream: OutputStream, value: T) {.raises: [IOError].
 
   enumInstanceSerializedFields(value, fieldName, fieldVal):
     when T.isOneof(fieldName):
-      oneofCaseOf(typeof(fieldVal), fieldVal, fVal, fName):
-        const fieldNum = typeof(fieldVal).fieldNumberOf(fName)
-        protoType(ProtoType, typeof(fieldVal), typeof(fVal), fName)
-        stream.writeField(fieldNum, fVal, ProtoType, false)
+      enumOneofFields(typeof(fieldVal), kName, kVal, fName, fTyp):
+        if fieldVal.field(kName) == kVal:
+          const fieldNum = typeof(fieldVal).fieldNumberOf(fName)
+          protoType(ProtoType, typeof(fieldVal), fTyp, fName)
+          stream.writeField(fieldNum, fieldVal.field(fName), ProtoType, false)
     else:
       const
         fieldNum = T.fieldNumberOf(fieldName)

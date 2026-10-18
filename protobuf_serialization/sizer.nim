@@ -18,7 +18,7 @@ func computeFieldSizePacked*(
   unsupportedProtoType ProtoType.FieldType, ProtoType.RootType, ProtoType.fieldName
 
 func computeFieldSize*[T](
-    field: int, 
+    field: int,
     value: seq[T],
     ProtoType: type ProtobufExt,
     skipDefault: static bool
@@ -70,7 +70,7 @@ when defined(ConformanceTest):
       0
 
 func computeFieldSize*[T: not byte](
-    field: int, 
+    field: int,
     value: openArray[T],
     ProtoType: type SomeProto,
     skipDefault: static bool
@@ -129,10 +129,12 @@ func computeObjectSize*[T: object](value: T): int =
   enumInstanceSerializedFields(value, fieldName, fieldVal):
     var fieldSize = 0
     when T.isOneof(fieldName):
-      oneofCaseOf(typeof(fieldVal), fieldVal, fVal, fName):
-        const fieldNum = typeof(fieldVal).fieldNumberOf(fName)
-        protoType(ProtoType, typeof(fieldVal), typeof(fVal), fName)
-        fieldSize = computeFieldSize(fieldNum, fVal, ProtoType, false)
+      enumOneofFields(typeof(fieldVal), kName, kVal, fName, fTyp):
+        if fieldVal.field(kName) == kVal:
+          const fieldNum = typeof(fieldVal).fieldNumberOf(fName)
+          protoType(ProtoType, typeof(fieldVal), fTyp, fName)
+          fieldSize = computeFieldSize(
+            fieldNum, fieldVal.field(fName), ProtoType, false)
     else:
       const
         fieldNum = T.fieldNumberOf(fieldName)
