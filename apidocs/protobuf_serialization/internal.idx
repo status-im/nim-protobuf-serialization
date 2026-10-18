@@ -1,22 +1,22 @@
 nimTitle	internal	internal.html	module protobuf_serialization/internal		0
-nim	flatType	internal.html#flatType.t,typeProtobuf,auto	template flatType(T: type Protobuf; value: auto): type		23
-nim	unsupportedProtoType	internal.html#unsupportedProtoType.t,untyped,untyped,untyped	template unsupportedProtoType(FieldType, RootType, fieldName: untyped): untyped		26
-nim	isProto2	internal.html#isProto2,type	proc isProto2(T: type): bool		32
-nim	isProto3	internal.html#isProto3,type	proc isProto3(T: type): bool		33
-nim	isProto	internal.html#isProto,type	proc isProto(T: type): bool		34
-nim	protoEdition	internal.html#protoEdition,type	proc protoEdition(T: type): int		36
-nim	isImplicit	internal.html#isImplicit,type	proc isImplicit(T: type): bool		42
-nim	isPacked	internal.html#isPacked,type,staticstring	proc isPacked(T: type; fieldName: static string): Option[bool]		45
-nim	isRequired	internal.html#isRequired,type,staticstring	proc isRequired(T: type; fieldName: static string): bool		53
-nim	isImplicit	internal.html#isImplicit,type,staticstring	proc isImplicit(T: type; fieldName: static string): bool		56
-nim	supportsPacked	internal.html#supportsPacked,type,typeSomeProto	proc supportsPacked(T: type; ProtoType: type SomeProto): bool		59
-nim	supportsPacked	internal.html#supportsPacked,type,typeProtobufExt	proc supportsPacked(T: type; ProtoType: type ProtobufExt): bool		62
-nim	fieldNumberOf	internal.html#fieldNumberOf,type,staticstring	proc fieldNumberOf(T: type; fieldName: static string): int		70
-nim	isOneof	internal.html#isOneof,type,staticstring	proc isOneof(T: type; fieldName: static string): bool		76
-nim	enumOneofFields	internal.html#enumOneofFields.m,type,untyped,untyped,untyped,untyped,untyped	macro enumOneofFields(T: type; kName, kVal, fName, fTyp, body: untyped): untyped		91
-nim	setOneof	internal.html#setOneof.m,,static[string],untyped,static[string],untyped	macro setOneof(fieldVar: var object; kName: static[string]; kVal: untyped;\n         fName: static[string]; fVal: untyped): untyped		121
-nim	oneofCaseOf	internal.html#oneofCaseOf.m,type,untyped,untyped,untyped,untyped	macro oneofCaseOf(T: type; value, fVar, fName, body: untyped): untyped		129
-nim	protoType	internal.html#protoType.t,untyped,untyped,untyped,untyped	template protoType(InnerType, RootType, FieldType: untyped; fieldName: untyped)		156
-nim	verifySerializable	internal.html#verifySerializable,typedesc[T]	proc verifySerializable[T](ty: typedesc[T])		227
-nimgrp	isimplicit	internal.html#isImplicit-procs-all	proc		42
-nimgrp	supportspacked	internal.html#supportsPacked-procs-all	proc		59
+nim	flatType	internal.html#flatType.t,typeProtobuf,auto	template flatType(T: type Protobuf; value: auto): type		19
+nim	unsupportedProtoType	internal.html#unsupportedProtoType.t,untyped,untyped,untyped	template unsupportedProtoType(FieldType, RootType, fieldName: untyped): untyped		22
+nim	isProto2	internal.html#isProto2,type	proc isProto2(T: type): bool		28
+nim	isProto3	internal.html#isProto3,type	proc isProto3(T: type): bool		29
+nim	isProto	internal.html#isProto,type	proc isProto(T: type): bool		30
+nim	protoEdition	internal.html#protoEdition,type	proc protoEdition(T: type): int		32
+nim	isImplicit	internal.html#isImplicit,type	proc isImplicit(T: type): bool		38
+nim	isPacked	internal.html#isPacked,type,staticstring	proc isPacked(T: type; fieldName: static string): Option[bool]		41
+nim	isRequired	internal.html#isRequired,type,staticstring	proc isRequired(T: type; fieldName: static string): bool		49
+nim	isImplicit	internal.html#isImplicit,type,staticstring	proc isImplicit(T: type; fieldName: static string): bool		52
+nim	supportsPacked	internal.html#supportsPacked,type,typeSomeProto	proc supportsPacked(T: type; ProtoType: type SomeProto): bool		55
+nim	supportsPacked	internal.html#supportsPacked,type,typeProtobufExt	proc supportsPacked(T: type; ProtoType: type ProtobufExt): bool		58
+nim	fieldNumberOf	internal.html#fieldNumberOf,type,staticstring	proc fieldNumberOf(T: type; fieldName: static string): int		66
+nim	isOneof	internal.html#isOneof,type,staticstring	proc isOneof(T: type; fieldName: static string): bool		72
+nim	enumOneofFields	internal.html#enumOneofFields.m,type,untyped,untyped,untyped,untyped,untyped	macro enumOneofFields(T: type; kName, kVal, fName, fTyp, body: untyped): untyped		87
+nim	setOneof	internal.html#setOneof.m,,static[string],untyped,static[string],untyped	macro setOneof(fieldVar: var object; kName: static[string]; kVal: untyped;\n         fName: static[string]; fVal: untyped): untyped		117
+nim	oneofCaseOf	internal.html#oneofCaseOf.m,type,untyped,untyped,untyped,untyped	macro oneofCaseOf(T: type; value, fVar, fName, body: untyped): untyped		125
+nim	protoType	internal.html#protoType.t,untyped,untyped,untyped,untyped	template protoType(InnerType, RootType, FieldType: untyped; fieldName: untyped)		152
+nim	verifySerializable	internal.html#verifySerializable,typedesc[T]	proc verifySerializable[T](ty: typedesc[T])		223
+nimgrp	isimplicit	internal.html#isImplicit-procs-all	proc		38
+nimgrp	supportspacked	internal.html#supportsPacked-procs-all	proc		55
