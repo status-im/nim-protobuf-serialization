@@ -95,6 +95,8 @@ macro enumOneofFields*(T: type, kName, kVal, fName, fTyp, body: untyped): untype
       unselectedValues = quote do:
         complement({default(typeof(`discriminatorTyp`))})
     else:
+      if field.isDiscriminator:
+        error $field.name & ": nested `case` is not allowed", field.name
       if field.caseBranch == lastBranch:
         error $field.name & ": only one field is allowed per branch", field.name
       let
