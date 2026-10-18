@@ -14,8 +14,8 @@ nim	supportsPacked	internal.html#supportsPacked,type,typeProtobufExt	proc suppor
 nim	fieldNumberOf	internal.html#fieldNumberOf,type,staticstring	proc fieldNumberOf(T: type; fieldName: static string): int		66
 nim	isOneof	internal.html#isOneof,type,staticstring	proc isOneof(T: type; fieldName: static string): bool		72
 nim	enumOneofFields	internal.html#enumOneofFields.m,type,untyped,untyped,untyped,untyped,untyped	macro enumOneofFields(T: type; kName, kVal, fName, fTyp, body: untyped): untyped		79
-nim	setOneof	internal.html#setOneof.m,,static[string],untyped,static[string],untyped	macro setOneof(fieldVar: var object; kName: static[string]; kVal: untyped;\n         fName: static[string]; fVal: untyped): untyped		125
-nim	protoType	internal.html#protoType.t,untyped,untyped,untyped,untyped	template protoType(InnerType, RootType, FieldType: untyped; fieldName: untyped)		135
-nim	verifySerializable	internal.html#verifySerializable,typedesc[T]	proc verifySerializable[T](ty: typedesc[T])		206
+nim	setOneof	internal.html#setOneof.m,,static[string],untyped,static[string],untyped	macro setOneof(fieldVar: var object; kName: static[string]; kVal: untyped;\n         fName: static[string]; fVal: untyped): untyped		127
+nim	protoType	internal.html#protoType.t,untyped,untyped,untyped,untyped	template protoType(InnerType, RootType, FieldType: untyped; fieldName: untyped)		137
+nim	verifySerializable	internal.html#verifySerializable,typedesc[T]	proc verifySerializable[T](ty: typedesc[T])		208
 nimgrp	isimplicit	internal.html#isImplicit-procs-all	proc		38
 nimgrp	supportspacked	internal.html#supportsPacked-procs-all	proc		55
