@@ -89,6 +89,9 @@ macro enumOneofFields*(T: type, kName, kVal, fName, fTyp, body: untyped): untype
           ": unexpected oneof field; must be within a `case` branch", field.name
       if discriminatorCount > 0:
         error $field.name & ": only one `case` is allowed", field.name
+      if field.hasPragma"fieldNumber":
+        error $field.name &
+          ": discriminator can't have {.fieldNumber: N.}", field.name
       inc discriminatorCount
       let discriminatorTyp = field.typ
       discriminatorName = newLit($field.name)
