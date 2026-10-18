@@ -55,6 +55,7 @@ suite "Test oneof":
       ret.one.kind == Kind1.x
       ret.one.x == 1
       Protobuf.encode(ret) == encoded
+      Protobuf.computeSize(ret) == encoded.len
 
   test "oneof field 2 set":
     let encoded = "1001".hexToSeqByte
